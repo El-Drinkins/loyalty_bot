@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>📊 Статистика аренды</h1>
+
+<a href="/catalog" class="button" style="margin-bottom: 20px;">◀️ Назад</a>
+
+<div class="stats-grid" style="margin-bottom: 30px;">
+    <div class="stat-card">
+        <h3>Всего моделей</h3>
+        <div class="value">{{ total_models }}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Активных моделей</h3>
+        <div class="value">{{ active_models }}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Всего аренд</h3>
+        <div class="value">{{ total_rentals }}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Активных аренд</h3>
+        <div class="value">{{ active_rentals }}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Завершенных</h3>
+        <div class="value">{{ completed_rentals }}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Выручка</h3>
+        <div class="value">{{ total_revenue }} ₽</div>
+    </div>
+</div>
+
+<h2>🔥 Топ-10 самых арендуемых моделей</h2>
+<table style="margin-bottom: 30px;">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Модель</th>
+            <th>Бренд</th>
+            <th>Категория</th>
+            <th>Количество аренд</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for model, count in top_models %}
+        <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ model.name }}</td>
+            <td>{{ model.brand.name }}</td>
+            <td>{{ model.brand.category.name }}</td>
+            <td>{{ count }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2>📊 Статистика по категориям</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Категория</th>
+            <th>Моделей</th>
+            <th>Аренд</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for name, model_count, rental_count in category_stats %}
+        <tr>
+            <td>{{ name }}</td>
+            <td>{{ model_count }}</td>
+            <td>{{ rental_count }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

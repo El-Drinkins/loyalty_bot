@@ -1,0 +1,37 @@
+<div style="margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+    <!-- Левая колонка: начисление/списание -->
+    <div style="border: 1px solid #ddd; border-radius: 8px; padding: 20px;">
+        <h3>💰 Начислить баллы</h3>
+        <form action="/client/{{ user.id }}/add_points" method="post" onsubmit="return confirm('Действие будет записано в журнал. Продолжить?')">
+            <div style="margin-bottom: 10px;">
+                <label>Сумма:</label>
+                <input type="number" name="amount" required style="width: 100%; padding: 8px; margin-top: 5px;">
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label>Причина:</label>
+                <input type="text" name="reason" required style="width: 100%; padding: 8px; margin-top: 5px;">
+            </div>
+            <input type="hidden" name="admin_id" value="0">
+            <button type="submit" class="button" style="width: 100%;">Начислить</button>
+        </form>
+        
+        <div style="margin-top: 20px;">
+            <h3>💸 Списать баллы</h3>
+            <form action="/client/{{ user.id }}/subtract_points" method="post" onsubmit="return confirm('Действие будет записано в журнал. Продолжить?')">
+                <div style="margin-bottom: 10px;">
+                    <label>Сумма:</label>
+                    <input type="number" name="amount" required style="width: 100%; padding: 8px; margin-top: 5px;">
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <label>Причина:</label>
+                    <input type="text" name="reason" required style="width: 100%; padding: 8px; margin-top: 5px;">
+                </div>
+                <input type="hidden" name="admin_id" value="0">
+                <button type="submit" class="button button-red" style="width: 100%;">Списать</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Правая колонка: управление черным списком (будет в отдельном файле) -->
+    {% include "client/blacklist.html" %}
+</div>

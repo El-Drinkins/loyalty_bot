@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>📋 Журнал действий администраторов</h1>
+
+<div style="margin-bottom: 20px; display: flex; gap: 20px;">
+    <div>
+        <label>Фильтр по типу:</label>
+        <select onchange="window.location.href = '?action=' + this.value + '&page=1'">
+            <option value="">Все действия</option>
+            <option value="assign_referral" {% if action_filter == 'assign_referral' %}selected{% endif %}>Назначение пригласившего</option>
+            <option value="add_points" {% if action_filter == 'add_points' %}selected{% endif %}>Начисление баллов</option>
+            <option value="subtract_points" {% if action_filter == 'subtract_points' %}selected{% endif %}>Списание баллов</option>
+            <option value="blacklist" {% if action_filter == 'blacklist' %}selected{% endif %}>Блокировка</option>
+            <option value="unblacklist" {% if action_filter == 'unblacklist' %}selected{% endif %}>Разблокировка</option>
+            <option value="delete_user" {% if action_filter == 'delete_user' %}selected{% endif %}>Удаление пользователя</option>
+        </select>
+    </div>
+    
+    <div>
+        <label>Поиск по пользователю:</label>
+        <input type="text" id="userSearch" placeholder="ID или имя" value="{{ user_filter or '' }}">
+        <button onclick="window.location.href = '?user_id=' + document.getElementById('userSearch').value + '&page=1'" class="button button-small">Найти</button>
+    </div>
+</div>
+
+{% if grouped_logs %}
+    {% for date, logs in grouped_logs %}
+        <h3 style="color: #666; border-bottom: 2px solid #4CAF50; padding-bottom: 5px; margin-top: 30px;">📅 {{ date }}</h3>
+        
+        {% for log in logs %}
+        <div class="log-entry">
+            <div class="log-header">
+                <span>⏱️ {{ log.created_at.strftime('%H:%M:%S') }}</span>
+                <span>👤 Админ ID: {{ log.admin_id }}</span>
+            </div>
+            
+            <div class="log-action">
+                {% if log.action_type == 'assign_referral' %}
+                    📌 Назначение пригласившего
+                {% elif log.action_type == 'add_points' %}
+                    💰 Начисление баллов
+                {% elif log.action_type == 'subtract_points' %}
+                    💸 Списание баллов
+                {% elif log.action_type == 'blacklist' %}
+                    ⛔ Блокировка
+                {% elif log.action_type == 'unblacklist' %}
+                    ✅ Разблокировка
+                {% elif log.action_type == 'delete_user' %}
+                    🗑️ Удаление пользователя
+                {% else %}
+                    {{ log.action_type }}
+                {% endif %}
+            </div>
+            
+            <div style="margin: 5px 0;">
+                <strong>Пользователь:</strong> 
+                <a href="/client/{{ log.user_id }}">{{ log.user_name or 'ID: ' + log.user_id|string }}</a>
+            </div>
+            
+            {% if log.old_value or log.new_value %}
+            <div style="margin: 5px 0; font-family: monospace; background: #f5f5f5; padding: 5px; border-radius: 4px;">
+                {% if log.old_value %}Было: {{ log.old_value }} → {% endif %}
+                {% if log.new_value %}Стало: {{ log.new_value }}{% endif %}
+            </div>
+            {% endif %}
+            
+            {% if log.reason %}
+            <div class="log-reason">
+                📝 Причина: "{{ log.reason }}"
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% endfor %}
+    
+    <!-- Пагинация -->
+    {% if total_pages > 1 %}
+    <div style="margin-top: 30px; text-align: center;">
+        {% if page > 1 %}
+            <a href="?page=1&action={{ action_filter or '' }}&user_id={{ user_filter or '' }}" class="button button-small">« Первая</a>
+            <a href="?page={{ page-1 }}&action={{ action_filter or '' }}&user_id={{ user_filter or '' }}" class="button button-small">‹ Предыдущая</a>
+        {% endif %}
+        
+        <span style="margin: 0 10px;">
+            Страница {{ page }} из {{ total_pages }}
+        </span>
+        
+        {% if page < total_pages %}
+            <a href="?page={{ page+1 }}&action={{ action_filter or '' }}&user_id={{ user_filter or '' }}" class="button button-small">Следующая ›</a>
+            <a href="?page={{ total_pages }}&action={{ action_filter or '' }}&user_id={{ user_filter or '' }}" class="button button-small">Последняя »</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    
+{% else %}
+    <p style="text-align: center; padding: 40px; background: #f5f5f5; border-radius: 8px;">
+        📭 Нет записей в журнале
+    </p>
+{% endif %}
+
+<div style="margin-top: 20px; text-align: center;">
+    <a href="/" class="button">🏠 На главную</a>
+</div>
+{% endblock %}

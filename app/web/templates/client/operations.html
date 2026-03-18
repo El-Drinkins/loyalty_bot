@@ -1,0 +1,48 @@
+<h2>Операции</h2>
+{% if grouped_transactions %}
+    {% for date, transactions in grouped_transactions %}
+        <div style="margin-bottom: 25px;">
+            <h3 style="color: #666; border-bottom: 2px solid #4CAF50; padding-bottom: 5px;">📅 {{ date }}</h3>
+            
+            {% for t in transactions %}
+                <div style="border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 8px; background-color: {% if t.amount > 0 %}#e8f5e8{% else %}#ffe8e8{% endif %};">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="font-size: 16px; font-weight: bold; color: {% if t.amount > 0 %}green{% else %}red{% endif %};">
+                                {% if t.amount > 0 %}🟢 +{{ t.amount }}{% else %}🔴 {{ t.amount }}{% endif %} баллов
+                            </span>
+                            <span style="margin-left: 10px; color: #666;">{{ t.reason }}</span>
+                        </div>
+                        <span style="color: #999; font-size: 14px;">{{ t.timestamp.strftime('%H:%M') }}</span>
+                    </div>
+                    
+                    <!-- ПРАВИЛЬНЫЙ РАСЧЕТ БАЛАНСА ПОСЛЕ ОПЕРАЦИИ -->
+                    {% set ns = namespace(balance_after=user.balance) %}
+                    {% for later_t in transactions %}
+                        {% if later_t.timestamp > t.timestamp %}
+                            {% set ns.balance_after = ns.balance_after - later_t.amount %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <div style="margin-top: 5px; color: #333; font-weight: 500;">
+                        {% if t.amount > 0 %}
+                            💰 Баланс после начисления: {{ ns.balance_after }} ⭐
+                        {% else %}
+                            💰 Баланс после списания: {{ ns.balance_after }} ⭐
+                        {% endif %}
+                    </div>
+                    
+                    {% if t.admin_id %}
+                    <div style="margin-top: 5px; font-size: 12px; color: #999;">
+                        Администратор: {{ t.admin_id }}
+                    </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    {% endfor %}
+{% else %}
+    <p style="text-align: center; padding: 40px; background: #f5f5f5; border-radius: 8px;">
+        📭 У пользователя нет операций
+    </p>
+{% endif %}

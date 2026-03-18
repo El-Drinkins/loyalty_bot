@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>📦 Управление арендами</h1>
+
+<div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+    <a href="/catalog/rentals/add" class="button">➕ Добавить аренду</a>
+    <a href="/catalog" class="button">◀️ Назад</a>
+</div>
+
+<div class="stats-grid" style="margin-bottom: 20px;">
+    <div class="stat-card">
+        <h3>Активных</h3>
+        <div class="value">{{ active_count }}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Завершенных</h3>
+        <div class="value">{{ completed_count }}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Всего</h3>
+        <div class="value">{{ total_count }}</div>
+    </div>
+</div>
+
+<!-- Фильтры -->
+<form method="get" style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+    <select name="status" style="padding: 8px;">
+        <option value="">Все статусы</option>
+        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Активные</option>
+        <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Завершенные</option>
+    </select>
+    
+    <input type="number" name="user_id" placeholder="ID клиента" value="{{ user_filter or '' }}" style="padding: 8px; width: 150px;">
+    
+    <button type="submit" class="button">🔍 Применить</button>
+    <a href="/catalog/rentals" class="button button-red">Сбросить</a>
+</form>
+
+<table>
+    <thead>
+        <tr>
+            <th>№</th>
+            <th>Клиент</th>
+            <th>Техника</th>
+            <th>Период</th>
+            <th>Сумма</th>
+            <th>Статус</th>
+            <th>Действия</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for rental in rentals %}
+        <tr>
+            <td>{{ rental.rental_number }}</td>
+            <td>
+                <a href="/client/{{ rental.user.id }}">{{ rental.user.full_name }}</a>
+            </td>
+            <td>{{ rental.model.brand.name }} {{ rental.model.name }}</td>
+            <td>{{ rental.start_date.strftime('%d.%m.%Y') }}<br>
+                <small>{{ rental.end_date.strftime('%d.%m.%Y') }}</small>
+            </td>
+            <td>{{ rental.total_price }} ₽</td>
+            <td>
+                {% if rental.status == 'active' %}
+                    🟢 Активна
+                {% elif rental.status == 'completed' %}
+                    ✅ Завершена
+                {% else %}
+                    ⚪ {{ rental.status }}
+                {% endif %}
+            </td>
+            <td>
+                <a href="/catalog/rentals/{{ rental.id }}" class="button button-small">👁️</a>
+                <a href="/catalog/rentals/{{ rental.id }}/edit" class="button button-small">✏️</a>
+                <form action="/catalog/rentals/{{ rental.id }}/delete" method="post" style="display: inline;">
+                    <button type="submit" class="button button-small button-red" onclick="return confirm('Удалить аренду?')">🗑️</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Пагинация -->
+{% if total_pages > 1 %}
+<div style="margin-top: 20px; text-align: center;">
+    {% if page > 1 %}
+        <a href="?page=1&status={{ status_filter or '' }}&user_id={{ user_filter or '' }}" class="button button-small">« Первая</a>
+        <a href="?page={{ page-1 }}&status={{ status_filter or '' }}&user_id={{ user_filter or '' }}" class="button button-small">‹ Предыдущая</a>
+    {% endif %}
+    
+    <span style="margin: 0 10px;">
+        Страница {{ page }} из {{ total_pages }}
+    </span>
+    
+    {% if page < total_pages %}
+        <a href="?page={{ page+1 }}&status={{ status_filter or '' }}&user_id={{ user_filter or '' }}" class="button button-small">Следующая ›</a>
+        <a href="?page={{ total_pages }}&status={{ status_filter or '' }}&user_id={{ user_filter or '' }}" class="button button-small">Последняя »</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

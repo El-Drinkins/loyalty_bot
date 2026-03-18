@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{% if model %}✏️ Редактирование модели{% else %}➕ Добавление модели{% endif %}</h1>
+
+<a href="/catalog/models" class="button" style="margin-bottom: 20px;">◀️ Назад к списку</a>
+
+<form method="post" style="background: white; padding: 20px; border-radius: 8px;">
+    {% if model %}
+    <input type="hidden" name="_method" value="put">
+    {% endif %}
+    
+    <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Название модели:</label>
+        <input type="text" name="name" value="{{ model.name if model else '' }}" required style="width: 100%; padding: 8px;">
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Бренд:</label>
+        <select name="brand_id" required style="width: 100%; padding: 8px;">
+            {% for brand in brands %}
+            <option value="{{ brand.id }}" {% if model and model.brand_id == brand.id %}selected{% endif %}>
+                {{ brand.name }} ({{ brand.category.name }})
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+        <div>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Цена за сутки (₽):</label>
+            <input type="number" name="price_per_day" value="{{ model.price_per_day if model else '' }}" required style="width: 100%; padding: 8px;">
+        </div>
+        <div>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Залог (₽):</label>
+            <input type="number" name="deposit" value="{{ model.deposit if model else '0' }}" style="width: 100%; padding: 8px;">
+        </div>
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Характеристики:</label>
+        <textarea name="specs" rows="4" style="width: 100%; padding: 8px;">{{ model.specs if model else '' }}</textarea>
+        <small style="color: #999;">Каждая характеристика с новой строки</small>
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">URL изображения:</label>
+        <input type="url" name="image_url" value="{{ model.image_url if model else '' }}" style="width: 100%; padding: 8px;">
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">URL обзора:</label>
+        <input type="url" name="review_url" value="{{ model.review_url if model else '' }}" style="width: 100%; padding: 8px;">
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Комплектация по умолчанию:</label>
+        <textarea name="default_equipment" rows="3" style="width: 100%; padding: 8px;">{{ model.default_equipment if model else '' }}</textarea>
+        <small style="color: #999;">Каждый пункт с новой строки</small>
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+        <label>
+            <input type="checkbox" name="is_active" {% if not model or model.is_active %}checked{% endif %}>
+            Активна (доступна для аренды)
+        </label>
+    </div>
+    
+    <div style="display: flex; gap: 10px;">
+        <button type="submit" class="button">{% if model %}Сохранить изменения{% else %}Добавить модель{% endif %}</button>
+        <a href="/catalog/models" class="button button-red">Отмена</a>
+    </div>
+</form>
+{% endblock %}

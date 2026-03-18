@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>📦 Детали аренды {{ rental.rental_number }}</h1>
+
+<a href="/catalog/rentals" class="button" style="margin-bottom: 20px;">◀️ Назад к списку</a>
+
+<div style="background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+        <div>
+            <h3>Информация о клиенте</h3>
+            <p><strong>Имя:</strong> <a href="/client/{{ rental.user.id }}">{{ rental.user.full_name }}</a></p>
+            <p><strong>Телефон:</strong> {{ rental.user.phone }}</p>
+            <p><strong>Telegram ID:</strong> {{ rental.user.telegram_id }}</p>
+        </div>
+        
+        <div>
+            <h3>Информация о технике</h3>
+            <p><strong>Модель:</strong> {{ rental.model.brand.name }} {{ rental.model.name }}</p>
+            <p><strong>Категория:</strong> {{ rental.model.brand.category.name }}</p>
+            <p><strong>Цена за день:</strong> {{ rental.price_per_day }} ₽</p>
+            <p><strong>Залог:</strong> {% if rental.deposit %}{{ rental.deposit }} ₽{% else %}—{% endif %}</p>
+        </div>
+    </div>
+    
+    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+        <h3>Детали аренды</h3>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+            <div>
+                <strong>Период:</strong><br>
+                {{ rental.start_date.strftime('%d.%m.%Y') }} - {{ rental.end_date.strftime('%d.%m.%Y') }}
+            </div>
+            <div>
+                <strong>Длительность:</strong><br>
+                {{ (rental.end_date - rental.start_date).days }} дней
+            </div>
+            <div>
+                <strong>Общая стоимость:</strong><br>
+                {{ rental.total_price }} ₽
+            </div>
+        </div>
+    </div>
+    
+    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+        <h3>Статус и история</h3>
+        <p>
+            <strong>Статус:</strong> 
+            {% if rental.status == 'active' %}
+                🟢 Активна
+            {% elif rental.status == 'completed' %}
+                ✅ Завершена
+            {% else %}
+                ❌ {{ rental.status }}
+            {% endif %}
+        </p>
+        <p><strong>Создана:</strong> {{ rental.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+        <p><strong>Последнее обновление:</strong> {{ rental.updated_at.strftime('%d.%m.%Y %H:%M') }}</p>
+        {% if rental.notes %}
+        <p><strong>Примечания:</strong><br>{{ rental.notes }}</p>
+        {% endif %}
+    </div>
+    
+    <div style="margin-top: 20px; display: flex; gap: 10px;">
+        <a href="/catalog/rentals/{{ rental.id }}/edit" class="button">✏️ Редактировать</a>
+        <form action="/catalog/rentals/{{ rental.id }}/delete" method="post" style="display: inline;">
+            <button type="submit" class="button button-red" onclick="return confirm('Удалить аренду?')">🗑️ Удалить</button>
+        </form>
+        <a href="/client/{{ rental.user.id }}" class="button">👤 Карточка клиента</a>
+    </div>
+</div>
+{% endblock %}

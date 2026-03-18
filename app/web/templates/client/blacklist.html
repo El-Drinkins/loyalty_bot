@@ -1,0 +1,44 @@
+<div style="border: 1px solid #ddd; border-radius: 8px; padding: 20px; {% if user.blacklisted %}background-color: #fff3f3;{% endif %}">
+    <h3>⛔ Управление черным списком</h3>
+    
+    {% if user.blacklisted %}
+        <p style="color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 4px;">
+            ⚠️ Пользователь заблокирован
+        </p>
+        <form action="/client/{{ user.id }}/remove_from_blacklist" method="post">
+            <input type="hidden" name="admin_id" value="0">
+            <button type="submit" class="button" style="background-color: #4CAF50; width: 100%;">
+                ✅ Разблокировать пользователя
+            </button>
+        </form>
+    {% else %}
+        <form action="/client/{{ user.id }}/add_to_blacklist" method="post">
+            <div style="margin-bottom: 10px;">
+                <label>Причина блокировки:</label>
+                <select name="reason" required style="width: 100%; padding: 8px; margin-top: 5px;">
+                    <option value="Нарушение правил аренды">Нарушение правил аренды</option>
+                    <option value="Несвоевременный возврат">Несвоевременный возврат</option>
+                    <option value="Повреждение техники">Повреждение техники</option>
+                    <option value="Мошенничество">Мошенничество</option>
+                    <option value="Другое">Другое (указать в комментарии)</option>
+                </select>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label>Комментарий (необязательно):</label>
+                <input type="text" name="comment" placeholder="Дополнительная информация" style="width: 100%; padding: 8px; margin-top: 5px;">
+            </div>
+            <input type="hidden" name="admin_id" value="0">
+            <button type="submit" class="button button-red" style="width: 100%;">
+                ⛔ Заблокировать пользователя
+            </button>
+        </form>
+    {% endif %}
+    
+    <div style="margin-top: 20px; padding: 10px; background-color: #f5f5f5; border-radius: 4px;">
+        <h4>ℹ️ Информация</h4>
+        <p style="font-size: 13px; color: #666;">
+            Заблокированные пользователи не могут взаимодействовать с ботом. 
+            Все их команды и нажатия кнопок будут игнорироваться.
+        </p>
+    </div>
+</div>

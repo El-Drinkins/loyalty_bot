@@ -1,0 +1,449 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="client-card">
+    <h1>Карточка клиента: {{ user.full_name }}</h1>
+    
+    <!-- Статус блокировки -->
+    {% if user.blacklisted %}
+    <div style="background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 15px; margin-bottom: 20px; border-radius: 8px;">
+        <strong>⛔ ПОЛЬЗОВАТЕЛЬ В ЧЕРНОМ СПИСКЕ</strong>
+        {% if user.blacklist_reason %}
+        <p><strong>Причина:</strong> {{ user.blacklist_reason }}</p>
+        {% endif %}
+        {% if user.blacklisted_at %}
+        <p><strong>Дата блокировки:</strong> {{ user.blacklisted_at.strftime('%d.%m.%Y %H:%M') }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Отображение ФИО -->
+    <p><strong>👤 ФИО:</strong> 
+        {% if user.full_name_real %}
+            {{ user.full_name_real }}
+        {% else %}
+            <span style="color: #999;">не указано</span>
+        {% endif %}
+    </p>
+    <p><strong>📞 Телефон:</strong> {{ user.phone }}</p>
+    <p><strong>🆔 Telegram ID:</strong> {{ user.telegram_id }}</p>
+    <p><strong>📅 Дата регистрации:</strong> {{ user.registration_date.strftime('%d.%m.%Y %H:%M') }}</p>
+    <p><strong>💰 Баланс:</strong> {{ user.balance }} ⭐</p>
+    <p><strong>⏳ Срок действия баллов:</strong> 
+        {% if user.points_expiry_date %}
+            {{ user.points_expiry_date.strftime('%d.%m.%Y') }}
+        {% else %}
+            бессрочно
+        {% endif %}
+    </p>
+
+    <!-- Блок с пригласившим и кнопкой назначения -->
+    <p>
+        <strong>👤 Пригласивший:</strong>
+        {% if inviter %}
+            <a href="/client/{{ inviter.id }}">{{ inviter.full_name }}</a>
+            <button onclick="showAssignReferralModal()" class="button button-small" style="margin-left: 10px;">✏️ Изменить</button>
+        {% else %}
+            <span style="color: #999;">не указан</span>
+            <button onclick="showAssignReferralModal()" class="button button-small" style="margin-left: 10px;">✏️ Назначить</button>
+        {% endif %}
+    </p>
+
+    <p><strong>👥 Приглашено друзей:</strong> {{ total_invited }} (подтверждено: {{ completed_invited }})</p>
+
+    <!-- Кнопки действий -->
+    <div style="margin: 20px 0; display: flex; gap: 10px; flex-wrap: wrap;">
+        <a href="/user_logs?user_id={{ user.id }}" class="button" style="background-color: #2196F3;">
+            📋 Просмотреть логи пользователя
+        </a>
+        <a href="/catalog/rentals?user_id={{ user.id }}" class="button" style="background-color: #FF9800;">
+            📦 История аренд
+        </a>
+    </div>
+
+    <!-- Блок с примечаниями и значками -->
+    <div style="margin: 20px 0; padding: 15px; background-color: #f5f5f5; border-radius: 8px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+            <h3 style="margin: 0;">🏷️ Статус верификации</h3>
+            <span style="font-size: 24px;">{{ user.badge or '🟢' }}</span>
+            <span style="background-color: {% if user.verification_level == 'basic' %}#2196F3{% elif user.verification_level == 'verified' %}#4CAF50{% elif user.verification_level == 'professional' %}#9C27B0{% else %}#FF9800{% endif %}; 
+                         color: white; padding: 4px 8px; border-radius: 4px;">
+                {% if user.verification_level == 'basic' %}🟢 Базовый
+                {% elif user.verification_level == 'verified' %}🔵 Подтвержденный
+                {% elif user.verification_level == 'professional' %}🟣 Профессионал
+                {% else %}🌟 VIP
+                {% endif %}
+            </span>
+        </div>
+        
+        {% if user.instagram or user.vkontakte %}
+        <div style="margin-bottom: 10px;">
+            <h4 style="margin: 0 0 5px 0;">📱 Социальные сети:</h4>
+            {% if user.instagram %}
+            <p style="margin: 2px 0;">📸 Instagram: @{{ user.instagram }}</p>
+            {% endif %}
+            {% if user.vkontakte %}
+            <p style="margin: 2px 0;">📱 VK: {{ user.vkontakte }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        <div style="margin-bottom: 10px;">
+            <h4 style="margin: 0 0 5px 0;">📝 Примечания администратора:</h4>
+            <form action="/user/{{ user.id }}/update_notes" method="post" style="display: flex; gap: 10px;">
+                <textarea name="notes" rows="3" style="flex: 1; padding: 8px;">{{ user.admin_notes or '' }}</textarea>
+                <button type="submit" class="button button-small">💾 Сохранить</button>
+            </form>
+        </div>
+        
+        {% if user.verified_at %}
+        <p style="font-size: 12px; color: #666; margin: 5px 0 0 0;">
+            ✅ Верифицирован: {{ user.verified_at.strftime('%d.%m.%Y %H:%M') }}
+        </p>
+        {% endif %}
+    </div>
+
+    <!-- Модальное окно для назначения пригласившего -->
+    <div id="assignModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="background-color: white; margin: 10% auto; padding: 25px; border-radius: 8px; width: 500px; max-width: 90%;">
+            <h3 style="margin-top: 0;">{% if inviter %}Изменить{% else %}Назначить{% endif %} пригласившего</h3>
+            
+            <p><strong>Пользователь:</strong> {{ user.full_name }} (ID: {{ user.id }})</p>
+            
+            {% if inviter %}
+            <p><strong>Текущий пригласивший:</strong> {{ inviter.full_name }} (ID: {{ inviter.id }})</p>
+            {% endif %}
+            
+            <form action="/client/{{ user.id }}/assign_referrer" method="post" onsubmit="return validateAssignForm()">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Введите ID или телефон пригласившего:</label>
+                    <input type="text" id="referrerSearch" name="referrer_search" 
+                           placeholder="Например: 15 или +79991234567" 
+                           style="width: 100%; padding: 10px; margin-bottom: 10px;">
+                    
+                    <div id="searchResults" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; display: none;">
+                        <!-- Сюда будут подгружаться результаты поиска -->
+                    </div>
+                    
+                    <p style="font-size: 12px; color: #999; margin-top: 5px;">
+                        Начните вводить ID, телефон или имя для поиска
+                    </p>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Причина назначения:</label>
+                    <textarea name="reason" rows="3" required 
+                              style="width: 100%; padding: 10px;"
+                              placeholder="Например: Клиент сообщил по телефону, что его пригласил..."></textarea>
+                </div>
+                
+                <input type="hidden" name="referrer_id" id="selectedReferrerId">
+                <input type="hidden" name="admin_id" value="0">
+                
+                <div style="text-align: right; gap: 10px; display: flex; justify-content: flex-end;">
+                    <button type="button" onclick="hideAssignModal()" class="button" style="background-color: #666;">Отмена</button>
+                    <button type="submit" class="button" id="submitBtn" disabled>Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+    let searchTimeout;
+
+    function showAssignReferralModal() {
+        document.getElementById('assignModal').style.display = 'block';
+    }
+
+    function hideAssignModal() {
+        document.getElementById('assignModal').style.display = 'none';
+        document.getElementById('selectedReferrerId').value = '';
+        document.getElementById('searchResults').style.display = 'none';
+        document.getElementById('searchResults').innerHTML = '';
+        document.getElementById('submitBtn').disabled = true;
+    }
+
+    // Поиск пригласивших по мере ввода
+    document.getElementById('referrerSearch').addEventListener('input', function(e) {
+        clearTimeout(searchTimeout);
+        const query = e.target.value.trim();
+        
+        if (query.length < 2) {
+            document.getElementById('searchResults').style.display = 'none';
+            return;
+        }
+        
+        searchTimeout = setTimeout(() => {
+            fetch(`/api/search_users?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(users => {
+                    const resultsDiv = document.getElementById('searchResults');
+                    resultsDiv.innerHTML = '';
+                    
+                    if (users.length === 0) {
+                        resultsDiv.innerHTML = '<div style="padding: 10px; color: #999;">Ничего не найдено</div>';
+                    } else {
+                        users.forEach(user => {
+                            // Проверяем, не является ли пользователь самим собой
+                            if (user.id == {{ user.id }}) {
+                                return; // пропускаем
+                            }
+                            
+                            const div = document.createElement('div');
+                            div.style.padding = '10px';
+                            div.style.cursor = 'pointer';
+                            div.style.borderBottom = '1px solid #eee';
+                            div.innerHTML = `
+                                <strong>${user.full_name}</strong><br>
+                                <span style="font-size: 12px; color: #666;">
+                                    ID: ${user.id} | 📞 ${user.phone}
+                                    ${user.invited_count ? ` | 👥 пригласил ${user.invited_count}` : ''}
+                                </span>
+                            `;
+                            div.onclick = function() {
+                                document.getElementById('referrerSearch').value = `${user.full_name} (ID: ${user.id})`;
+                                document.getElementById('selectedReferrerId').value = user.id;
+                                document.getElementById('submitBtn').disabled = false;
+                                resultsDiv.innerHTML = '';
+                                resultsDiv.style.display = 'none';
+                            };
+                            resultsDiv.appendChild(div);
+                        });
+                    }
+                    resultsDiv.style.display = 'block';
+                });
+        }, 300);
+    });
+
+    function validateAssignForm() {
+        if (!document.getElementById('selectedReferrerId').value) {
+            alert('Пожалуйста, выберите пригласившего из списка');
+            return false;
+        }
+        return confirm('⚠️ Вы уверены? Это действие будет записано в журнал.');
+    }
+
+    function showDeleteModal() {
+        document.getElementById('deleteModal').style.display = 'block';
+    }
+
+    function hideDeleteModal() {
+        document.getElementById('deleteModal').style.display = 'none';
+    }
+
+    // Закрытие модального окна при клике вне его
+    window.onclick = function(event) {
+        var assignModal = document.getElementById('assignModal');
+        var deleteModal = document.getElementById('deleteModal');
+        
+        if (event.target == assignModal) {
+            assignModal.style.display = 'none';
+        }
+        if (event.target == deleteModal) {
+            deleteModal.style.display = 'none';
+        }
+    }
+    </script>
+
+    <!-- Операции -->
+    <h2>Операции</h2>
+    {% if grouped_transactions %}
+        {% for date, transactions in grouped_transactions %}
+            <div style="margin-bottom: 25px;">
+                <h3 style="color: #666; border-bottom: 2px solid #4CAF50; padding-bottom: 5px;">📅 {{ date }}</h3>
+                
+                {% for t in transactions %}
+                    <div style="border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 8px; background-color: {% if t.amount > 0 %}#e8f5e8{% else %}#ffe8e8{% endif %};">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <span style="font-size: 16px; font-weight: bold; color: {% if t.amount > 0 %}green{% else %}red{% endif %};">
+                                    {% if t.amount > 0 %}🟢 +{{ t.amount }}{% else %}🔴 {{ t.amount }}{% endif %} баллов
+                                </span>
+                                <span style="margin-left: 10px; color: #666;">{{ t.reason }}</span>
+                            </div>
+                            <span style="color: #999; font-size: 14px;">{{ t.timestamp.strftime('%H:%M') }}</span>
+                        </div>
+                        
+                        <!-- ПРАВИЛЬНЫЙ РАСЧЕТ БАЛАНСА ПОСЛЕ ОПЕРАЦИИ -->
+                        {% set ns = namespace(balance_after=user.balance) %}
+                        {% for later_t in transactions %}
+                            {% if later_t.timestamp > t.timestamp %}
+                                {% set ns.balance_after = ns.balance_after - later_t.amount %}
+                            {% endif %}
+                        {% endfor %}
+                        
+                        <div style="margin-top: 5px; color: #333; font-weight: 500;">
+                            {% if t.amount > 0 %}
+                                💰 Баланс после начисления: {{ ns.balance_after }} ⭐
+                            {% else %}
+                                💰 Баланс после списания: {{ ns.balance_after }} ⭐
+                            {% endif %}
+                        </div>
+                        
+                        {% if t.admin_id %}
+                        <div style="margin-top: 5px; font-size: 12px; color: #999;">
+                            Администратор: {{ t.admin_id }}
+                        </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+    {% else %}
+        <p style="text-align: center; padding: 40px; background: #f5f5f5; border-radius: 8px;">
+            📭 У пользователя нет операций
+        </p>
+    {% endif %}
+
+    <!-- Кнопки управления -->
+    <div style="margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <!-- Левая колонка: начисление/списание -->
+        <div style="border: 1px solid #ddd; border-radius: 8px; padding: 20px;">
+            <h3>💰 Начислить баллы</h3>
+            <form action="/client/{{ user.id }}/add_points" method="post" onsubmit="return confirm('Действие будет записано в журнал. Продолжить?')">
+                <div style="margin-bottom: 10px;">
+                    <label>Сумма:</label>
+                    <input type="number" name="amount" required style="width: 100%; padding: 8px; margin-top: 5px;">
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <label>Причина:</label>
+                    <input type="text" name="reason" required style="width: 100%; padding: 8px; margin-top: 5px;">
+                </div>
+                <input type="hidden" name="admin_id" value="0">
+                <button type="submit" class="button" style="width: 100%;">Начислить</button>
+            </form>
+            
+            <div style="margin-top: 20px;">
+                <h3>💸 Списать баллы</h3>
+                <form action="/client/{{ user.id }}/subtract_points" method="post" onsubmit="return confirm('Действие будет записано в журнал. Продолжить?')">
+                    <div style="margin-bottom: 10px;">
+                        <label>Сумма:</label>
+                        <input type="number" name="amount" required style="width: 100%; padding: 8px; margin-top: 5px;">
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label>Причина:</label>
+                        <input type="text" name="reason" required style="width: 100%; padding: 8px; margin-top: 5px;">
+                    </div>
+                    <input type="hidden" name="admin_id" value="0">
+                    <button type="submit" class="button button-red" style="width: 100%;">Списать</button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Правая колонка: управление черным списком -->
+        <div style="border: 1px solid #ddd; border-radius: 8px; padding: 20px; {% if user.blacklisted %}background-color: #fff3f3;{% endif %}">
+            <h3>⛔ Управление черным списком</h3>
+            
+            {% if user.blacklisted %}
+                <p style="color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 4px;">
+                    ⚠️ Пользователь заблокирован
+                </p>
+                <form action="/client/{{ user.id }}/remove_from_blacklist" method="post">
+                    <input type="hidden" name="admin_id" value="0">
+                    <button type="submit" class="button" style="background-color: #4CAF50; width: 100%;">
+                        ✅ Разблокировать пользователя
+                    </button>
+                </form>
+            {% else %}
+                <form action="/client/{{ user.id }}/add_to_blacklist" method="post">
+                    <div style="margin-bottom: 10px;">
+                        <label>Причина блокировки:</label>
+                        <select name="reason" required style="width: 100%; padding: 8px; margin-top: 5px;">
+                            <option value="Нарушение правил аренды">Нарушение правил аренды</option>
+                            <option value="Несвоевременный возврат">Несвоевременный возврат</option>
+                            <option value="Повреждение техники">Повреждение техники</option>
+                            <option value="Мошенничество">Мошенничество</option>
+                            <option value="Другое">Другое (указать в комментарии)</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label>Комментарий (необязательно):</label>
+                        <input type="text" name="comment" placeholder="Дополнительная информация" style="width: 100%; padding: 8px; margin-top: 5px;">
+                    </div>
+                    <input type="hidden" name="admin_id" value="0">
+                    <button type="submit" class="button button-red" style="width: 100%;">
+                        ⛔ Заблокировать пользователя
+                    </button>
+                </form>
+            {% endif %}
+            
+            <div style="margin-top: 20px; padding: 10px; background-color: #f5f5f5; border-radius: 4px;">
+                <h4>ℹ️ Информация</h4>
+                <p style="font-size: 13px; color: #666;">
+                    Заблокированные пользователи не могут взаимодействовать с ботом. 
+                    Все их команды и нажатия кнопок будут игнорироваться.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ОПАСНАЯ ЗОНА: Удаление пользователя -->
+    <div style="margin-top: 40px; border-top: 3px solid #ff4444; padding-top: 20px;">
+        <h3 style="color: #ff4444;">⚠️ Опасная зона</h3>
+        <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
+            <strong>Внимание!</strong> Удаление пользователя невозможно отменить. 
+            Будут удалены все данные: профиль, история транзакций, реферальные связи.
+        </p>
+        
+        <!-- Кнопка для открытия модального окна подтверждения -->
+        <button onclick="showDeleteModal()" class="button" style="background-color: #ff4444; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 16px;">
+            🗑️ Полностью удалить пользователя
+        </button>
+    </div>
+
+    <!-- Модальное окно подтверждения удаления -->
+    <div id="deleteModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="background-color: white; margin: 10% auto; padding: 25px; border-radius: 8px; width: 500px; max-width: 90%; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <h3 style="color: #ff4444; margin-top: 0;">⚠️ Подтверждение удаления</h3>
+            
+            <div style="background-color: #fff3f3; border-left: 4px solid #ff4444; padding: 15px; margin-bottom: 20px;">
+                <p style="margin: 0; font-weight: bold;">Вы собираетесь удалить:</p>
+                <p style="margin: 10px 0 0 0;"><strong>{{ user.full_name }}</strong> (ID: {{ user.id }})</p>
+            </div>
+            
+            <p style="color: #666; font-size: 14px;">Будут безвозвратно удалены:</p>
+            <ul style="color: #666; font-size: 14px; margin-bottom: 20px;">
+                <li>📝 Профиль пользователя</li>
+                <li>💰 Все баллы ({{ user.balance }} ⭐)</li>
+                <li>📊 История транзакций ({{ transactions|length }} записей)</li>
+                <li>👥 Реферальные связи (пригласил {{ total_invited }} друзей)</li>
+            </ul>
+            
+            <form action="/client/{{ user.id }}/delete" method="post">
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">
+                        Введите полное имя пользователя для подтверждения:
+                    </label>
+                    <input type="text" id="confirm_name" name="confirm_name" required 
+                           style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"
+                           placeholder="Например: {{ user.full_name }}">
+                    <input type="hidden" name="admin_id" value="0">
+                    <p style="font-size: 12px; color: #999; margin-top: 5px;">
+                        Должно точно совпадать с именем пользователя
+                    </p>
+                </div>
+                
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" onclick="hideDeleteModal()" class="button" style="background-color: #666; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
+                        Отмена
+                    </button>
+                    <button type="submit" class="button" style="background-color: #ff4444; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
+                        🗑️ Да, удалить навсегда
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div style="margin-top: 20px; text-align: center;">
+        <a href="/" class="button">← На главную</a>
+        <a href="/users" class="button">👥 Все пользователи</a>
+    </div>
+</div>
+
+<style>
+.client-card {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+</style>
+{% endblock %}

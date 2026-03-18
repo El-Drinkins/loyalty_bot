@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>📊 Детальная статистика</h1>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>Всего клиентов</h3>
+        <div class="value">{{ total_users }}</div>
+    </div>
+    
+    <div class="stat-card">
+        <h3>Суммарный баланс</h3>
+        <div class="value">{{ total_balance }} ⭐</div>
+    </div>
+    
+    <div class="stat-card">
+        <h3>Средний баланс</h3>
+        <div class="value">{{ avg_balance }} ⭐</div>
+    </div>
+    
+    <div class="stat-card">
+        <h3>Приглашенные клиенты</h3>
+        <div class="value">{{ referral_users }}</div>
+    </div>
+    
+    <div class="stat-card">
+        <h3>Подтвержденные аренды</h3>
+        <div class="value">{{ completed_referrals }}</div>
+    </div>
+    
+    <div class="stat-card">
+        <h3>Всего транзакций</h3>
+        <div class="value">{{ total_transactions }}</div>
+    </div>
+</div>
+
+<h2>Топ-10 клиентов по балансу</h2>
+<table>
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Имя</th>
+            <th>Телефон</th>
+            <th>Баланс</th>
+            <th>Пригласил</th>
+            <th>Действия</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for user in top_users %}
+        <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ user.full_name }}</td>
+            <td>{{ user.phone }}</td>
+            <td>{{ user.balance }} ⭐</td>
+            <td>{{ user.invited_by.full_name if user.invited_by else '—' }}</td>
+            <td>
+                <a href="/client/{{ user.id }}" class="button button-small">Карточка</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2>Активность за последние 7 дней</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Дата</th>
+            <th>Новых клиентов</th>
+            <th>Начислено баллов</th>
+            <th>Списано баллов</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for day in daily_stats %}
+        <tr>
+            <td>{{ day.date }}</td>
+            <td>{{ day.new_users }}</td>
+            <td>{{ day.points_earned }} ⭐</td>
+            <td>{{ day.points_spent }} ⭐</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="margin-top: 30px; text-align: center;">
+    <a href="/spent_stats" class="button">📉 Детальная статистика списаний</a>
+    <a href="/" class="button">🏠 На главную</a>
+</div>
+{% endblock %}

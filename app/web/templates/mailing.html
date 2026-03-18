@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>📢 Рассылка сообщений</h1>
+
+<div class="stat-card" style="margin-bottom: 20px;">
+    <h3>Доступные получатели</h3>
+    <p>Всего клиентов: <strong>{{ total_users }}</strong></p>
+    <p>Из них имеют Telegram ID: <strong>{{ users_with_telegram }}</strong></p>
+</div>
+
+<form action="/mailing" method="post" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Кому:</label>
+        <select name="recipient_type" required style="width: 100%; padding: 10px;">
+            <option value="all">Всем клиентам</option>
+            <option value="with_telegram">Только с Telegram ID</option>
+            <option value="with_referrals">Кто приглашал друзей</option>
+            <option value="active_last_month">Активные за последний месяц</option>
+        </select>
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Тема сообщения:</label>
+        <input type="text" name="subject" required style="width: 100%; padding: 10px;">
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Текст сообщения:</label>
+        <textarea name="message" rows="10" required style="width: 100%; padding: 10px; font-family: monospace;"></textarea>
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+            <input type="checkbox" name="preview" value="true" checked> 
+            Отправить себе для предпросмотра
+        </label>
+    </div>
+    
+    <button type="submit" class="button">Отправить рассылку</button>
+</form>
+
+{% if last_mailing %}
+<h2>Последняя рассылка</h2>
+<div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    <p><strong>Дата:</strong> {{ last_mailing.date }}</p>
+    <p><strong>Кому:</strong> {{ last_mailing.recipient_type }}</p>
+    <p><strong>Тема:</strong> {{ last_mailing.subject }}</p>
+    <p><strong>Текст:</strong></p>
+    <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px;">{{ last_mailing.message }}</pre>
+    <p><strong>Отправлено:</strong> {{ last_mailing.sent_count }} из {{ last_mailing.total_count }}</p>
+</div>
+{% endif %}
+{% endblock %}

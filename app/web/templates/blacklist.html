@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>⛔ Черный список</h1>
+
+<div style="margin-bottom: 20px;">
+    <a href="/" class="button">← На главную</a>
+</div>
+
+{% if users %}
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Имя</th>
+                <th>Телефон</th>
+                <th>Дата блокировки</th>
+                <th>Причина</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td>{{ user.id }}</td>
+                <td>{{ user.full_name }}</td>
+                <td>{{ user.phone }}</td>
+                <td>{{ user.blacklisted_at.strftime('%d.%m.%Y %H:%M') if user.blacklisted_at else '—' }}</td>
+                <td>{{ user.blacklist_reason or '—' }}</td>
+                <td>
+                    <a href="/client/{{ user.id }}" class="button button-small">Карточка</a>
+                    <form action="/client/{{ user.id }}/remove_from_blacklist" method="post" style="display: inline;">
+                        <input type="hidden" name="admin_id" value="0">
+                        <button type="submit" class="button button-small" style="background-color: #4CAF50;">✅ Разблокировать</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p style="text-align: center; padding: 40px; background: #f5f5f5; border-radius: 8px;">
+        ⛔ Черный список пуст
+    </p>
+{% endif %}
+{% endblock %}

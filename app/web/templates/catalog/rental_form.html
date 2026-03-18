@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{% if rental %}✏️ Редактирование аренды{% else %}➕ Добавление аренды{% endif %}</h1>
+
+<a href="/catalog/rentals" class="button" style="margin-bottom: 20px;">◀️ Назад к списку</a>
+
+<form method="post" style="background: white; padding: 20px; border-radius: 8px;" onsubmit="updateTotalPrice()">
+    <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Номер аренды:</label>
+        <input type="text" name="rental_number" value="{{ rental.rental_number if rental else rental_number }}" readonly style="width: 100%; padding: 8px; background: #f5f5f5;">
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Клиент:</label>
+        <select name="user_id" id="user_id" required style="width: 100%; padding: 8px;">
+            {% for user in users %}
+            <option value="{{ user.id }}" {% if rental and rental.user_id == user.id %}selected{% endif %}>
+                {{ user.full_name }} (ID: {{ user.id }})
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Техника:</label>
+        <select name="model_id" id="model_id" required style="width: 100%; padding: 8px;" onchange="updatePrice()">
+            {% for model in models %}
+            <option value="{{ model.id }}" 
+                    data-price="{{ model.price_per_day }}"
+                    data-deposit="{{ model.deposit or 0 }}"
+                    {% if rental and rental.model_id == model.id %}selected{% endif %}>
+                {{ model.brand.name }} {{ model.name }} - {{ model.price_per_day }} ₽/день
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+        <div>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Дата начала:</label>
+            <input type="date" name="start_date" id="start_date" 
+                   value="{% if rental %}{{ rental.start_date.strftime('%Y-%m-%d') }}{% endif %}" 
+                   required style="width: 100%; padding: 8px;" onchange="updateTotalPrice()">
+        </div>
+        <div>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Дата окончания:</label>
+            <input type="date" name="end_date" id="end_date" 
+                   value="{% if rental %}{{ rental.end_date.strftime('%Y-%m-%d') }}{% endif %}" 
+                   required style="width: 100%; padding: 8px;" onchange="updateTotalPrice()">
+        </div>
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Цена за день (₽):</label>
+        <input type="number" name="price_per_day" id="price_per_day" 
+               value="{{ rental.price_per_day if rental else '' }}" 
+               required style="width: 100%; padding: 8px;" onchange="updateTotalPrice()">
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Итого (₽):</label>
+        <input type="number" name="total_price" id="total_price" 
+               value="{{ rental.total_price if rental else '' }}" 
+               required style="width: 100%; padding: 8px;" readonly>
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Залог (₽):</label>
+        <input type="number" name="deposit" id="deposit" 
+               value="{{ rental.deposit if rental else '' }}" 
+               style="width: 100%; padding: 8px;">
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Статус:</label>
+        <select name="status" style="width: 100%; padding: 8px;">
+            <option value="active" {% if not rental or rental.status == 'active' %}selected{% endif %}>🟢 Активна</option>
+            <option value="completed" {% if rental and rental.status == 'completed' %}selected{% endif %}>✅ Завершена</option>
+            <option value="cancelled" {% if rental and rental.status == 'cancelled' %}selected{% endif %}>❌ Отменена</option>
+        </select>
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Примечания:</label>
+        <textarea name="notes" rows="3" style="width: 100%; padding: 8px;">{{ rental.notes if rental else '' }}</textarea>
+    </div>
+    
+    <!-- Скрытое поле для ID администратора -->
+    <input type="hidden" name="admin_id" value="{{ admin_id }}">
+    
+    <div style="display: flex; gap: 10px;">
+        <button type="submit" class="button">{% if rental %}Сохранить изменения{% else %}Добавить аренду{% endif %}</button>
+        <a href="/catalog/rentals" class="button button-red">Отмена</a>
+    </div>
+</form>
+
+<script>
+function updatePrice() {
+    const select = document.getElementById('model_id');
+    const option = select.options[select.selectedIndex];
+    
+    if (option) {
+        const price = option.getAttribute('data-price');
+        const deposit = option.getAttribute('data-deposit');
+        
+        document.getElementById('price_per_day').value = price;
+        document.getElementById('deposit').value = deposit;
+        
+        updateTotalPrice();
+    }
+}
+
+function updateTotalPrice() {
+    const pricePerDay = parseInt(document.getElementById('price_per_day').value) || 0;
+    const startDate = new Date(document.getElementById('start_date').value);
+    const endDate = new Date(document.getElementById('end_date').value);
+    
+    if (startDate && endDate && startDate < endDate) {
+        const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+        const total = pricePerDay * days;
+        document.getElementById('total_price').value = total;
+    }
+}
+
+// При загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    updatePrice();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Статистика</h1>
+<p>Всего клиентов: {{ total_users }}</p>
+<p>Суммарный баланс: {{ total_balance }} ⭐</p>
+
+<h2>Неподтвержденные новички (ждут первой аренды)</h2>
+{% if pending_refs %}
+    <ul>
+    {% for ref in pending_refs %}
+        <li>
+            <strong>{{ ref.new_user.full_name }}</strong> ({{ ref.new_user.phone }})<br>
+            Пригласил: 
+            {% if ref.old_user %}
+                <a href="/client/{{ ref.old_user.id }}">{{ ref.old_user.full_name }}</a>
+            {% else %}
+                неизвестно
+            {% endif %}
+            <br>
+            <form action="/confirm_referral/{{ ref.id }}" method="post" style="display:inline">
+                <!-- В реальном приложении admin_id должен браться из сессии, здесь временно -->
+                <input type="hidden" name="admin_id" value="0">
+                <button type="submit" class="button button-small">✅ Подтвердить первую аренду</button>
+            </form>
+            <a href="/client/{{ ref.new_user.id }}" class="button button-small">Карточка новичка</a>
+        </li>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>Нет неподтвержденных новичков.</p>
+{% endif %}
+
+<h2>Быстрый переход</h2>
+<form action="/client/" method="get" onsubmit="event.preventDefault(); window.location.href='/client/' + document.getElementById('user_id_input').value;">
+    <label for="user_id_input">Введите ID клиента (число):</label>
+    <input type="number" id="user_id_input" name="user_id" required>
+    <button type="submit" class="button">Перейти</button>
+</form>
+{% endblock %}

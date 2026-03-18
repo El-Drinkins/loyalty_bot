@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>📊 Статистика: {{ model.name }}</h1>
+
+<a href="/catalog/models" class="button" style="margin-bottom: 20px;">◀️ Назад к списку</a>
+
+<div class="stats-grid" style="margin-bottom: 30px;">
+    <div class="stat-card">
+        <h3>Всего аренд</h3>
+        <div class="value">{{ total_rentals }}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Активных аренд</h3>
+        <div class="value">{{ active_rentals }}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Выручка</h3>
+        <div class="value">{{ total_revenue }} ₽</div>
+    </div>
+    <div class="stat-card">
+        <h3>Средняя длительность</h3>
+        <div class="value">{{ avg_duration.days if avg_duration else 0 }} дней</div>
+    </div>
+</div>
+
+<h2>Последние аренды</h2>
+{% if recent_rentals %}
+<table>
+    <thead>
+        <tr>
+            <th>№ аренды</th>
+            <th>Клиент</th>
+            <th>Период</th>
+            <th>Сумма</th>
+            <th>Статус</th>
+            <th>Действия</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for rental in recent_rentals %}
+        <tr>
+            <td>{{ rental.rental_number }}</td>
+            <td>{{ rental.user.full_name }}</td>
+            <td>{{ rental.start_date.strftime('%d.%m.%Y') }} - {{ rental.end_date.strftime('%d.%m.%Y') }}</td>
+            <td>{{ rental.total_price }} ₽</td>
+            <td>
+                {% if rental.status == 'active' %}🟢 Активна
+                {% elif rental.status == 'completed' %}✅ Завершена
+                {% else %}⚪ {{ rental.status }}
+                {% endif %}
+            </td>
+            <td>
+                <a href="/catalog/rentals/{{ rental.id }}" class="button button-small">👁️</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>Нет завершенных аренд</p>
+{% endif %}
+
+<div style="margin-top: 20px;">
+    <a href="/catalog/models/{{ model.id }}/edit" class="button">✏️ Редактировать модель</a>
+</div>
+{% endblock %}
