@@ -88,17 +88,21 @@ async def cmd_start(message: Message, state: FSMContext):
     if len(args) > 1:
         ref_code = args[1]
     
-    if not ref_code:
-        total_time = time.time() - start_total
-        time_logger.info(f"⏱️ Обработка без кода: {total_time*1000:.2f}мс")
-        await message.answer(
-            "🔒 Регистрация только по приглашениям\n\n"
-            "К сожалению, регистрация в боте возможна только по пригласительным ссылкам.\n\n"
-            "Если вас пригласил друг, попросите у него ссылку.\n\n"
-            "Пример ссылки: https://t.me/your_bot?start=ref123"
-        )
-        return
-    
+    # =========================================================
+    # ВРЕМЕННО ОТКЛЮЧЕНО: регистрация без реферального кода
+    # =========================================================
+    # if not ref_code:
+    #     total_time = time.time() - start_total
+    #     time_logger.info(f"⏱️ Обработка без кода: {total_time*1000:.2f}мс")
+    #     await message.answer(
+    #         "🔒 Регистрация только по приглашениям\n\n"
+    #         "К сожалению, регистрация в боте возможна только по пригласительным ссылкам.\n\n"
+    #         "Если вас пригласил друг, попросите у него ссылку.\n\n"
+    #         "Пример ссылки: https://t.me/your_bot?start=ref123"
+    #     )
+    #     return
+    # =========================================================
+
     # Проверяем код
     start_code = time.time()
     async with AsyncSessionLocal() as session:
@@ -109,115 +113,38 @@ async def cmd_start(message: Message, state: FSMContext):
         code_time = time.time() - start_code
         time_logger.info(f"⏱️ Проверка кода: {code_time*1000:.2f}мс")
         
-        if not code_record or not code_record.is_active:
-            total_time = time.time() - start_total
-            time_logger.info(f"⏱️ ВСЕГО (недействительный код): {total_time*1000:.2f}мс")
+        # Если код не передан или недействителен, всё равно продолжаем (так как мы отключили проверку)
+        # Но если код передан, проверяем его валидность
+        if ref_code and (not code_record or not code_record.is_active):
             await message.answer(
-                "❌ Недействительный код\n\n"
-                "Проверьте ссылку или попросите друга отправить новую."
+                "❌ Недействительный код. Продолжаем регистрацию без реферальной ссылки."
             )
-            return
+            # Не возвращаемся, продолжаем регистрацию
+            
+        if ref_code and code_record:
+            if code_record.expires_at and code_record.expires_at < datetime.utcnow():
+                await message.answer(
+                    "⏰ Срок действия кода истек. Продолжаем регистрацию без реферальной ссылки."
+                )
+            elif code_record.max_uses > 0 and code_record.used_count >= code_record.max_uses:
+                await message.answer(
+                    "⚠️ Лимит ссылки исчерпан. Продолжаем регистрацию без реферальной ссылки."
+                )
+            else:
+                # Сохраняем данные о пригласившем
+                await state.update_data(
+                    ref_code=ref_code,
+                    referrer_id=code_record.owner_id,
+                    ip_address=str(message.from_user.id)
+                )
+                referrer = await session.get(User, code_record.owner_id)
+                referrer_name = referrer.full_name if referrer else "пользователь"
+                await message.answer(
+                    f"🎉 Вас пригласил: {referrer_name}\n\n"
+                    "Продолжаем регистрацию..."
+                )
         
-        if code_record.expires_at and code_record.expires_at < datetime.utcnow():
-            total_time = time.time() - start_total
-            time_logger.info(f"⏱️ ВСЕГО (код истек): {total_time*1000:.2f}мс")
-            await message.answer(
-                "⏰ Срок действия истек\n\n"
-                "Эта ссылка больше не действует."
-            )
-            return
-        
-        if code_record.max_uses > 0 and code_record.used_count >= code_record.max_uses:
-            total_time = time.time() - start_total
-            time_logger.info(f"⏱️ ВСЕГО (лимит исчерпан): {total_time*1000:.2f}мс")
-            await message.answer(
-                "⚠️ Лимит исчерпан\n\n"
-                "Эта ссылка уже достигла лимита использований."
-            )
-            return
-        
-        # Сохраняем данные
-        start_state = time.time()
-        await state.update_data(
-            ref_code=ref_code,
-            referrer_id=code_record.owner_id,
-            ip_address=str(message.from_user.id)
-        )
-        state_time = time.time() - start_state
-        time_logger.info(f"⏱️ Сохранение состояния: {state_time*1000:.2f}мс")
-        
-        start_referrer = time.time()
-        referrer = await session.get(User, code_record.owner_id)
-        referrer_name = referrer.full_name if referrer else "пользователь"
-        referrer_time = time.time() - start_referrer
-        time_logger.info(f"⏱️ Получение реферера: {referrer_time*1000:.2f}мс")
-        
-        # ==================================================
-        # ВРЕМЕННО ОТКЛЮЧАЕМ STORMPROTECTION ДЛЯ ДИАГНОСТИКИ
-        # ==================================================
-        
-        # storm = StormProtection(session)
-        
-        # # Проверяем белый список
-        # start_whitelist = time.time()
-        # is_whitelisted = await storm.is_whitelisted(
-        #     ip=str(message.from_user.id),
-        #     referral_code=ref_code
-        # )
-        # whitelist_time = time.time() - start_whitelist
-        # time_logger.info(f"⏱️ Проверка белого списка: {whitelist_time*1000:.2f}мс")
-        
-        # if is_whitelisted:
-        #     total_time = time.time() - start_total
-        #     time_logger.info(f"⏱️ ВСЕГО (белый список): {total_time*1000:.2f}мс")
-        #     await message.answer(
-        #         f"🎉 Приглашение обнаружено!\n\n"
-        #         f"Вас пригласил: {referrer_name}\n\n"
-        #         f"Вы в белом списке, поэтому капча не требуется.\n\n"
-        #         f"Теперь введите номер телефона:",
-        #         reply_markup=contact_keyboard()
-        #     )
-        #     await state.set_state(Registration.waiting_for_phone)
-        #     return
-        
-        # # Проверяем шторм
-        # start_storm = time.time()
-        # in_storm, storm_stats = await storm.check_storm()
-        # storm_time = time.time() - start_storm
-        # time_logger.info(f"⏱️ Проверка шторма: {storm_time*1000:.2f}мс")
-        
-        # if in_storm:
-        #     total_time = time.time() - start_total
-        #     time_logger.info(f"⏱️ ВСЕГО (шторм): {total_time*1000:.2f}мс")
-        #     await message.answer(
-        #         "⚠️ Временные технические сложности\n\n"
-        #         "В связи с высокой нагрузкой регистрация временно приостановлена.\n"
-        #         "Пожалуйста, попробуйте через 30 минут.\n\n"
-        #         "Приносим извинения за неудобства."
-        #     )
-        #     return
-        
-        # # Проверяем лимит IP
-        # start_iplimit = time.time()
-        # ip_limit_ok, ip_count = await storm.check_ip_limit(str(message.from_user.id))
-        # iplimit_time = time.time() - start_iplimit
-        # time_logger.info(f"⏱️ Проверка лимита IP: {iplimit_time*1000:.2f}мс")
-        
-        # if not ip_limit_ok:
-        #     total_time = time.time() - start_total
-        #     time_logger.info(f"⏱️ ВСЕГО (лимит IP): {total_time*1000:.2f}мс")
-        #     await message.answer(
-        #         "⚠️ Превышен лимит регистраций\n\n"
-        #         "С вашего IP-адреса уже зарегистрировано максимальное количество пользователей.\n"
-        #         "Пожалуйста, попробуйте позже или свяжитесь с поддержкой."
-        #     )
-        #     return
-        
-        # ==================================================
-        # КОНЕЦ БЛОКА ОТКЛЮЧЕНИЯ
-        # ==================================================
-        
-        # Показываем капчу
+        # Показываем капчу (всегда)
         start_captcha_gen = time.time()
         question, answer = captcha.generate()
         await state.update_data(captcha_answer=answer)
@@ -227,8 +154,6 @@ async def cmd_start(message: Message, state: FSMContext):
         
         start_send = time.time()
         await message.answer(
-            f"🎉 Приглашение обнаружено!\n\n"
-            f"Вас пригласил: {referrer_name}\n\n"
             f"🔐 Проверка: решите пример\n\n"
             f"{question}\n\n"
             f"Выберите правильный ответ:",
@@ -241,13 +166,12 @@ async def cmd_start(message: Message, state: FSMContext):
         
         total_time = time.time() - start_total
         time_logger.info(
-            f"⏱️ ВСЕГО регистрация: {total_time*1000:.1f}мс | "
-            f"Код: {code_time*1000:.1f}мс | "
-            f"Реферер: {referrer_time*1000:.1f}мс | "
-            f"Состояние: {state_time*1000:.1f}мс | "
-            f"Капча: {captcha_gen_time*1000:.1f}мс | "
-            f"Отправка: {send_time*1000:.1f}мс"
+            f"⏱️ ВСЕГО регистрация: {total_time*1000:.1f}мс"
         )
+
+# ==================================================
+# ВСЕ ОСТАЛЬНЫЕ ФУНКЦИИ ОСТАЮТСЯ БЕЗ ИЗМЕНЕНИЙ
+# ==================================================
 
 @router.callback_query(F.data.startswith("captcha_"), Registration.waiting_for_captcha)
 async def process_captcha(callback: CallbackQuery, state: FSMContext):
