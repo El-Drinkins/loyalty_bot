@@ -170,22 +170,25 @@ async def cmd_start(message: Message, state: FSMContext):
         )
 
 # ==================================================
-# ВСЕ ОСТАЛЬНЫЕ ФУНКЦИИ ОСТАЮТСЯ БЕЗ ИЗМЕНЕНИЙ
+# ОБРАБОТЧИК КАПЧИ (вызывает функцию из captcha.py)
 # ==================================================
-
 @router.callback_query(F.data.startswith("captcha_"), Registration.waiting_for_captcha)
 async def process_captcha(callback: CallbackQuery, state: FSMContext):
     """Обрабатывает ответ на капчу"""
     from .captcha import check_captcha
     await check_captcha(callback, state)
 
+# ==================================================
+# ОБРАБОТЧИК ПОЛУЧЕНИЯ ТЕЛЕФОНА (ЧЕРЕЗ КНОПКУ)
+# ==================================================
 @router.message(Registration.waiting_for_phone, F.contact)
 async def process_phone(message: Message, state: FSMContext):
+    """Обрабатывает полученный контакт (номер телефона)"""
     start_total = time.time()
     
     contact = message.contact
     if contact.user_id != message.from_user.id:
-        await message.answer("Пожалуйста, отправьте свой собственный номер.")
+        await message.answer("❌ Пожалуйста, отправьте свой собственный номер телефона.")
         return
 
     phone = contact.phone_number
@@ -195,13 +198,17 @@ async def process_phone(message: Message, state: FSMContext):
     ref_code = data.get("ref_code")
     referrer_id = data.get("referrer_id")
     captcha_passed = data.get("captcha_passed", False)
+    ip_address = data.get("ip_address", str(message.from_user.id))
 
     start_db = time.time()
     async with AsyncSessionLocal() as session:
         # Проверяем, не занят ли номер
         existing = await session.execute(select(User).where(User.phone == phone))
         if existing.scalar_one_or_none():
-            await message.answer("Этот номер уже зарегистрирован. Если это ошибка, свяжитесь с администратором.")
+            await message.answer(
+                "❌ Этот номер уже зарегистрирован.\n\n"
+                "Если это ваш номер, попробуйте восстановить доступ или свяжитесь с администратором."
+            )
             await state.clear()
             return
 
@@ -212,7 +219,7 @@ async def process_phone(message: Message, state: FSMContext):
             phone=phone,
             invited_by_id=referrer_id,
             captcha_passed=captcha_passed,
-            ip_address=str(message.from_user.id),
+            ip_address=ip_address,
             risk_score=0
         )
         session.add(request)
@@ -225,7 +232,7 @@ async def process_phone(message: Message, state: FSMContext):
 
     start_send = time.time()
     await message.answer(
-        "📸 Добавьте социальные сети\n\n"
+        "📸 **Добавьте социальные сети**\n\n"
         "Для завершения регистрации укажите ваши социальные сети.\n\n"
         "Это поможет нам убедиться, что вы профессиональный фотограф.",
         reply_markup=InlineKeyboardMarkup(
@@ -234,7 +241,8 @@ async def process_phone(message: Message, state: FSMContext):
                 [InlineKeyboardButton(text="📱 Добавить ВКонтакте", callback_data="add_vkontakte")],
                 [InlineKeyboardButton(text="⏭️ Пропустить", callback_data="social_finish")]
             ]
-        )
+        ),
+        parse_mode="Markdown"
     )
     send_time = time.time() - start_send
     time_logger.info(f"⏱️ Отправка сообщения о соцсетях: {send_time*1000:.2f}мс")
@@ -244,6 +252,9 @@ async def process_phone(message: Message, state: FSMContext):
     
     await state.set_state(Registration.waiting_for_social)
 
+# ==================================================
+# КОМАНДА ДЛЯ РУЧНОГО ВВОДА КОДА
+# ==================================================
 @router.message(Command("enter_code"))
 async def cmd_enter_code(message: Message, state: FSMContext):
     """Команда для ручного ввода кода"""
@@ -285,6 +296,9 @@ async def process_manual_code(message: Message, state: FSMContext):
         
         await cmd_start(message, state)
 
+# ==================================================
+# ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ЛОГИРОВАНИЯ
+# ==================================================
 async def log_user_action(user_id: int, action_type: str, details: str = None):
     """Вспомогательная функция для логирования"""
     async with AsyncSessionLocal() as session:

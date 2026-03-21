@@ -4,6 +4,8 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
+from ..keyboards import contact_keyboard
+
 router = Router()
 
 class CaptchaStates(StatesGroup):
@@ -75,7 +77,7 @@ async def refresh_captcha(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data.startswith("captcha_"))
 async def check_captcha(callback: CallbackQuery, state: FSMContext):
-    """Проверяет ответ на капчу"""
+    """Проверяет ответ на капчу и отправляет кнопку с контактом"""
     answer = int(callback.data.split("_")[1])
     data = await state.get_data()
     correct_answer = data.get("captcha_answer")
@@ -83,9 +85,16 @@ async def check_captcha(callback: CallbackQuery, state: FSMContext):
     if answer == correct_answer:
         # Капча пройдена
         await state.update_data(captcha_passed=True)
-        await callback.message.edit_text(
-            "✅ Капча пройдена! Теперь введите ваш номер телефона.",
-            parse_mode="Markdown"
+        
+        # Удаляем сообщение с капчей
+        await callback.message.delete()
+        
+        # Отправляем новое сообщение с просьбой отправить контакт и клавиатурой
+        await callback.message.answer(
+            "✅ Капча пройдена!\n\n"
+            "📱 Теперь, пожалуйста, отправьте ваш номер телефона, нажав на кнопку ниже.\n"
+            "Это необходимо для идентификации в системе лояльности.",
+            reply_markup=contact_keyboard()
         )
         await callback.answer()
     else:

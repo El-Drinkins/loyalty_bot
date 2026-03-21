@@ -9,7 +9,7 @@ def main_menu_keyboard(user_id: int = None):
     builder.button(text="👥 Мои друзья")
     builder.button(text="📜 История")
     builder.button(text="❓ Помощь")
-    builder.button(text="🎁 Пригласить друга в бот")  # Новая кнопка для всех
+    builder.button(text="🎁 Пригласить друга в бот")
     
     # Добавляем кнопку управления ссылками только для админов
     if user_id and user_id in settings.ADMIN_IDS:
@@ -26,7 +26,8 @@ def contact_keyboard():
     """Клавиатура для отправки номера телефона"""
     keyboard = ReplyKeyboardMarkup(
         keyboard=[[KeyboardButton(text="📱 Отправить номер телефона", request_contact=True)]],
-        resize_keyboard=True
+        resize_keyboard=True,
+        one_time_keyboard=True  # Клавиатура исчезнет после нажатия
     )
     return keyboard
 
