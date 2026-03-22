@@ -43,7 +43,7 @@ async def add_instagram(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
         "📸 **Добавьте Instagram**\n\n"
         "Введите ваш Instagram username (без @):\n\n"
-        "Пример: `petrov_photo`",
+        "Пример: petrov_photo",
         parse_mode="Markdown"
     )
     await state.set_state(SocialStates.waiting_for_instagram)
@@ -76,7 +76,7 @@ async def process_instagram(message: Message, state: FSMContext):
         
         await message.answer(
             f"📸 **Подтвердите Instagram**\n\n"
-            f"Вы ввели: `@{username}`\n\n"
+            f"Вы ввели: @{username}\n\n"
             f"Всё верно?",
             reply_markup=keyboard,
             parse_mode="Markdown"
@@ -98,9 +98,9 @@ async def confirm_instagram(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     instagram = data.get('instagram')
     
+    # Убираем Markdown, чтобы избежать ошибок парсинга
     await callback.message.edit_text(
-        f"✅ Instagram @{instagram} добавлен!",
-        parse_mode="Markdown"
+        f"✅ Instagram @{instagram} добавлен!"
     )
     
     keyboard = InlineKeyboardMarkup(
@@ -121,10 +121,10 @@ async def add_vkontakte(callback: CallbackQuery, state: FSMContext):
         "📱 **Добавьте ВКонтакте**\n\n"
         "Введите ссылку на профиль или ID:\n\n"
         "Примеры:\n"
-        "• `vk.com/durov`\n"
-        "• `@durov`\n"
-        "• `durov`\n"
-        "• `id123456`",
+        "• vk.com/durov\n"
+        "• @durov\n"
+        "• durov\n"
+        "• id123456",
         parse_mode="Markdown"
     )
     await state.set_state(SocialStates.waiting_for_vkontakte)
@@ -158,7 +158,7 @@ async def process_vkontakte(message: Message, state: FSMContext):
         display_value = f"vk.com/{value}" if not value.startswith('id') else value
         await message.answer(
             f"📱 **Подтвердите ВКонтакте**\n\n"
-            f"Вы ввели: `{display_value}`\n\n"
+            f"Вы ввели: {display_value}\n\n"
             f"Всё верно?",
             reply_markup=keyboard,
             parse_mode="Markdown"
@@ -168,10 +168,10 @@ async def process_vkontakte(message: Message, state: FSMContext):
             "❌ **Некорректная ссылка**\n\n"
             "Пожалуйста, введите корректную ссылку на профиль ВКонтакте.\n\n"
             "Примеры:\n"
-            "• `vk.com/durov`\n"
-            "• `@durov`\n"
-            "• `durov`\n"
-            "• `id123456`"
+            "• vk.com/durov\n"
+            "• @durov\n"
+            "• durov\n"
+            "• id123456"
         )
 
 @router.callback_query(F.data == "social_confirm_vkontakte")
@@ -181,8 +181,7 @@ async def confirm_vkontakte(callback: CallbackQuery, state: FSMContext):
     
     display_value = f"vk.com/{vkontakte}" if not vkontakte.startswith('id') else vkontakte
     await callback.message.edit_text(
-        f"✅ ВКонтакте {display_value} добавлен!",
-        parse_mode="Markdown"
+        f"✅ ВКонтакте {display_value} добавлен!"
     )
     
     keyboard = InlineKeyboardMarkup(
@@ -205,8 +204,7 @@ async def skip_instagram(callback: CallbackQuery, state: FSMContext):
         ]
     )
     await callback.message.edit_text(
-        "Instagram пропущен. Хотите добавить ВКонтакте?",
-        reply_markup=keyboard
+        "Instagram пропущен. Хотите добавить ВКонтакте?"
     )
     await callback.answer()
 
@@ -216,11 +214,13 @@ async def social_finish(callback: CallbackQuery, state: FSMContext):
     instagram = data.get('instagram')
     vkontakte = data.get('vkontakte')
     
-    summary = "📊 **Собранные данные:**\n\n"
-    summary += f"📸 Instagram: {f'@{instagram}' if instagram else 'не указан'}\n"
-    summary += f"📱 ВКонтакте: {f'vk.com/{vkontakte}' if vkontakte and not vkontakte.startswith('id') else vkontakte or 'не указан'}\n\n"
-    summary += "✅ Ваша заявка отправлена на модерацию. Ожидайте подтверждения от администратора."
+    summary = (
+        "📊 Собранные данные:\n\n"
+        f"📸 Instagram: {f'@{instagram}' if instagram else 'не указан'}\n"
+        f"📱 ВКонтакте: {f'vk.com/{vkontakte}' if vkontakte and not vkontakte.startswith('id') else vkontakte or 'не указан'}\n\n"
+        "✅ Ваша заявка отправлена на модерацию. Ожидайте подтверждения от администратора."
+    )
     
-    await callback.message.edit_text(summary, parse_mode="Markdown")
+    await callback.message.edit_text(summary)
     await callback.answer()
     await state.clear()
