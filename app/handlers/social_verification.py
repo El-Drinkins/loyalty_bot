@@ -114,12 +114,21 @@ async def process_instagram(message: Message, state: FSMContext):
     # Проверяем статус аккаунта
     status = await check_instagram_status(username)
     
+    # Если аккаунт не найден — завершаем, не предлагаем добавить
     if status['status'] == 'not_found':
         await message.answer(
             "❌ Аккаунт не найден. Проверьте имя."
         )
         return
     
+    # Если ошибка проверки — сообщаем и завершаем
+    if status['status'] == 'error':
+        await message.answer(
+            "⚠️ Не удалось проверить аккаунт. Пожалуйста, проверьте имя и попробуйте снова."
+        )
+        return
+    
+    # Аккаунт существует (public или private) — сохраняем
     await state.update_data(instagram=username)
     await state.update_data(instagram_status=status['status'])
     
