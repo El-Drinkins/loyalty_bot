@@ -19,7 +19,6 @@
 
 <div style="margin-bottom: 20px;">
     <a href="/admin/review/settings" class="button">⚙️ Настройки защиты</a>
-    <a href="/admin/review/stats" class="button">📊 Статистика</a>
 </div>
 
 <h2>Ожидающие заявки</h2>
@@ -34,12 +33,26 @@
                 <p><strong>📱 Телефон:</strong> {{ req.phone or 'Не указан' }}</p>
                 <p><strong>🆔 Telegram ID:</strong> <code>{{ req.telegram_id }}</code></p>
                 <p><strong>🎟️ Пригласил:</strong> {{ req.inviter.full_name if req.inviter else '—' }}</p>
+                
                 {% if req.instagram %}
-                <p><strong>📸 Instagram:</strong> @{{ req.instagram }}</p>
+                <p>
+                    <strong>📸 Instagram:</strong> @{{ req.instagram }}
+                    {% if req.instagram_status == 'public' %}
+                        ✅ публичный
+                    {% elif req.instagram_status == 'private' %}
+                        🔒 приватный
+                    {% elif req.instagram_status == 'not_found' %}
+                        ❌ не найден
+                    {% else %}
+                        ❓
+                    {% endif %}
+                </p>
                 {% endif %}
+                
                 {% if req.vkontakte %}
                 <p><strong>📱 VK:</strong> {{ req.vkontakte }}</p>
                 {% endif %}
+                
                 <p><strong>🌐 IP:</strong> {{ req.ip_address }}</p>
                 <p><strong>🤖 Капча:</strong> {% if req.captcha_passed %}✅{% else %}❌{% endif %}</p>
                 <p><strong>📊 Риск:</strong> 

@@ -15,6 +15,7 @@ class RegistrationRequest(Base):
     phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     invited_by_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
     instagram: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    instagram_status: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # <--- НОВОЕ ПОЛЕ
     vkontakte: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="pending")
     risk_score: Mapped[int] = mapped_column(Integer, default=0)

@@ -9,7 +9,7 @@ from ..deps import get_db, templates
 from ...models import User, RegistrationRequest, SecuritySettings, Whitelist, StormLog
 from ...config import settings
 
-router = APIRouter(prefix="/review", tags=["admin"])  # Убрали admin из префикса
+router = APIRouter(prefix="/admin/review", tags=["admin"])
 
 @router.get("/", response_class=HTMLResponse)
 async def review_dashboard(

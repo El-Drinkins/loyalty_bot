@@ -1,4 +1,5 @@
 import re
+import aiohttp
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
@@ -38,6 +39,51 @@ def validate_vkontakte(url_or_id: str) -> tuple[bool, str]:
     
     return False, ""
 
+async def check_instagram_status(username: str) -> dict:
+    """
+    Проверяет существование и статус Instagram аккаунта.
+    Возвращает:
+    - status: 'public', 'private', 'not_found', 'error'
+    - message: текст для пользователя
+    """
+    url = f"https://www.instagram.com/{username}/"
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=10) as response:
+                if response.status == 404:
+                    return {'status': 'not_found', 'message': '❌ Аккаунт не найден'}
+                
+                text = await response.text()
+                
+                # Проверка на приватность
+                if 'This account is private' in text or 'Этот аккаунт приватный' in text:
+                    return {'status': 'private', 'message': '🔒 Аккаунт приватный'}
+                
+                # Проверка на существование (страница загрузилась)
+                if 'instagram.com' in text and username.lower() in text.lower():
+                    return {'status': 'public', 'message': '✅ Аккаунт публичный'}
+                
+                return {'status': 'public', 'message': '✅ Аккаунт найден'}
+                
+    except Exception:
+        return {'status': 'error', 'message': '⚠️ Не удалось проверить аккаунт'}
+
+async def check_vkontakte_exists(value: str) -> bool:
+    """Проверяет, существует ли профиль ВКонтакте"""
+    if value.startswith('id'):
+        url = f"https://vk.com/{value}"
+    elif value.startswith('http'):
+        url = value
+    else:
+        url = f"https://vk.com/{value}"
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=10) as response:
+                return response.status == 200
+    except:
+        return False
+
 @router.callback_query(F.data == "add_instagram")
 async def add_instagram(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
@@ -52,34 +98,7 @@ async def add_instagram(callback: CallbackQuery, state: FSMContext):
 async def process_instagram(message: Message, state: FSMContext):
     username = message.text.strip().replace('@', '')
     
-    if validate_instagram(username):
-        await state.update_data(instagram=username)
-        
-        data = await state.get_data()
-        request_id = data.get('request_id')
-        
-        if request_id:
-            async with AsyncSessionLocal() as session:
-                req = await session.get(RegistrationRequest, request_id)
-                if req:
-                    req.instagram = username
-                    await session.commit()
-        
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="✅ Да, добавить", callback_data="social_confirm_instagram")],
-                [InlineKeyboardButton(text="❌ Изменить", callback_data="add_instagram")],
-                [InlineKeyboardButton(text="⏭️ Пропустить", callback_data="social_skip_instagram")]
-            ]
-        )
-        
-        await message.answer(
-            f"📸 Подтвердите Instagram\n\n"
-            f"Вы ввели: @{username}\n\n"
-            f"Всё верно?",
-            reply_markup=keyboard
-        )
-    else:
+    if not validate_instagram(username):
         await message.answer(
             "❌ Некорректный username\n\n"
             "Instagram username может содержать только:\n"
@@ -90,6 +109,52 @@ async def process_instagram(message: Message, state: FSMContext):
             "Длина: от 1 до 30 символов\n\n"
             "Попробуйте еще раз:"
         )
+        return
+    
+    # Проверяем статус аккаунта
+    status = await check_instagram_status(username)
+    
+    if status['status'] == 'not_found':
+        await message.answer(
+            "❌ Аккаунт не найден. Проверьте имя."
+        )
+        return
+    
+    await state.update_data(instagram=username)
+    await state.update_data(instagram_status=status['status'])
+    
+    data = await state.get_data()
+    request_id = data.get('request_id')
+    
+    if request_id:
+        async with AsyncSessionLocal() as session:
+            req = await session.get(RegistrationRequest, request_id)
+            if req:
+                req.instagram = username
+                req.instagram_status = status['status']  # Сохраняем статус
+                await session.commit()
+    
+    # Формируем сообщение с предупреждением, если аккаунт приватный
+    warning_text = ""
+    if status['status'] == 'private':
+        warning_text = "\n\n⚠️ **Внимание!** Аккаунт приватный. Администратор может не одобрить регистрацию."
+    
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Да, добавить", callback_data="social_confirm_instagram")],
+            [InlineKeyboardButton(text="❌ Изменить", callback_data="add_instagram")],
+            [InlineKeyboardButton(text="⏭️ Пропустить", callback_data="social_skip_instagram")]
+        ]
+    )
+    
+    await message.answer(
+        f"📸 Подтвердите Instagram\n\n"
+        f"Вы ввели: @{username}\n"
+        f"Статус: {status['message']}{warning_text}\n\n"
+        f"Всё верно?",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
 
 @router.callback_query(F.data == "social_confirm_instagram")
 async def confirm_instagram(callback: CallbackQuery, state: FSMContext):
@@ -130,35 +195,7 @@ async def add_vkontakte(callback: CallbackQuery, state: FSMContext):
 async def process_vkontakte(message: Message, state: FSMContext):
     valid, value = validate_vkontakte(message.text)
     
-    if valid:
-        await state.update_data(vkontakte=value)
-        
-        data = await state.get_data()
-        request_id = data.get('request_id')
-        
-        if request_id:
-            async with AsyncSessionLocal() as session:
-                req = await session.get(RegistrationRequest, request_id)
-                if req:
-                    req.vkontakte = value
-                    await session.commit()
-        
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="✅ Да, добавить", callback_data="social_confirm_vkontakte")],
-                [InlineKeyboardButton(text="❌ Изменить", callback_data="add_vkontakte")],
-                [InlineKeyboardButton(text="⏭️ Завершить регистрацию", callback_data="social_finish")]
-            ]
-        )
-        
-        display_value = f"vk.com/{value}" if not value.startswith('id') else value
-        await message.answer(
-            f"📱 Подтвердите ВКонтакте\n\n"
-            f"Вы ввели: {display_value}\n\n"
-            f"Всё верно?",
-            reply_markup=keyboard
-        )
-    else:
+    if not valid:
         await message.answer(
             "❌ Некорректная ссылка\n\n"
             "Пожалуйста, введите корректную ссылку на профиль ВКонтакте.\n\n"
@@ -168,6 +205,43 @@ async def process_vkontakte(message: Message, state: FSMContext):
             "• durov\n"
             "• id123456"
         )
+        return
+    
+    # Проверяем, существует ли профиль
+    exists = await check_vkontakte_exists(value)
+    if not exists:
+        await message.answer(
+            "❌ Аккаунт не найден. Проверьте имя."
+        )
+        return
+    
+    await state.update_data(vkontakte=value)
+    
+    data = await state.get_data()
+    request_id = data.get('request_id')
+    
+    if request_id:
+        async with AsyncSessionLocal() as session:
+            req = await session.get(RegistrationRequest, request_id)
+            if req:
+                req.vkontakte = value
+                await session.commit()
+    
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Да, добавить", callback_data="social_confirm_vkontakte")],
+            [InlineKeyboardButton(text="❌ Изменить", callback_data="add_vkontakte")],
+            [InlineKeyboardButton(text="⏭️ Завершить регистрацию", callback_data="social_finish")]
+        ]
+    )
+    
+    display_value = f"vk.com/{value}" if not value.startswith('id') else value
+    await message.answer(
+        f"📱 Подтвердите ВКонтакте\n\n"
+        f"Вы ввели: {display_value}\n\n"
+        f"Всё верно?",
+        reply_markup=keyboard
+    )
 
 @router.callback_query(F.data == "social_confirm_vkontakte")
 async def confirm_vkontakte(callback: CallbackQuery, state: FSMContext):
@@ -207,11 +281,19 @@ async def skip_instagram(callback: CallbackQuery, state: FSMContext):
 async def social_finish(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     instagram = data.get('instagram')
+    instagram_status = data.get('instagram_status', 'unknown')
     vkontakte = data.get('vkontakte')
+    
+    status_emoji = {
+        'public': '✅',
+        'private': '🔒',
+        'not_found': '❌',
+        'error': '⚠️'
+    }.get(instagram_status, '❓')
     
     summary = (
         "📊 Собранные данные:\n\n"
-        f"📸 Instagram: {f'@{instagram}' if instagram else 'не указан'}\n"
+        f"📸 Instagram: {f'@{instagram}' if instagram else 'не указан'} {status_emoji}\n"
         f"📱 ВКонтакте: {f'vk.com/{vkontakte}' if vkontakte and not vkontakte.startswith('id') else vkontakte or 'не указан'}\n\n"
         "✅ Ваша заявка отправлена на модерацию. Ожидайте подтверждения от администратора."
     )
