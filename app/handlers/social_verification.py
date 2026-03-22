@@ -131,7 +131,7 @@ async def process_instagram(message: Message, state: FSMContext):
             req = await session.get(RegistrationRequest, request_id)
             if req:
                 req.instagram = username
-                req.instagram_status = status['status']  # Сохраняем статус
+                req.instagram_status = status['status']
                 await session.commit()
     
     # Формируем сообщение с предупреждением, если аккаунт приватный

@@ -15,7 +15,7 @@ class RegistrationRequest(Base):
     phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     invited_by_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
     instagram: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    instagram_status: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # <--- НОВОЕ ПОЛЕ
+    instagram_status: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     vkontakte: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="pending")
     risk_score: Mapped[int] = mapped_column(Integer, default=0)
@@ -26,7 +26,6 @@ class RegistrationRequest(Base):
     reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     review_comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # Связи
     user: Mapped[Optional["User"]] = relationship("User", foreign_keys=[user_id])
     inviter: Mapped[Optional["User"]] = relationship("User", foreign_keys=[invited_by_id])
     reviewer: Mapped[Optional["User"]] = relationship("User", foreign_keys=[reviewed_by])
@@ -43,7 +42,7 @@ class Whitelist(Base):
     __tablename__ = "whitelist"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    type: Mapped[str] = mapped_column(String(50))  # ip, referral_code, user
+    type: Mapped[str] = mapped_column(String(50))
     value: Mapped[str] = mapped_column(String(255))
     reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
