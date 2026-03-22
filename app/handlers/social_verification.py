@@ -4,7 +4,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
-from ..models import AsyncSessionLocal, RegistrationRequest  # изменен импорт
+from ..models import AsyncSessionLocal, RegistrationRequest
 
 router = Router()
 
@@ -56,6 +56,16 @@ async def process_instagram(message: Message, state: FSMContext):
     if validate_instagram(username):
         await state.update_data(instagram=username)
         
+        data = await state.get_data()
+        request_id = data.get('request_id')
+        
+        if request_id:
+            async with AsyncSessionLocal() as session:
+                req = await session.get(RegistrationRequest, request_id)
+                if req:
+                    req.instagram = username
+                    await session.commit()
+        
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text="✅ Да, добавить", callback_data="social_confirm_instagram")],
@@ -88,16 +98,6 @@ async def confirm_instagram(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     instagram = data.get('instagram')
     
-    data = await state.get_data()
-    request_id = data.get('request_id')
-    
-    if request_id:
-        async with AsyncSessionLocal() as session:
-            req = await session.get(RegistrationRequest, request_id)
-            if req:
-                req.instagram = instagram
-                await session.commit()
-    
     await callback.message.edit_text(
         f"✅ Instagram @{instagram} добавлен!",
         parse_mode="Markdown"
@@ -106,7 +106,7 @@ async def confirm_instagram(callback: CallbackQuery, state: FSMContext):
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="📱 Добавить ВКонтакте", callback_data="add_vkontakte")],
-            [InlineKeyboardButton(text="⏭️ Завершить", callback_data="social_finish")]
+            [InlineKeyboardButton(text="⏭️ Завершить регистрацию", callback_data="social_finish")]
         ]
     )
     await callback.message.answer(
@@ -151,7 +151,7 @@ async def process_vkontakte(message: Message, state: FSMContext):
             inline_keyboard=[
                 [InlineKeyboardButton(text="✅ Да, добавить", callback_data="social_confirm_vkontakte")],
                 [InlineKeyboardButton(text="❌ Изменить", callback_data="add_vkontakte")],
-                [InlineKeyboardButton(text="⏭️ Пропустить", callback_data="social_finish")]
+                [InlineKeyboardButton(text="⏭️ Завершить регистрацию", callback_data="social_finish")]
             ]
         )
         
@@ -196,28 +196,12 @@ async def confirm_vkontakte(callback: CallbackQuery, state: FSMContext):
     )
     await callback.answer()
 
-@router.callback_query(F.data == "social_finish")
-async def social_finish(callback: CallbackQuery, state: FSMContext):
-    data = await state.get_data()
-    instagram = data.get('instagram')
-    vkontakte = data.get('vkontakte')
-    request_id = data.get('request_id')
-    
-    summary = "📊 **Собранные данные:**\n\n"
-    summary += f"📸 Instagram: {f'@{instagram}' if instagram else 'не указан'}\n"
-    summary += f"📱 ВКонтакте: {f'vk.com/{vkontakte}' if vkontakte and not vkontakte.startswith('id') else vkontakte or 'не указан'}\n\n"
-    summary += "Ваша заявка отправлена на модерацию. Ожидайте подтверждения от администратора."
-    
-    await callback.message.edit_text(summary, parse_mode="Markdown")
-    await callback.answer()
-    await state.clear()
-
 @router.callback_query(F.data == "social_skip_instagram")
 async def skip_instagram(callback: CallbackQuery, state: FSMContext):
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="📱 Добавить ВКонтакте", callback_data="add_vkontakte")],
-            [InlineKeyboardButton(text="⏭️ Завершить", callback_data="social_finish")]
+            [InlineKeyboardButton(text="⏭️ Завершить регистрацию", callback_data="social_finish")]
         ]
     )
     await callback.message.edit_text(
@@ -225,3 +209,18 @@ async def skip_instagram(callback: CallbackQuery, state: FSMContext):
         reply_markup=keyboard
     )
     await callback.answer()
+
+@router.callback_query(F.data == "social_finish")
+async def social_finish(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    instagram = data.get('instagram')
+    vkontakte = data.get('vkontakte')
+    
+    summary = "📊 **Собранные данные:**\n\n"
+    summary += f"📸 Instagram: {f'@{instagram}' if instagram else 'не указан'}\n"
+    summary += f"📱 ВКонтакте: {f'vk.com/{vkontakte}' if vkontakte and not vkontakte.startswith('id') else vkontakte or 'не указан'}\n\n"
+    summary += "✅ Ваша заявка отправлена на модерацию. Ожидайте подтверждения от администратора."
+    
+    await callback.message.edit_text(summary, parse_mode="Markdown")
+    await callback.answer()
+    await state.clear()
