@@ -41,10 +41,9 @@ def validate_vkontakte(url_or_id: str) -> tuple[bool, str]:
 @router.callback_query(F.data == "add_instagram")
 async def add_instagram(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
-        "📸 **Добавьте Instagram**\n\n"
+        "📸 Добавьте Instagram\n\n"
         "Введите ваш Instagram username (без @):\n\n"
-        "Пример: petrov_photo",
-        parse_mode="Markdown"
+        "Пример: petrov_photo"
     )
     await state.set_state(SocialStates.waiting_for_instagram)
     await callback.answer()
@@ -75,15 +74,14 @@ async def process_instagram(message: Message, state: FSMContext):
         )
         
         await message.answer(
-            f"📸 **Подтвердите Instagram**\n\n"
+            f"📸 Подтвердите Instagram\n\n"
             f"Вы ввели: @{username}\n\n"
             f"Всё верно?",
-            reply_markup=keyboard,
-            parse_mode="Markdown"
+            reply_markup=keyboard
         )
     else:
         await message.answer(
-            "❌ **Некорректный username**\n\n"
+            "❌ Некорректный username\n\n"
             "Instagram username может содержать только:\n"
             "• латинские буквы\n"
             "• цифры\n"
@@ -98,7 +96,6 @@ async def confirm_instagram(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     instagram = data.get('instagram')
     
-    # Убираем Markdown, чтобы избежать ошибок парсинга
     await callback.message.edit_text(
         f"✅ Instagram @{instagram} добавлен!"
     )
@@ -118,14 +115,13 @@ async def confirm_instagram(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "add_vkontakte")
 async def add_vkontakte(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
-        "📱 **Добавьте ВКонтакте**\n\n"
+        "📱 Добавьте ВКонтакте\n\n"
         "Введите ссылку на профиль или ID:\n\n"
         "Примеры:\n"
         "• vk.com/durov\n"
         "• @durov\n"
         "• durov\n"
-        "• id123456",
-        parse_mode="Markdown"
+        "• id123456"
     )
     await state.set_state(SocialStates.waiting_for_vkontakte)
     await callback.answer()
@@ -157,15 +153,14 @@ async def process_vkontakte(message: Message, state: FSMContext):
         
         display_value = f"vk.com/{value}" if not value.startswith('id') else value
         await message.answer(
-            f"📱 **Подтвердите ВКонтакте**\n\n"
+            f"📱 Подтвердите ВКонтакте\n\n"
             f"Вы ввели: {display_value}\n\n"
             f"Всё верно?",
-            reply_markup=keyboard,
-            parse_mode="Markdown"
+            reply_markup=keyboard
         )
     else:
         await message.answer(
-            "❌ **Некорректная ссылка**\n\n"
+            "❌ Некорректная ссылка\n\n"
             "Пожалуйста, введите корректную ссылку на профиль ВКонтакте.\n\n"
             "Примеры:\n"
             "• vk.com/durov\n"
