@@ -1,5 +1,4 @@
 import re
-import aiohttp
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
@@ -39,37 +38,8 @@ def validate_vkontakte(url_or_id: str) -> tuple[bool, str]:
     
     return False, ""
 
-async def check_instagram_status(username: str) -> dict:
-    """
-    Проверяет существование и статус Instagram аккаунта.
-    Возвращает:
-    - status: 'public', 'private', 'not_found', 'error'
-    - message: текст для пользователя
-    """
-    url = f"https://www.instagram.com/{username}/"
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=10) as response:
-                if response.status == 404:
-                    return {'status': 'not_found', 'message': '❌ Аккаунт не найден'}
-                
-                text = await response.text()
-                
-                # Проверка на приватность
-                if 'This account is private' in text or 'Этот аккаунт приватный' in text:
-                    return {'status': 'private', 'message': '🔒 Аккаунт приватный'}
-                
-                # Проверка на существование (страница загрузилась)
-                if 'instagram.com' in text and username.lower() in text.lower():
-                    return {'status': 'public', 'message': '✅ Аккаунт публичный'}
-                
-                return {'status': 'public', 'message': '✅ Аккаунт найден'}
-                
-    except Exception:
-        return {'status': 'error', 'message': '⚠️ Не удалось проверить аккаунт'}
-
 async def check_vkontakte_exists(value: str) -> bool:
-    """Проверяет, существует ли профиль ВКонтакте"""
+    """Проверяет, существует ли профиль ВКонтакте (VK не блокируется)"""
     if value.startswith('id'):
         url = f"https://vk.com/{value}"
     elif value.startswith('http'):
@@ -89,7 +59,9 @@ async def add_instagram(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
         "📸 Добавьте Instagram\n\n"
         "Введите ваш Instagram username (без @):\n\n"
-        "Пример: petrov_photo"
+        "Пример: petrov_photo\n\n"
+        "⚠️ Важно: аккаунт должен быть открытым (публичным).\n"
+        "Приватные аккаунты не будут приняты."
     )
     await state.set_state(SocialStates.waiting_for_instagram)
     await callback.answer()
@@ -111,26 +83,9 @@ async def process_instagram(message: Message, state: FSMContext):
         )
         return
     
-    # Проверяем статус аккаунта
-    status = await check_instagram_status(username)
-    
-    # Если аккаунт не найден — завершаем, не предлагаем добавить
-    if status['status'] == 'not_found':
-        await message.answer(
-            "❌ Аккаунт не найден. Проверьте имя."
-        )
-        return
-    
-    # Если ошибка проверки — сообщаем и завершаем
-    if status['status'] == 'error':
-        await message.answer(
-            "⚠️ Не удалось проверить аккаунт. Пожалуйста, проверьте имя и попробуйте снова."
-        )
-        return
-    
-    # Аккаунт существует (public или private) — сохраняем
+    # Сохраняем username (без проверки существования)
     await state.update_data(instagram=username)
-    await state.update_data(instagram_status=status['status'])
+    await state.update_data(instagram_status='pending')  # статус будет проверен админом
     
     data = await state.get_data()
     request_id = data.get('request_id')
@@ -140,14 +95,9 @@ async def process_instagram(message: Message, state: FSMContext):
             req = await session.get(RegistrationRequest, request_id)
             if req:
                 req.instagram = username
-                req.instagram_status = status['status']
                 await session.commit()
     
-    # Формируем сообщение с предупреждением, если аккаунт приватный
-    warning_text = ""
-    if status['status'] == 'private':
-        warning_text = "\n\n⚠️ Внимание! Аккаунт приватный. Администратор может не одобрить регистрацию."
-    
+    # Сообщение с напоминанием о публичном аккаунте
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="✅ Да, добавить", callback_data="social_confirm_instagram")],
@@ -158,8 +108,9 @@ async def process_instagram(message: Message, state: FSMContext):
     
     await message.answer(
         f"📸 Подтвердите Instagram\n\n"
-        f"Вы ввели: @{username}\n"
-        f"Статус: {status['message']}{warning_text}\n\n"
+        f"Вы ввели: @{username}\n\n"
+        f"⚠️ Напоминаем: аккаунт должен быть открытым (публичным).\n"
+        f"Приватные аккаунты не будут приняты.\n\n"
         f"Всё верно?",
         reply_markup=keyboard
     )
@@ -170,7 +121,8 @@ async def confirm_instagram(callback: CallbackQuery, state: FSMContext):
     instagram = data.get('instagram')
     
     await callback.message.edit_text(
-        f"✅ Instagram @{instagram} добавлен!"
+        f"✅ Instagram @{instagram} добавлен!\n\n"
+        f"⚠️ Не забудьте, что аккаунт должен быть открытым (публичным)."
     )
     
     keyboard = InlineKeyboardMarkup(
@@ -215,7 +167,7 @@ async def process_vkontakte(message: Message, state: FSMContext):
         )
         return
     
-    # Проверяем, существует ли профиль
+    # Проверяем, существует ли профиль (VK не блокируется)
     exists = await check_vkontakte_exists(value)
     if not exists:
         await message.answer(
@@ -289,20 +241,13 @@ async def skip_instagram(callback: CallbackQuery, state: FSMContext):
 async def social_finish(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     instagram = data.get('instagram')
-    instagram_status = data.get('instagram_status', 'unknown')
     vkontakte = data.get('vkontakte')
-    
-    status_emoji = {
-        'public': '✅',
-        'private': '🔒',
-        'not_found': '❌',
-        'error': '⚠️'
-    }.get(instagram_status, '❓')
     
     summary = (
         "📊 Собранные данные:\n\n"
-        f"📸 Instagram: {f'@{instagram}' if instagram else 'не указан'} {status_emoji}\n"
+        f"📸 Instagram: {f'@{instagram}' if instagram else 'не указан'}\n"
         f"📱 ВКонтакте: {f'vk.com/{vkontakte}' if vkontakte and not vkontakte.startswith('id') else vkontakte or 'не указан'}\n\n"
+        "⚠️ Напоминание: Instagram аккаунт должен быть открытым (публичным).\n\n"
         "✅ Ваша заявка отправлена на модерацию. Ожидайте подтверждения от администратора."
     )
     
