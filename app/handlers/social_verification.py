@@ -137,7 +137,7 @@ async def process_instagram(message: Message, state: FSMContext):
     # Формируем сообщение с предупреждением, если аккаунт приватный
     warning_text = ""
     if status['status'] == 'private':
-        warning_text = "\n\n⚠️ **Внимание!** Аккаунт приватный. Администратор может не одобрить регистрацию."
+        warning_text = "\n\n⚠️ Внимание! Аккаунт приватный. Администратор может не одобрить регистрацию."
     
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -152,8 +152,7 @@ async def process_instagram(message: Message, state: FSMContext):
         f"Вы ввели: @{username}\n"
         f"Статус: {status['message']}{warning_text}\n\n"
         f"Всё верно?",
-        reply_markup=keyboard,
-        parse_mode="Markdown"
+        reply_markup=keyboard
     )
 
 @router.callback_query(F.data == "social_confirm_instagram")
