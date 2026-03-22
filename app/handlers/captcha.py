@@ -5,7 +5,6 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
 from ..keyboards import contact_keyboard
-from ..handlers.start import Registration
 
 router = Router()
 
@@ -99,7 +98,8 @@ async def check_captcha(callback: CallbackQuery, state: FSMContext):
             "Это необходимо для идентификации в системе лояльности.",
             reply_markup=contact_keyboard()
         )
-        await state.set_state(Registration.waiting_for_phone)
+        # Используем строковое состояние вместо импорта Registration
+        await state.set_state("waiting_for_phone")
         await callback.answer()
     else:
         # Неправильный ответ
