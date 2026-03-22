@@ -36,7 +36,7 @@ app.include_router(user_router)                     # Управление по�
 app.include_router(api_router)                      # API для поиска
 app.include_router(catalog_router, prefix="/catalog")  # Каталог техники
 app.include_router(search_router)                   # Поиск клиентов
-app.include_router(admin_review_router, prefix="/admin")  # Модерация
+app.include_router(admin_review_router)  # Модерация  
 
 print("=== ЗАРЕГИСТРИРОВАННЫЕ МАРШРУТЫ ===")
 for route in app.routes:
