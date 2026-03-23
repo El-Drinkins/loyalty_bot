@@ -192,7 +192,7 @@ async def confirm_vkontakte(callback: CallbackQuery, state: FSMContext):
         ]
     )
     await callback.message.answer(
-        "Все данные собраны! Завершите регистрацию.",
+        "Для завершения регистрации нажмите на кнопку ниже.",
         reply_markup=keyboard
     )
     await callback.answer()
