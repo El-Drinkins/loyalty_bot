@@ -221,7 +221,6 @@ async def social_finish(callback: CallbackQuery, state: FSMContext):
         "📊 Собранные данные:\n\n"
         f"📸 Instagram: {f'@{instagram}' if instagram else 'не указан'}\n"
         f"📱 ВКонтакте: {f'vk.com/{vkontakte}' if vkontakte and not vkontakte.startswith('id') else vkontakte or 'не указан'}\n\n"
-        "⚠️ Напоминание: Instagram аккаунт должен быть открытым (публичным).\n\n"
         "✅ Ваша заявка отправлена на модерацию. Ожидайте подтверждения от администратора."
     )
     
