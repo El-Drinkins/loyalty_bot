@@ -104,7 +104,7 @@ async def cmd_start(message: Message, state: FSMContext):
 @router.callback_query(F.data == "start_registration")
 async def start_registration(callback: CallbackQuery, state: FSMContext):
     """Обработчик кнопки 'Начать регистрацию'"""
-    await callback.message.delete()
+    # Не удаляем приветственное сообщение
     
     args = callback.message.text.split()
     ref_code = args[1] if len(args) > 1 else None
@@ -137,7 +137,6 @@ async def start_registration(callback: CallbackQuery, state: FSMContext):
         )
         
         if is_whitelisted:
-            # Белый список — пропускаем капчу
             await callback.message.answer(
                 "✅ Вы в белом списке! Продолжаем регистрацию.\n\n"
                 "📱 Введите ваш номер телефона в формате:\n"
