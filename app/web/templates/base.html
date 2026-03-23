@@ -287,10 +287,7 @@
         </div>
         
         <!-- Кнопка модерации -->
-        <a href="/admin/review" {% if request.url.path.startswith('/admin/review') and request.url.path != '/admin/review/all' %}class="active"{% endif %}>👮‍♂️ Модерация</a>
-        
-        <!-- Все заявки -->
-        <a href="/admin/review/all" {% if request.url.path == '/admin/review/all' %}class="active"{% endif %}>📋 Все заявки</a>
+        <a href="/admin/review" {% if request.url.path.startswith('/admin/review') %}class="active"{% endif %}>👮‍♂️ Модерация</a>
         
         <a href="/search" {% if request.url.path == '/search' %}class="active"{% endif %}>🔍 Найти клиента</a>
         <a href="/mailing" {% if request.url.path == '/mailing' %}class="active"{% endif %}>📢 Рассылка</a>
