@@ -121,7 +121,7 @@ async def process_phone(message: Message, state: FSMContext):
     await message.answer(
         "📸 **Добавьте социальные сети**\n\n"
         "Для завершения регистрации укажите ваши социальные сети.\n\n"
-        "Это поможет нам убедиться, что вы профессиональный фотограф.",
+        "Это поможет нам убедиться, что вы профессиональный фотограф/видеограф.",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text="📷 Добавить Instagram", callback_data="add_instagram")],
