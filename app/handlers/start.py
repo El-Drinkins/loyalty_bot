@@ -86,12 +86,10 @@ async def start_registration(callback: CallbackQuery, state: FSMContext):
     """Обработчик кнопки 'Начать регистрацию'"""
     await callback.message.delete()
     
-    # Получаем реферальный код из ссылки (если есть)
     args = callback.message.text.split()
     ref_code = args[1] if len(args) > 1 else None
     
     async with AsyncSessionLocal() as session:
-        # Проверяем, есть ли реферальный код
         if ref_code:
             code_record = await session.execute(
                 select(ReferralCode).where(ReferralCode.code == ref_code)
@@ -109,22 +107,16 @@ async def start_registration(callback: CallbackQuery, state: FSMContext):
                     if referrer:
                         await callback.message.answer(f"🎉 Вас пригласил: {referrer.full_name}")
         
-        # Сохраняем IP адрес
         await state.update_data(ip_address=str(callback.from_user.id))
         
-        # =========================================================
-        # ЗАЩИТА ОТ МАССОВЫХ РЕГИСТРАЦИЙ
-        # =========================================================
         storm = StormProtection(session)
         
-        # Проверяем белый список
         is_whitelisted = await storm.is_whitelisted(
             ip=str(callback.from_user.id),
             referral_code=ref_code
         )
         
         if is_whitelisted:
-            # Белый список — пропускаем без проверок
             await callback.message.answer(
                 "✅ Вы в белом списке! Продолжаем регистрацию.\n\n"
                 "📱 Отправьте ваш номер телефона, нажав на кнопку ниже.\n"
@@ -135,7 +127,6 @@ async def start_registration(callback: CallbackQuery, state: FSMContext):
             await callback.answer()
             return
         
-        # Проверяем шторм
         in_storm, storm_stats = await storm.check_storm()
         if in_storm:
             await callback.message.answer(
@@ -147,7 +138,6 @@ async def start_registration(callback: CallbackQuery, state: FSMContext):
             await callback.answer()
             return
         
-        # Проверяем лимит IP
         ip_limit_ok, ip_count = await storm.check_ip_limit(str(callback.from_user.id))
         if not ip_limit_ok:
             await callback.message.answer(
@@ -158,12 +148,10 @@ async def start_registration(callback: CallbackQuery, state: FSMContext):
             await callback.answer()
             return
         
-        # Получаем настройку капчи
         captcha_enabled = await get_security_setting(session, "captcha_enabled", "false")
         captcha_enabled = captcha_enabled.lower() == "true"
         
         if captcha_enabled:
-            # Показываем капчу
             question, answer = captcha.generate()
             await state.update_data(captcha_answer=answer)
             keyboard = captcha.create_keyboard(answer)
@@ -177,7 +165,6 @@ async def start_registration(callback: CallbackQuery, state: FSMContext):
             )
             await state.set_state(Registration.waiting_for_captcha)
         else:
-            # Капча отключена — сразу переходим к номеру телефона
             await callback.message.answer(
                 "📱 Отправьте ваш номер телефона, нажав на кнопку ниже.\n"
                 "(⚠️ Не вводите номер в поле для текста — бот его не примет)",
@@ -258,7 +245,6 @@ async def process_phone(message: Message, state: FSMContext):
     )
     await state.set_state(Registration.waiting_for_social)
 
-# Обработчик текстового ввода номера телефона (если пользователь всё же ввел текст)
 @router.message(Registration.waiting_for_phone)
 async def handle_wrong_phone_input(message: Message, state: FSMContext):
     """Если пользователь ввел текст вместо нажатия кнопки"""
@@ -268,7 +254,6 @@ async def handle_wrong_phone_input(message: Message, state: FSMContext):
         reply_markup=contact_keyboard()
     )
 
-# Команда /help
 @router.message(Command("help"))
 async def cmd_help(message: Message):
     """Команда помощи"""
@@ -292,10 +277,9 @@ async def cmd_help(message: Message):
     )
     await message.answer(help_text, parse_mode="Markdown")
 
-# Команда /admin (только для админов)
 @router.message(Command("admin"))
 async def cmd_admin(message: Message):
-    """Команда для администраторов"""
+    """Команда для администраторов (только для админов)"""
     if message.from_user.id not in settings.ADMIN_IDS:
         await message.answer("❌ У вас нет прав администратора.")
         return
@@ -313,7 +297,6 @@ async def cmd_admin(message: Message):
         parse_mode="Markdown"
     )
 
-# Команда /enter_code (ручной ввод кода)
 @router.message(Command("enter_code"))
 async def cmd_enter_code(message: Message, state: FSMContext):
     """Команда для ручного ввода кода"""
