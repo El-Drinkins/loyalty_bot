@@ -212,17 +212,8 @@ async def skip_instagram(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "social_finish")
 async def social_finish(callback: CallbackQuery, state: FSMContext):
-    data = await state.get_data()
-    instagram = data.get('instagram')
-    vkontakte = data.get('vkontakte')
-    
-    summary = (
-        "📊 Собранные данные:\n\n"
-        f"📸 Instagram: {f'@{instagram}' if instagram else 'не указан'}\n"
-        f"📱 ВКонтакте: {f'vk.com/{vkontakte}' if vkontakte and not vkontakte.startswith('id') else vkontakte or 'не указан'}\n\n"
-        "✅ Ваша заявка отправлена на модерацию. Ожидайте подтверждения от администратора."
+    await callback.message.edit_text(
+        "✅ Ваша заявка отправлена на модерацию. Ожидайте подтверждения администратора."
     )
-    
-    await callback.message.edit_text(summary)
     await callback.answer()
     await state.clear()

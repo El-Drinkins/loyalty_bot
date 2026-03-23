@@ -6,8 +6,9 @@ from sqlalchemy.orm import selectinload
 from datetime import datetime
 
 from ..deps import get_db, templates
-from ...models import User, RegistrationRequest, SecuritySettings, Whitelist, StormLog
+from ...models import User, RegistrationRequest, SecuritySettings, Whitelist, StormLog, Transaction
 from ...config import settings
+from ...notifications import send_telegram_notification
 
 router = APIRouter(prefix="/admin/review", tags=["admin"])
 
@@ -72,6 +73,101 @@ async def review_rejected(
         "per_page": per_page
     })
 
+@router.post("/api/approve/{request_id}")
+async def api_approve_request(
+    request_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """Одобряет заявку и создаёт пользователя"""
+    req = await db.get(RegistrationRequest, request_id)
+    if not req:
+        raise HTTPException(404, "Заявка не найдена")
+    
+    if req.status != "pending":
+        raise HTTPException(400, "Заявка уже обработана")
+    
+    # Создаем пользователя
+    user = User(
+        telegram_id=req.telegram_id,
+        full_name=req.full_name or "Имя не указано",
+        phone=req.phone or "",
+        balance=settings.WELCOME_BONUS,
+        invited_by_id=req.invited_by_id,
+        instagram=req.instagram,
+        vkontakte=req.vkontakte,
+        verification_level="basic",
+        badge="🟢",
+        verified_at=datetime.utcnow()
+    )
+    db.add(user)
+    await db.flush()
+    
+    # Обновляем статус заявки
+    req.status = "approved"
+    req.user_id = user.id
+    req.reviewed_at = datetime.utcnow()
+    
+    # Добавляем транзакцию на начисление бонусов
+    transaction = Transaction(
+        user_id=user.id,
+        amount=settings.WELCOME_BONUS,
+        reason="Бонус за регистрацию"
+    )
+    db.add(transaction)
+    
+    await db.commit()
+    
+    # Отправляем уведомление пользователю
+    try:
+        await send_telegram_notification(
+            req.telegram_id,
+            f"✅ **Регистрация подтверждена!**\n\n"
+            f"Ваша заявка одобрена. Добро пожаловать в программу лояльности!\n\n"
+            f"🎁 Вам начислено {settings.WELCOME_BONUS} приветственных баллов.\n\n"
+            f"Отправьте /start для начала работы."
+        )
+    except Exception as e:
+        print(f"Не удалось отправить уведомление пользователю {req.telegram_id}: {e}")
+    
+    # Возвращаемся на страницу модерации
+    return RedirectResponse(url="/admin/review", status_code=303)
+
+@router.post("/api/reject/{request_id}")
+async def api_reject_request(
+    request_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """Отклоняет заявку"""
+    req = await db.get(RegistrationRequest, request_id)
+    if not req:
+        raise HTTPException(404, "Заявка не найдена")
+    
+    req.status = "rejected"
+    req.reviewed_at = datetime.utcnow()
+    
+    await db.commit()
+    
+    return RedirectResponse(url="/admin/review", status_code=303)
+
+@router.post("/api/ban/{request_id}")
+async def api_ban_request(
+    request_id: int,
+    reason: str = Form(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """Блокирует пользователя и отклоняет заявку"""
+    req = await db.get(RegistrationRequest, request_id)
+    if not req:
+        raise HTTPException(404, "Заявка не найдена")
+    
+    req.status = "rejected"
+    req.review_comment = reason
+    req.reviewed_at = datetime.utcnow()
+    
+    await db.commit()
+    
+    return RedirectResponse(url="/admin/review", status_code=303)
+
 @router.post("/restore/{request_id}")
 async def restore_request(
     request_id: int,
@@ -88,6 +184,21 @@ async def restore_request(
     req.review_comment = None
     req.reviewed_by = None
     req.reviewed_at = None
+    await db.commit()
+    
+    return RedirectResponse(url="/admin/review/rejected", status_code=303)
+
+@router.post("/api/delete_request/{request_id}")
+async def delete_request(
+    request_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """Удаляет заявку навсегда"""
+    req = await db.get(RegistrationRequest, request_id)
+    if not req:
+        raise HTTPException(404, "Заявка не найдена")
+    
+    await db.delete(req)
     await db.commit()
     
     return RedirectResponse(url="/admin/review/rejected", status_code=303)
@@ -192,19 +303,3 @@ async def delete_from_whitelist(
         await db.commit()
     
     return RedirectResponse(url="/admin/review/settings?deleted=1", status_code=303)
-
-# API для удаления заявки
-@router.post("/api/delete_request/{request_id}")
-async def delete_request(
-    request_id: int,
-    db: AsyncSession = Depends(get_db)
-):
-    """Удаляет заявку навсегда"""
-    req = await db.get(RegistrationRequest, request_id)
-    if not req:
-        raise HTTPException(404, "Заявка не найдена")
-    
-    await db.delete(req)
-    await db.commit()
-    
-    return RedirectResponse(url="/admin/review/rejected", status_code=303)

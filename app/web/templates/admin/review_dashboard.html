@@ -52,10 +52,10 @@
                 <p><strong>🕐 Создана:</strong> {{ req.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
             </div>
             <div style="display: flex; gap: 10px;">
-                <form action="/api/admin/approve/{{ req.id }}" method="post" style="display: inline;">
+                <form action="/admin/review/api/approve/{{ req.id }}" method="post" style="display: inline;">
                     <button type="submit" class="button" style="background-color: #4CAF50;">✅ Одобрить</button>
                 </form>
-                <form action="/api/admin/reject/{{ req.id }}" method="post" style="display: inline;">
+                <form action="/admin/review/api/reject/{{ req.id }}" method="post" style="display: inline;">
                     <button type="submit" class="button button-red" style="background-color: #f44336;">❌ Отклонить</button>
                 </form>
                 <button onclick="showBanModal({{ req.id }})" class="button button-red">🚫 Бан</button>
@@ -74,7 +74,7 @@
     <div style="background-color: white; margin: 15% auto; padding: 25px; border-radius: 8px; width: 400px;">
         <h3 style="color: #f44336; margin-top: 0;">🚫 Блокировка пользователя</h3>
         <p>Укажите причину блокировки:</p>
-        <form id="banForm" method="post">
+        <form id="banForm" method="post" action="/admin/review/api/ban/{{ req.id }}">
             <textarea name="reason" rows="3" style="width: 100%; padding: 8px; margin-bottom: 15px;" placeholder="Например: подозрение на бота, спам, нарушение правил"></textarea>
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
                 <button type="button" onclick="hideBanModal()" class="button" style="background-color: #666;">Отмена</button>
@@ -88,7 +88,7 @@
 function showBanModal(requestId) {
     const modal = document.getElementById('banModal');
     const form = document.getElementById('banForm');
-    form.action = `/api/admin/ban/${requestId}`;
+    form.action = `/admin/review/api/ban/${requestId}`;
     modal.style.display = 'block';
 }
 

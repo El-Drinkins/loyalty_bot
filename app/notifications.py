@@ -2,14 +2,12 @@ import httpx
 from .config import settings
 
 async def send_telegram_notification(chat_id: int, text: str):
-    """
-    Отправляет сообщение пользователю через Telegram Bot API
-    """
+    """Отправляет сообщение пользователю через Telegram Bot API"""
     url = f"https://api.telegram.org/bot{settings.BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": chat_id,
         "text": text,
-        "parse_mode": "HTML"
+        "parse_mode": "Markdown"
     }
     async with httpx.AsyncClient() as client:
         try:
