@@ -12,7 +12,6 @@ from ..models import User, Referral, Transaction, AsyncSessionLocal, ReferralCod
 from ..keyboards import contact_keyboard, main_menu_keyboard
 from ..utils import calculate_expiry_date
 from ..config import settings
-from .captcha import captcha, CaptchaStates
 from .storm import StormProtection
 
 logger = logging.getLogger(__name__)
@@ -22,7 +21,6 @@ time_logger.setLevel(logging.INFO)
 router = Router()
 
 class Registration(StatesGroup):
-    waiting_for_captcha = State()
     waiting_for_phone = State()
     waiting_for_social = State()
     waiting_for_manual_code = State()
@@ -76,55 +74,99 @@ async def cmd_start(message: Message, state: FSMContext):
 @router.callback_query(F.data == "start_registration")
 async def start_registration(callback: CallbackQuery, state: FSMContext):
     """Обработчик кнопки 'Начать регистрацию'"""
-    await callback.message.delete()  # Удаляем приветственное сообщение
+    await callback.message.delete()
     
+    # Получаем реферальный код из ссылки (если есть)
     args = callback.message.text.split()
-    ref_code = None
-    
-    # Проверяем, есть ли реферальный код в тексте сообщения (если пользователь перешел по ссылке)
-    if callback.message.text and '?start=' in callback.message.text:
-        ref_code = callback.message.text.split('?start=')[-1].split()[0]
+    ref_code = args[1] if len(args) > 1 else None
     
     async with AsyncSessionLocal() as session:
-        question, answer = captcha.generate()
-        await state.update_data(captcha_answer=answer)
-        keyboard = captcha.create_keyboard(answer)
+        # Проверяем, есть ли реферальный код
+        if ref_code:
+            code_record = await session.execute(
+                select(ReferralCode).where(ReferralCode.code == ref_code)
+            )
+            code_record = code_record.scalar_one_or_none()
+            
+            if code_record and code_record.is_active:
+                # Проверяем срок действия
+                if code_record.expires_at and code_record.expires_at < datetime.utcnow():
+                    await callback.message.answer("⏰ Срок действия кода истек. Регистрация без кода.")
+                elif code_record.max_uses > 0 and code_record.used_count >= code_record.max_uses:
+                    await callback.message.answer("⚠️ Лимит ссылки исчерпан. Регистрация без кода.")
+                else:
+                    await state.update_data(ref_code=ref_code, referrer_id=code_record.owner_id)
+                    referrer = await session.get(User, code_record.owner_id)
+                    if referrer:
+                        await callback.message.answer(f"🎉 Вас пригласил: {referrer.full_name}")
         
-        await callback.message.answer(
-            f"🔐 Проверка: решите пример\n\n{question}\n\nВыберите правильный ответ:",
-            reply_markup=keyboard
+        # Сохраняем IP адрес
+        await state.update_data(ip_address=str(callback.from_user.id))
+        
+        # =========================================================
+        # ЗАЩИТА ОТ МАССОВЫХ РЕГИСТРАЦИЙ (включена)
+        # =========================================================
+        storm = StormProtection(session)
+        
+        # Проверяем белый список
+        is_whitelisted = await storm.is_whitelisted(
+            ip=str(callback.from_user.id),
+            referral_code=ref_code
         )
-        await state.set_state(Registration.waiting_for_captcha)
-    
-    await callback.answer()
-
-@router.callback_query(F.data.startswith("captcha_"), Registration.waiting_for_captcha)
-async def process_captcha(callback: CallbackQuery, state: FSMContext):
-    answer = int(callback.data.split("_")[1])
-    data = await state.get_data()
-    correct_answer = data.get("captcha_answer")
-    
-    if answer == correct_answer:
-        await state.update_data(captcha_passed=True)
-        await callback.message.delete()
         
-        # Inline-кнопка для отправки номера телефона
-        phone_keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="📱 Отправить номер телефона", callback_data="send_phone")]
-            ]
-        )
+        if is_whitelisted:
+            # Белый список — пропускаем без проверок
+            await callback.message.answer(
+                "✅ Вы в белом списке! Продолжаем регистрацию.\n\n"
+                "📱 Отправьте ваш номер телефона, нажав на кнопку ниже.\n"
+                "(⚠️ Не вводите номер в поле для текста — бот его не примет)",
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [InlineKeyboardButton(text="📱 Отправить номер телефона", callback_data="send_phone")]
+                    ]
+                )
+            )
+            await state.set_state(Registration.waiting_for_phone)
+            await callback.answer()
+            return
         
+        # Проверяем шторм
+        in_storm, storm_stats = await storm.check_storm()
+        if in_storm:
+            await callback.message.answer(
+                "⚠️ Временные технические сложности\n\n"
+                "В связи с высокой нагрузкой регистрация временно приостановлена.\n"
+                "Пожалуйста, попробуйте через 30 минут.\n\n"
+                "Приносим извинения за неудобства."
+            )
+            await callback.answer()
+            return
+        
+        # Проверяем лимит IP
+        ip_limit_ok, ip_count = await storm.check_ip_limit(str(callback.from_user.id))
+        if not ip_limit_ok:
+            await callback.message.answer(
+                "⚠️ Превышен лимит регистраций\n\n"
+                "С вашего IP-адреса уже зарегистрировано максимальное количество пользователей.\n"
+                "Пожалуйста, попробуйте позже или свяжитесь с поддержкой."
+            )
+            await callback.answer()
+            return
+        # =========================================================
+        
+        # Если все проверки пройдены — переходим к номеру телефона
         await callback.message.answer(
-            "✅ Капча пройдена!\n\n"
             "📱 Отправьте ваш номер телефона, нажав на кнопку ниже.\n"
             "(⚠️ Не вводите номер в поле для текста — бот его не примет)",
-            reply_markup=phone_keyboard
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="📱 Отправить номер телефона", callback_data="send_phone")]
+                ]
+            )
         )
         await state.set_state(Registration.waiting_for_phone)
-        await callback.answer()
-    else:
-        await callback.answer("❌ Неправильный ответ.", show_alert=True)
+    
+    await callback.answer()
 
 @router.callback_query(F.data == "send_phone", Registration.waiting_for_phone)
 async def request_phone(callback: CallbackQuery, state: FSMContext):
@@ -152,7 +194,7 @@ async def process_phone(message: Message, state: FSMContext):
 
     data = await state.get_data()
     referrer_id = data.get("referrer_id")
-    captcha_passed = data.get("captcha_passed", False)
+    ip_address = data.get("ip_address", str(message.from_user.id))
 
     async with AsyncSessionLocal() as session:
         existing = await session.execute(select(User).where(User.phone == phone))
@@ -166,8 +208,8 @@ async def process_phone(message: Message, state: FSMContext):
             full_name=full_name,
             phone=phone,
             invited_by_id=referrer_id,
-            captcha_passed=captcha_passed,
-            ip_address=str(message.from_user.id),
+            captcha_passed=True,  # капча не используется
+            ip_address=ip_address,
             risk_score=0
         )
         session.add(request)
@@ -246,7 +288,7 @@ async def cmd_admin(message: Message):
         parse_mode="Markdown"
     )
 
-# Остальные функции
+# Команда /enter_code (ручной ввод кода)
 @router.message(Command("enter_code"))
 async def cmd_enter_code(message: Message, state: FSMContext):
     """Команда для ручного ввода кода"""
