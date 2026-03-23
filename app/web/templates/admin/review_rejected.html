@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="margin-bottom: 20px;">
+    <a href="/admin/review" class="button">← Назад к модерации</a>
+</div>
+
+<h1>📋 Отклонённые заявки</h1>
+
+<div style="margin-bottom: 20px;">
+    <p><strong>Всего отклонённых:</strong> {{ total_count }}</p>
+</div>
+
+{% if requests %}
+    {% for req in requests %}
+    <div style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 15px; background-color: #ffe8e8;">
+        <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap;">
+            <div style="flex: 1;">
+                <h3 style="margin-top: 0;">Заявка #{{ req.id }}</h3>
+                <p><strong>👤 Имя:</strong> {{ req.full_name or 'Не указано' }}</p>
+                <p><strong>📱 Телефон:</strong> {{ req.phone or 'Не указан' }}</p>
+                <p><strong>🆔 Telegram ID:</strong> <code>{{ req.telegram_id }}</code></p>
+                
+                {% if req.instagram %}
+                <p><strong>📸 Instagram:</strong> <a href="https://instagram.com/{{ req.instagram }}" target="_blank">@{{ req.instagram }}</a></p>
+                {% endif %}
+                
+                {% if req.vkontakte %}
+                <p><strong>📱 VK:</strong> <a href="https://vk.com/{{ req.vkontakte }}" target="_blank">{{ req.vkontakte }}</a></p>
+                {% endif %}
+                
+                <p><strong>🕐 Создана:</strong> {{ req.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+                
+                {% if req.reviewed_at %}
+                <p><strong>❌ Отклонена:</strong> {{ req.reviewed_at.strftime('%d.%m.%Y %H:%M') }}</p>
+                {% endif %}
+                
+                {% if req.review_comment %}
+                <p><strong>📝 Причина отклонения:</strong> {{ req.review_comment }}</p>
+                {% endif %}
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <form action="/admin/review/restore/{{ req.id }}" method="post" style="display: inline;">
+                    <button type="submit" class="button button-small" style="background-color: #FF9800;" onclick="return confirm('Восстановить заявку? Она снова появится в списке ожидающих.')">
+                        ↩️ Восстановить
+                    </button>
+                </form>
+                <form action="/api/admin/delete_request/{{ req.id }}" method="post" style="display: inline;">
+                    <button type="submit" class="button button-small" style="background-color: #666;" onclick="return confirm('Удалить заявку навсегда? Это действие нельзя отменить.')">
+                        🗑️ Удалить
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    
+    <!-- Пагинация -->
+    {% if total_pages > 1 %}
+    <div style="margin-top: 20px; text-align: center;">
+        {% if page > 1 %}
+            <a href="?page=1" class="button button-small">« Первая</a>
+            <a href="?page={{ page-1 }}" class="button button-small">‹ Предыдущая</a>
+        {% endif %}
+        
+        <span style="margin: 0 10px;">
+            Страница {{ page }} из {{ total_pages }}
+        </span>
+        
+        {% if page < total_pages %}
+            <a href="?page={{ page+1 }}" class="button button-small">Следующая ›</a>
+            <a href="?page={{ total_pages }}" class="button button-small">Последняя »</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    
+{% else %}
+    <p style="text-align: center; padding: 40px; background: #f5f5f5; border-radius: 8px;">
+        📭 Нет отклонённых заявок
+    </p>
+{% endif %}
+{% endblock %}

@@ -19,21 +19,11 @@ async def review_dashboard(
     """Дашборд для модерации заявок (только ожидающие)"""
     pending_count = await db.scalar(
         select(func.count()).where(RegistrationRequest.status == "pending")
-    )
-    approved_today = await db.scalar(
-        select(func.count())
-        .where(
-            RegistrationRequest.status == "approved",
-            func.date(RegistrationRequest.reviewed_at) == datetime.utcnow().date()
-        )
-    )
-    rejected_today = await db.scalar(
-        select(func.count())
-        .where(
-            RegistrationRequest.status == "rejected",
-            func.date(RegistrationRequest.reviewed_at) == datetime.utcnow().date()
-        )
-    )
+    ) or 0
+    
+    rejected_count = await db.scalar(
+        select(func.count()).where(RegistrationRequest.status == "rejected")
+    ) or 0
     
     requests = await db.execute(
         select(RegistrationRequest)
@@ -50,29 +40,19 @@ async def review_dashboard(
     return templates.TemplateResponse("admin/review_dashboard.html", {
         "request": request,
         "pending_count": pending_count,
-        "approved_today": approved_today,
-        "rejected_today": rejected_today,
+        "rejected_count": rejected_count,
         "requests": requests
     })
 
-@router.get("/all", response_class=HTMLResponse)
-async def review_all(
+@router.get("/rejected", response_class=HTMLResponse)
+async def review_rejected(
     request: Request,
-    status: str = "pending",
     page: int = 1,
     per_page: int = 20,
     db: AsyncSession = Depends(get_db)
 ):
-    """Показывает заявки с фильтром по статусу"""
-    # Статистика по статусам
-    stats = {}
-    for s in ['pending', 'approved', 'rejected']:
-        stats[s] = await db.scalar(
-            select(func.count()).where(RegistrationRequest.status == s)
-        ) or 0
-    
-    # Запрос с фильтром
-    query = select(RegistrationRequest).where(RegistrationRequest.status == status)
+    """Страница отклонённых заявок"""
+    query = select(RegistrationRequest).where(RegistrationRequest.status == "rejected")
     total_count = await db.scalar(select(func.count()).select_from(query.subquery())) or 0
     
     offset = (page - 1) * per_page
@@ -83,14 +63,12 @@ async def review_all(
     
     total_pages = (total_count + per_page - 1) // per_page if total_count > 0 else 1
     
-    return templates.TemplateResponse("admin/review_all.html", {
+    return templates.TemplateResponse("admin/review_rejected.html", {
         "request": request,
         "requests": requests,
-        "stats": stats,
-        "current_status": status,
+        "total_count": total_count,
         "page": page,
         "total_pages": total_pages,
-        "total_count": total_count,
         "per_page": per_page
     })
 
@@ -112,7 +90,7 @@ async def restore_request(
     req.reviewed_at = None
     await db.commit()
     
-    return RedirectResponse(url="/admin/review/all?status=pending", status_code=303)
+    return RedirectResponse(url="/admin/review/rejected", status_code=303)
 
 @router.get("/settings", response_class=HTMLResponse)
 async def review_settings(
@@ -214,3 +192,19 @@ async def delete_from_whitelist(
         await db.commit()
     
     return RedirectResponse(url="/admin/review/settings?deleted=1", status_code=303)
+
+# API для удаления заявки
+@router.post("/api/delete_request/{request_id}")
+async def delete_request(
+    request_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """Удаляет заявку навсегда"""
+    req = await db.get(RegistrationRequest, request_id)
+    if not req:
+        raise HTTPException(404, "Заявка не найдена")
+    
+    await db.delete(req)
+    await db.commit()
+    
+    return RedirectResponse(url="/admin/review/rejected", status_code=303)
