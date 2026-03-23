@@ -27,6 +27,17 @@ class Registration(StatesGroup):
     waiting_for_social = State()
     waiting_for_manual_code = State()
 
+# Приветственное сообщение с кнопкой "Начать регистрацию"
+WELCOME_MESSAGE = (
+    "📸 Добро пожаловать в программу лояльности!\n\n"
+    "Это бот для фотографов и видеографов. Здесь вы можете:\n"
+    "• Получать бонусы за регистрацию и аренду техники\n"
+    "• Приглашать друзей и получать за это бонусы\n"
+    "• Следить за балансом бонусов и историей операций\n\n"
+    "🎁 За регистрацию вы получите 200 бонусных баллов!\n\n"
+    "Нажмите на кнопку ниже, чтобы начать регистрацию:"
+)
+
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext):
     start_total = time.time()
@@ -50,59 +61,42 @@ async def cmd_start(message: Message, state: FSMContext):
             )
             return
 
-    args = message.text.split()
-    ref_code = args[1] if len(args) > 1 else None
-    
-    # Приветственное сообщение для нового пользователя
-    welcome_text = (
-        "📸 Добро пожаловать в программу лояльности!\n\n"
-        "Это бот для фотографов и видеографов. Здесь вы можете:\n"
-        "• Получать бонусы за регистрацию и аренду техники\n"
-        "• Приглашать друзей и получать за это бонусы\n"
-        "• Следить за балансом бонусов и историей операций\n\n"
-        "🎁 За регистрацию вы получите 200 бонусных баллов!\n\n"
-        "Для продолжения регистрации введите /start"
+    # Новый пользователь — показываем приветствие с кнопкой
+    start_keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🚀 Начать регистрацию", callback_data="start_registration")]
+        ]
     )
     
-    await message.answer(welcome_text)
+    await message.answer(
+        WELCOME_MESSAGE,
+        reply_markup=start_keyboard
+    )
 
-@router.message(CommandStart())
-async def cmd_start_after_welcome(message: Message, state: FSMContext):
-    """Обработчик повторного /start после приветствия"""
-    start_total = time.time()
-    logger.info(f"▶️ Начало обработки /start от пользователя {message.from_user.id}")
+@router.callback_query(F.data == "start_registration")
+async def start_registration(callback: CallbackQuery, state: FSMContext):
+    """Обработчик кнопки 'Начать регистрацию'"""
+    await callback.message.delete()  # Удаляем приветственное сообщение
     
-    start_db = time.time()
-    async with AsyncSessionLocal() as session:
-        result = await session.execute(select(User).where(User.telegram_id == message.from_user.id))
-        user = result.scalar_one_or_none()
-        db_time = time.time() - start_db
-        time_logger.info(f"⏱️ Поиск пользователя: {db_time*1000:.2f}мс")
-
-        if user:
-            if user.blacklisted:
-                await message.answer("⛔ Ваш аккаунт заблокирован.")
-                return
-            
-            await message.answer(
-                f"С возвращением, {user.full_name}!\nВаш баланс: {user.balance} ⭐",
-                reply_markup=main_menu_keyboard(message.from_user.id)
-            )
-            return
-
-    args = message.text.split()
-    ref_code = args[1] if len(args) > 1 else None
+    args = callback.message.text.split()
+    ref_code = None
+    
+    # Проверяем, есть ли реферальный код в тексте сообщения (если пользователь перешел по ссылке)
+    if callback.message.text and '?start=' in callback.message.text:
+        ref_code = callback.message.text.split('?start=')[-1].split()[0]
     
     async with AsyncSessionLocal() as session:
         question, answer = captcha.generate()
         await state.update_data(captcha_answer=answer)
         keyboard = captcha.create_keyboard(answer)
         
-        await message.answer(
+        await callback.message.answer(
             f"🔐 Проверка: решите пример\n\n{question}\n\nВыберите правильный ответ:",
             reply_markup=keyboard
         )
         await state.set_state(Registration.waiting_for_captcha)
+    
+    await callback.answer()
 
 @router.callback_query(F.data.startswith("captcha_"), Registration.waiting_for_captcha)
 async def process_captcha(callback: CallbackQuery, state: FSMContext):
@@ -135,7 +129,6 @@ async def process_captcha(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "send_phone", Registration.waiting_for_phone)
 async def request_phone(callback: CallbackQuery, state: FSMContext):
     """Обработчик inline-кнопки для отправки номера телефона"""
-    # Запрашиваем контакт через обычную кнопку (только так можно получить номер)
     from ..keyboards import contact_keyboard
     
     # Удаляем сообщение с inline-кнопкой
@@ -208,7 +201,52 @@ async def handle_wrong_phone_input(message: Message, state: FSMContext):
         reply_markup=contact_keyboard()
     )
 
-# Остальные функции (cmd_enter_code, process_manual_code, log_user_action) оставь как есть
+# Команда /help
+@router.message(Command("help"))
+async def cmd_help(message: Message):
+    """Команда помощи"""
+    help_text = (
+        "❓ **Помощь по программе лояльности**\n\n"
+        "📌 **Основные команды:**\n"
+        "• /start — начать регистрацию / перезапустить бота\n"
+        "• /help — показать это сообщение\n\n"
+        "📌 **Как начисляются бонусы:**\n"
+        "• 200 баллов — за регистрацию\n"
+        "• 100 баллов — за каждого друга, который совершит первую аренду\n\n"
+        "📌 **Кнопки главного меню:**\n"
+        "• 🏠 Баланс — проверить количество баллов\n"
+        "• 👥 Мои друзья — список приглашённых\n"
+        "• 📜 История — история операций\n"
+        "• 🎁 Пригласить друга — получить ссылку для приглашения\n\n"
+        "📌 **Требования к Instagram:**\n"
+        "• Аккаунт должен быть открытым (публичным)\n"
+        "• Приватные аккаунты не принимаются\n\n"
+        "По всем вопросам обращайтесь к администратору."
+    )
+    await message.answer(help_text, parse_mode="Markdown")
+
+# Команда /admin (только для админов)
+@router.message(Command("admin"))
+async def cmd_admin(message: Message):
+    """Команда для администраторов"""
+    if message.from_user.id not in settings.ADMIN_IDS:
+        await message.answer("❌ У вас нет прав администратора.")
+        return
+    
+    await message.answer(
+        "👑 **Панель администратора**\n\n"
+        "Доступные команды:\n"
+        "/admin - показать это меню\n"
+        "/review - модерация заявок\n"
+        "/stats - статистика\n"
+        "/users - список пользователей\n"
+        "/blacklist - черный список\n\n"
+        "Для управления пользователями используйте веб-интерфейс:\n"
+        f"http://194.67.102.115:8000",
+        parse_mode="Markdown"
+    )
+
+# Остальные функции
 @router.message(Command("enter_code"))
 async def cmd_enter_code(message: Message, state: FSMContext):
     """Команда для ручного ввода кода"""
