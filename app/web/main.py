@@ -10,7 +10,8 @@ from .routers import (
     api_router, 
     catalog_router,
     search_router,
-    admin_review_router
+    admin_review_router,
+    mailing_router  # <--- ДОБАВЛЕНО
 )
 
 app = FastAPI()
@@ -37,6 +38,7 @@ app.include_router(api_router)                      # API для поиска
 app.include_router(catalog_router, prefix="/catalog")  # Каталог техники
 app.include_router(search_router)                   # Поиск клиентов
 app.include_router(admin_review_router)             # Модерация
+app.include_router(mailing_router)                  # Рассылка <--- ДОБАВЛЕНО
 
 print("=== ЗАРЕГИСТРИРОВАННЫЕ МАРШРУТЫ ===")
 for route in app.routes:

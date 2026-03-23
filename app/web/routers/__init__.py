@@ -7,6 +7,7 @@ from .api_routes import router as api_router
 from .search_routes import router as search_router
 from .catalog import router as catalog_router
 from .admin_review_routes import router as admin_review_router
+from .mailing_routes import router as mailing_router
 
 __all__ = [
     "main_router",
