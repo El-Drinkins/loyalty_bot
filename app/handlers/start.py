@@ -120,11 +120,7 @@ async def start_registration(callback: CallbackQuery, state: FSMContext):
                 "✅ Вы в белом списке! Продолжаем регистрацию.\n\n"
                 "📱 Отправьте ваш номер телефона, нажав на кнопку ниже.\n"
                 "(⚠️ Не вводите номер в поле для текста — бот его не примет)",
-                reply_markup=InlineKeyboardMarkup(
-                    inline_keyboard=[
-                        [InlineKeyboardButton(text="📱 Отправить номер телефона", callback_data="send_phone")]
-                    ]
-                )
+                reply_markup=contact_keyboard()
             )
             await state.set_state(Registration.waiting_for_phone)
             await callback.answer()
@@ -154,32 +150,14 @@ async def start_registration(callback: CallbackQuery, state: FSMContext):
             return
         # =========================================================
         
-        # Если все проверки пройдены — переходим к номеру телефона
+        # Если все проверки пройдены — показываем кнопку для отправки номера
         await callback.message.answer(
             "📱 Отправьте ваш номер телефона, нажав на кнопку ниже.\n"
             "(⚠️ Не вводите номер в поле для текста — бот его не примет)",
-            reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text="📱 Отправить номер телефона", callback_data="send_phone")]
-                ]
-            )
+            reply_markup=contact_keyboard()
         )
         await state.set_state(Registration.waiting_for_phone)
     
-    await callback.answer()
-
-@router.callback_query(F.data == "send_phone", Registration.waiting_for_phone)
-async def request_phone(callback: CallbackQuery, state: FSMContext):
-    """Обработчик inline-кнопки для отправки номера телефона"""
-    from ..keyboards import contact_keyboard
-    
-    # Удаляем сообщение с inline-кнопкой
-    await callback.message.delete()
-    
-    await callback.message.answer(
-        "📱 Нажмите на кнопку ниже, чтобы отправить номер телефона:",
-        reply_markup=contact_keyboard()
-    )
     await callback.answer()
 
 @router.message(Registration.waiting_for_phone, F.contact)
@@ -235,8 +213,6 @@ async def process_phone(message: Message, state: FSMContext):
 @router.message(Registration.waiting_for_phone)
 async def handle_wrong_phone_input(message: Message, state: FSMContext):
     """Если пользователь ввел текст вместо нажатия кнопки"""
-    from ..keyboards import contact_keyboard
-    
     await message.answer(
         "❌ Вы отправили текст, а бот ожидает номер телефона.\n\n"
         "Пожалуйста, нажмите на кнопку ниже, чтобы отправить номер:",
