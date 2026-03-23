@@ -122,7 +122,6 @@ async def confirm_instagram(callback: CallbackQuery, state: FSMContext):
     
     await callback.message.edit_text(
         f"✅ Instagram @{instagram} добавлен!\n\n"
-        f"⚠️ Не забудьте, что аккаунт должен быть открытым (публичным)."
     )
     
     keyboard = InlineKeyboardMarkup(
