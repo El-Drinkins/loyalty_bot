@@ -38,22 +38,6 @@ def validate_vkontakte(url_or_id: str) -> tuple[bool, str]:
     
     return False, ""
 
-async def check_vkontakte_exists(value: str) -> bool:
-    """Проверяет, существует ли профиль ВКонтакте (VK не блокируется)"""
-    if value.startswith('id'):
-        url = f"https://vk.com/{value}"
-    elif value.startswith('http'):
-        url = value
-    else:
-        url = f"https://vk.com/{value}"
-    
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=10) as response:
-                return response.status == 200
-    except:
-        return False
-
 @router.callback_query(F.data == "add_instagram")
 async def add_instagram(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
@@ -83,9 +67,8 @@ async def process_instagram(message: Message, state: FSMContext):
         )
         return
     
-    # Сохраняем username (без проверки существования)
     await state.update_data(instagram=username)
-    await state.update_data(instagram_status='pending')  # статус будет проверен админом
+    await state.update_data(instagram_status='pending')
     
     data = await state.get_data()
     request_id = data.get('request_id')
@@ -97,7 +80,6 @@ async def process_instagram(message: Message, state: FSMContext):
                 req.instagram = username
                 await session.commit()
     
-    # Сообщение с напоминанием о публичном аккаунте
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="✅ Да, добавить", callback_data="social_confirm_instagram")],
@@ -121,7 +103,7 @@ async def confirm_instagram(callback: CallbackQuery, state: FSMContext):
     instagram = data.get('instagram')
     
     await callback.message.edit_text(
-        f"✅ Instagram @{instagram} добавлен!\n\n"
+        f"✅ Instagram @{instagram} добавлен!"
     )
     
     keyboard = InlineKeyboardMarkup(
@@ -166,14 +148,7 @@ async def process_vkontakte(message: Message, state: FSMContext):
         )
         return
     
-    # Проверяем, существует ли профиль (VK не блокируется)
-    exists = await check_vkontakte_exists(value)
-    if not exists:
-        await message.answer(
-            "❌ Аккаунт не найден. Проверьте имя."
-        )
-        return
-    
+    # Сохраняем без проверки существования (админ проверит вручную)
     await state.update_data(vkontakte=value)
     
     data = await state.get_data()
