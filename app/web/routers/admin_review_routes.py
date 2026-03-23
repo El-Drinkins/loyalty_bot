@@ -203,6 +203,30 @@ async def delete_request(
     
     return RedirectResponse(url="/admin/review/rejected", status_code=303)
 
+@router.post("/api/delete_all_rejected")
+async def delete_all_rejected(
+    request: Request,
+    confirm_count: int = Form(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """Удаляет все отклонённые заявки с подтверждением количества"""
+    # Получаем количество отклонённых заявок
+    rejected_count = await db.scalar(
+        select(func.count()).where(RegistrationRequest.status == "rejected")
+    ) or 0
+    
+    # Проверяем, что введённое число совпадает с количеством
+    if confirm_count != rejected_count:
+        raise HTTPException(400, f"Введите число {rejected_count} для подтверждения")
+    
+    # Удаляем все отклонённые заявки
+    await db.execute(
+        RegistrationRequest.__table__.delete().where(RegistrationRequest.status == "rejected")
+    )
+    await db.commit()
+    
+    return RedirectResponse(url="/admin/review/rejected?deleted_all=1", status_code=303)
+
 @router.get("/settings", response_class=HTMLResponse)
 async def review_settings(
     request: Request,

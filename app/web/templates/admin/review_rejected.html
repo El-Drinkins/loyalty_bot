@@ -10,6 +10,42 @@
     <p><strong>Всего отклонённых:</strong> {{ total_count }}</p>
 </div>
 
+<!-- Кнопка для массового удаления -->
+{% if total_count > 0 %}
+<div style="margin-bottom: 30px; padding: 15px; background-color: #fff3e0; border-radius: 8px; border-left: 4px solid #ff9800;">
+    <p style="margin: 0 0 10px 0;">
+        <strong>⚠️ Внимание!</strong> Удаление всех отклонённых заявок нельзя отменить.
+    </p>
+    <button onclick="showDeleteAllModal()" class="button" style="background-color: #f44336;">🗑️ Удалить все ({{ total_count }})</button>
+</div>
+
+<!-- Модальное окно для массового удаления -->
+<div id="deleteAllModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000;">
+    <div style="background-color: white; margin: 15% auto; padding: 25px; border-radius: 8px; width: 400px; max-width: 90%;">
+        <h3 style="color: #f44336; margin-top: 0;">⚠️ Подтверждение удаления</h3>
+        <p>Вы собираетесь удалить <strong>{{ total_count }}</strong> отклонённых заявок.</p>
+        <p>Это действие нельзя отменить.</p>
+        <form id="deleteAllForm" action="/admin/review/api/delete_all_rejected" method="post">
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+                    Для подтверждения введите количество заявок:
+                </label>
+                <input type="number" id="confirm_count" name="confirm_count" required 
+                       style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;"
+                       placeholder="{{ total_count }}">
+                <p style="font-size: 12px; color: #666; margin-top: 5px;">
+                    Введите число <strong>{{ total_count }}</strong>
+                </p>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" onclick="hideDeleteAllModal()" class="button" style="background-color: #666;">Отмена</button>
+                <button type="submit" class="button button-red">🗑️ Удалить все</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
 {% if requests %}
     {% for req in requests %}
     <div style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 15px; background-color: #ffe8e8;">
@@ -78,4 +114,31 @@
         📭 Нет отклонённых заявок
     </p>
 {% endif %}
+
+<script>
+function showDeleteAllModal() {
+    document.getElementById('deleteAllModal').style.display = 'block';
+}
+
+function hideDeleteAllModal() {
+    document.getElementById('deleteAllModal').style.display = 'none';
+}
+
+window.onclick = function(event) {
+    const modal = document.getElementById('deleteAllModal');
+    if (event.target == modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// Проверка введённого числа перед отправкой
+document.getElementById('deleteAllForm')?.addEventListener('submit', function(e) {
+    const confirmCount = document.getElementById('confirm_count').value;
+    const expectedCount = {{ total_count }};
+    if (parseInt(confirmCount) !== expectedCount) {
+        e.preventDefault();
+        alert(`Введите число ${expectedCount} для подтверждения удаления`);
+    }
+});
+</script>
 {% endblock %}
