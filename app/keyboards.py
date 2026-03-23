@@ -23,7 +23,7 @@ def main_menu_keyboard(user_id: int = None):
     )
 
 def contact_keyboard():
-    """Клавиатура для отправки номера телефона"""
+    """Клавиатура для отправки номера телефона (ReplyKeyboardMarkup)"""
     keyboard = ReplyKeyboardMarkup(
         keyboard=[[KeyboardButton(text="📱 Отправить номер телефона", request_contact=True)]],
         resize_keyboard=True,

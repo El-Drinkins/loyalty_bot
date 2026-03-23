@@ -148,7 +148,6 @@ async def process_vkontakte(message: Message, state: FSMContext):
         )
         return
     
-    # Сохраняем без проверки существования (админ проверит вручную)
     await state.update_data(vkontakte=value)
     
     data = await state.get_data()
