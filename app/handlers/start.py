@@ -8,10 +8,11 @@ from aiogram.fsm.state import State, StatesGroup
 from sqlalchemy import select
 from datetime import datetime
 
-from ..models import User, Referral, Transaction, AsyncSessionLocal, ReferralCode, UserLog, RegistrationRequest
+from ..models import User, Referral, Transaction, AsyncSessionLocal, ReferralCode, UserLog, RegistrationRequest, SecuritySettings
 from ..keyboards import contact_keyboard, main_menu_keyboard
 from ..utils import calculate_expiry_date
 from ..config import settings
+from .captcha import captcha, CaptchaStates
 from .storm import StormProtection
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,7 @@ time_logger.setLevel(logging.INFO)
 router = Router()
 
 class Registration(StatesGroup):
+    waiting_for_captcha = State()
     waiting_for_phone = State()
     waiting_for_social = State()
     waiting_for_manual_code = State()
@@ -35,6 +37,14 @@ WELCOME_MESSAGE = (
     "🎁 За регистрацию вы получите 200 бонусных баллов!\n\n"
     "Нажмите на кнопку ниже, чтобы начать регистрацию:"
 )
+
+async def get_security_setting(session, key: str, default: str = "false") -> str:
+    """Получает настройку безопасности из базы данных"""
+    result = await session.execute(
+        select(SecuritySettings).where(SecuritySettings.key == key)
+    )
+    setting = result.scalar_one_or_none()
+    return setting.value if setting else default
 
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext):
@@ -89,7 +99,6 @@ async def start_registration(callback: CallbackQuery, state: FSMContext):
             code_record = code_record.scalar_one_or_none()
             
             if code_record and code_record.is_active:
-                # Проверяем срок действия
                 if code_record.expires_at and code_record.expires_at < datetime.utcnow():
                     await callback.message.answer("⏰ Срок действия кода истек. Регистрация без кода.")
                 elif code_record.max_uses > 0 and code_record.used_count >= code_record.max_uses:
@@ -104,7 +113,7 @@ async def start_registration(callback: CallbackQuery, state: FSMContext):
         await state.update_data(ip_address=str(callback.from_user.id))
         
         # =========================================================
-        # ЗАЩИТА ОТ МАССОВЫХ РЕГИСТРАЦИЙ (включена)
+        # ЗАЩИТА ОТ МАССОВЫХ РЕГИСТРАЦИЙ
         # =========================================================
         storm = StormProtection(session)
         
@@ -148,17 +157,56 @@ async def start_registration(callback: CallbackQuery, state: FSMContext):
             )
             await callback.answer()
             return
-        # =========================================================
         
-        # Если все проверки пройдены — показываем кнопку для отправки номера
+        # Получаем настройку капчи
+        captcha_enabled = await get_security_setting(session, "captcha_enabled", "false")
+        captcha_enabled = captcha_enabled.lower() == "true"
+        
+        if captcha_enabled:
+            # Показываем капчу
+            question, answer = captcha.generate()
+            await state.update_data(captcha_answer=answer)
+            keyboard = captcha.create_keyboard(answer)
+            
+            await callback.message.answer(
+                "🤖 Проверка: вы не робот\n\n"
+                "Пожалуйста, решите простой пример — это поможет защитить сервис от ботов.\n\n"
+                f"{question}\n\n"
+                f"Выберите правильный ответ:",
+                reply_markup=keyboard
+            )
+            await state.set_state(Registration.waiting_for_captcha)
+        else:
+            # Капча отключена — сразу переходим к номеру телефона
+            await callback.message.answer(
+                "📱 Отправьте ваш номер телефона, нажав на кнопку ниже.\n"
+                "(⚠️ Не вводите номер в поле для текста — бот его не примет)",
+                reply_markup=contact_keyboard()
+            )
+            await state.set_state(Registration.waiting_for_phone)
+    
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("captcha_"), Registration.waiting_for_captcha)
+async def process_captcha(callback: CallbackQuery, state: FSMContext):
+    answer = int(callback.data.split("_")[1])
+    data = await state.get_data()
+    correct_answer = data.get("captcha_answer")
+    
+    if answer == correct_answer:
+        await state.update_data(captcha_passed=True)
+        await callback.message.delete()
+        
         await callback.message.answer(
+            "✅ Капча пройдена!\n\n"
             "📱 Отправьте ваш номер телефона, нажав на кнопку ниже.\n"
             "(⚠️ Не вводите номер в поле для текста — бот его не примет)",
             reply_markup=contact_keyboard()
         )
         await state.set_state(Registration.waiting_for_phone)
-    
-    await callback.answer()
+        await callback.answer()
+    else:
+        await callback.answer("❌ Неправильный ответ.", show_alert=True)
 
 @router.message(Registration.waiting_for_phone, F.contact)
 async def process_phone(message: Message, state: FSMContext):
@@ -173,6 +221,7 @@ async def process_phone(message: Message, state: FSMContext):
     data = await state.get_data()
     referrer_id = data.get("referrer_id")
     ip_address = data.get("ip_address", str(message.from_user.id))
+    captcha_passed = data.get("captcha_passed", False)
 
     async with AsyncSessionLocal() as session:
         existing = await session.execute(select(User).where(User.phone == phone))
@@ -186,7 +235,7 @@ async def process_phone(message: Message, state: FSMContext):
             full_name=full_name,
             phone=phone,
             invited_by_id=referrer_id,
-            captcha_passed=True,  # капча не используется
+            captcha_passed=captcha_passed,
             ip_address=ip_address,
             risk_score=0
         )
