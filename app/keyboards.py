@@ -11,25 +11,15 @@ def main_menu_keyboard(user_id: int = None):
     builder.button(text="❓ Помощь")
     builder.button(text="🎁 Пригласить друга в бот")
     
-    # Добавляем кнопку управления ссылками только для админов
     if user_id and user_id in settings.ADMIN_IDS:
         builder.button(text="🔗 Управление ссылками")
     
-    builder.adjust(2, 2, 1, 1)  # Расположение кнопок
+    builder.adjust(2, 2, 1, 1)
     return builder.as_markup(
         resize_keyboard=True,
         is_persistent=True,
         one_time_keyboard=False
     )
-
-def contact_keyboard():
-    """Клавиатура для отправки номера телефона (ReplyKeyboardMarkup)"""
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text="📱 Отправить номер телефона", request_contact=True)]],
-        resize_keyboard=True,
-        one_time_keyboard=True  # Клавиатура исчезнет после нажатия
-    )
-    return keyboard
 
 def referral_menu_keyboard(referral_link: str):
     """Клавиатура для реферальной ссылки"""

@@ -1,5 +1,6 @@
 import time
 import logging
+import re
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import CommandStart, Command
@@ -9,7 +10,7 @@ from sqlalchemy import select
 from datetime import datetime
 
 from ..models import User, Referral, Transaction, AsyncSessionLocal, ReferralCode, UserLog, RegistrationRequest, SecuritySettings
-from ..keyboards import contact_keyboard, main_menu_keyboard
+from ..keyboards import main_menu_keyboard
 from ..utils import calculate_expiry_date
 from ..config import settings
 from .captcha import captcha, CaptchaStates
@@ -37,6 +38,25 @@ WELCOME_MESSAGE = (
     "🎁 За регистрацию вы получите 200 бонусных баллов!\n\n"
     "Нажмите на кнопку ниже, чтобы начать регистрацию:"
 )
+
+def clean_phone_number(phone: str) -> str:
+    """Очищает номер телефона от лишних символов"""
+    # Удаляем все кроме цифр
+    digits = re.sub(r'\D', '', phone)
+    
+    # Если номер начинается с 8, заменяем на +7
+    if len(digits) == 11 and digits.startswith('8'):
+        digits = '7' + digits[1:]
+    
+    # Если номер начинается с 7 и имеет 11 цифр
+    if len(digits) == 11 and digits.startswith('7'):
+        return '+' + digits
+    
+    # Если номер начинается с 9 (десятизначный)
+    if len(digits) == 10:
+        return '+7' + digits
+    
+    return None
 
 async def get_security_setting(session, key: str, default: str = "false") -> str:
     """Получает настройку безопасности из базы данных"""
@@ -117,11 +137,14 @@ async def start_registration(callback: CallbackQuery, state: FSMContext):
         )
         
         if is_whitelisted:
+            # Белый список — пропускаем капчу
             await callback.message.answer(
                 "✅ Вы в белом списке! Продолжаем регистрацию.\n\n"
-                "📱 Отправьте ваш номер телефона, нажав на кнопку ниже.\n"
-                "(⚠️ Не вводите номер в поле для текста — бот его не примет)",
-                reply_markup=contact_keyboard()
+                "📱 Введите ваш номер телефона в формате:\n"
+                "• +7 999 123-45-67\n"
+                "• 89991234567\n"
+                "• 9991234567\n\n"
+                "Бот автоматически приведёт его к формату +7XXXXXXXXXX"
             )
             await state.set_state(Registration.waiting_for_phone)
             await callback.answer()
@@ -166,9 +189,11 @@ async def start_registration(callback: CallbackQuery, state: FSMContext):
             await state.set_state(Registration.waiting_for_captcha)
         else:
             await callback.message.answer(
-                "📱 Отправьте ваш номер телефона, нажав на кнопку ниже.\n"
-                "(⚠️ Не вводите номер в поле для текста — бот его не примет)",
-                reply_markup=contact_keyboard()
+                "📱 Введите ваш номер телефона в формате:\n"
+                "• +7 999 123-45-67\n"
+                "• 89991234567\n"
+                "• 9991234567\n\n"
+                "Бот автоматически приведёт его к формату +7XXXXXXXXXX"
             )
             await state.set_state(Registration.waiting_for_phone)
     
@@ -186,23 +211,36 @@ async def process_captcha(callback: CallbackQuery, state: FSMContext):
         
         await callback.message.answer(
             "✅ Капча пройдена!\n\n"
-            "📱 Отправьте ваш номер телефона, нажав на кнопку ниже.\n"
-            "(⚠️ Не вводите номер в поле для текста — бот его не примет)",
-            reply_markup=contact_keyboard()
+            "📱 Введите ваш номер телефона в формате:\n"
+            "• +7 999 123-45-67\n"
+            "• 89991234567\n"
+            "• 9991234567\n\n"
+            "Бот автоматически приведёт его к формату +7XXXXXXXXXX"
         )
         await state.set_state(Registration.waiting_for_phone)
         await callback.answer()
     else:
         await callback.answer("❌ Неправильный ответ.", show_alert=True)
 
-@router.message(Registration.waiting_for_phone, F.contact)
+@router.message(Registration.waiting_for_phone)
 async def process_phone(message: Message, state: FSMContext):
-    contact = message.contact
-    if contact.user_id != message.from_user.id:
-        await message.answer("❌ Отправьте свой номер.")
+    """Обрабатывает введённый номер телефона"""
+    raw_phone = message.text.strip()
+    
+    # Очищаем номер
+    phone = clean_phone_number(raw_phone)
+    
+    if not phone:
+        await message.answer(
+            "❌ Неверный формат номера.\n\n"
+            "Пожалуйста, введите номер в одном из форматов:\n"
+            "• +7 999 123-45-67\n"
+            "• 89991234567\n"
+            "• 9991234567\n\n"
+            "Попробуйте еще раз:"
+        )
         return
-
-    phone = contact.phone_number
+    
     full_name = message.from_user.full_name or "Имя не указано"
 
     data = await state.get_data()
@@ -213,7 +251,10 @@ async def process_phone(message: Message, state: FSMContext):
     async with AsyncSessionLocal() as session:
         existing = await session.execute(select(User).where(User.phone == phone))
         if existing.scalar_one_or_none():
-            await message.answer("❌ Этот номер уже зарегистрирован.")
+            await message.answer(
+                "❌ Этот номер уже зарегистрирован.\n\n"
+                "Если это ваш номер, свяжитесь с администратором."
+            )
             await state.clear()
             return
 
@@ -231,9 +272,11 @@ async def process_phone(message: Message, state: FSMContext):
         await state.update_data(request_id=request.id)
 
     await message.answer(
+        "✅ Номер телефона принят!\n\n"
         "📸 **Добавьте социальные сети**\n\n"
         "Для завершения регистрации укажите ваши социальные сети.\n\n"
-        "Это поможет нам убедиться, что вы профессиональный фотограф/видеограф.",
+        "Это поможет нам убедиться, что вы профессиональный фотограф/видеограф.\n\n"
+        "👇 **Нажмите на кнопку ниже** — ничего вводить не нужно.",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text="📷 Добавить Instagram", callback_data="add_instagram")],
@@ -244,15 +287,6 @@ async def process_phone(message: Message, state: FSMContext):
         parse_mode="Markdown"
     )
     await state.set_state(Registration.waiting_for_social)
-
-@router.message(Registration.waiting_for_phone)
-async def handle_wrong_phone_input(message: Message, state: FSMContext):
-    """Если пользователь ввел текст вместо нажатия кнопки"""
-    await message.answer(
-        "❌ Вы отправили текст, а бот ожидает номер телефона.\n\n"
-        "Пожалуйста, нажмите на кнопку ниже, чтобы отправить номер:",
-        reply_markup=contact_keyboard()
-    )
 
 @router.message(Command("help"))
 async def cmd_help(message: Message):
