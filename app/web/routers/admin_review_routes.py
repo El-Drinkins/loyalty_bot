@@ -16,8 +16,7 @@ async def review_dashboard(
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
-    """Дашборд для модерации заявок"""
-    # Статистика
+    """Дашборд для модерации заявок (только ожидающие)"""
     pending_count = await db.scalar(
         select(func.count()).where(RegistrationRequest.status == "pending")
     )
@@ -36,7 +35,6 @@ async def review_dashboard(
         )
     )
     
-    # Последние заявки
     requests = await db.execute(
         select(RegistrationRequest)
         .where(RegistrationRequest.status == "pending")
@@ -57,6 +55,65 @@ async def review_dashboard(
         "requests": requests
     })
 
+@router.get("/all", response_class=HTMLResponse)
+async def review_all(
+    request: Request,
+    status: str = "pending",
+    page: int = 1,
+    per_page: int = 20,
+    db: AsyncSession = Depends(get_db)
+):
+    """Показывает заявки с фильтром по статусу"""
+    # Статистика по статусам
+    stats = {}
+    for s in ['pending', 'approved', 'rejected']:
+        stats[s] = await db.scalar(
+            select(func.count()).where(RegistrationRequest.status == s)
+        ) or 0
+    
+    # Запрос с фильтром
+    query = select(RegistrationRequest).where(RegistrationRequest.status == status)
+    total_count = await db.scalar(select(func.count()).select_from(query.subquery())) or 0
+    
+    offset = (page - 1) * per_page
+    query = query.order_by(RegistrationRequest.created_at.desc()).offset(offset).limit(per_page)
+    
+    result = await db.execute(query)
+    requests = result.scalars().all()
+    
+    total_pages = (total_count + per_page - 1) // per_page if total_count > 0 else 1
+    
+    return templates.TemplateResponse("admin/review_all.html", {
+        "request": request,
+        "requests": requests,
+        "stats": stats,
+        "current_status": status,
+        "page": page,
+        "total_pages": total_pages,
+        "total_count": total_count,
+        "per_page": per_page
+    })
+
+@router.post("/restore/{request_id}")
+async def restore_request(
+    request_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """Восстанавливает отклонённую заявку (меняет статус на pending)"""
+    req = await db.get(RegistrationRequest, request_id)
+    if not req:
+        raise HTTPException(404, "Заявка не найдена")
+    if req.status != 'rejected':
+        raise HTTPException(400, "Восстановить можно только отклонённые заявки")
+    
+    req.status = 'pending'
+    req.review_comment = None
+    req.reviewed_by = None
+    req.reviewed_at = None
+    await db.commit()
+    
+    return RedirectResponse(url="/admin/review/all?status=pending", status_code=303)
+
 @router.get("/settings", response_class=HTMLResponse)
 async def review_settings(
     request: Request,
@@ -74,7 +131,6 @@ async def review_settings(
         setting = result.scalar_one_or_none()
         settings_dict[key] = setting.value if setting else ''
     
-    # Белый список
     whitelist = await db.execute(
         select(Whitelist).order_by(Whitelist.created_at.desc()).limit(50)
     )

@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>👮‍♂️ Все заявки на регистрацию</h1>
+
+<!-- Вкладки со статистикой -->
+<div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+    <a href="/admin/review/all?status=pending" 
+       style="padding: 10px 20px; border-radius: 8px; text-decoration: none; 
+              background-color: {% if current_status == 'pending' %}#4CAF50{% else %}#f0f0f0{% endif %};
+              color: {% if current_status == 'pending' %}white{% else %}#333{% endif %};">
+        ⏳ Ожидают ({{ stats.pending }})
+    </a>
+    <a href="/admin/review/all?status=approved" 
+       style="padding: 10px 20px; border-radius: 8px; text-decoration: none; 
+              background-color: {% if current_status == 'approved' %}#4CAF50{% else %}#f0f0f0{% endif %};
+              color: {% if current_status == 'approved' %}white{% else %}#333{% endif %};">
+        ✅ Одобрены ({{ stats.approved }})
+    </a>
+    <a href="/admin/review/all?status=rejected" 
+       style="padding: 10px 20px; border-radius: 8px; text-decoration: none; 
+              background-color: {% if current_status == 'rejected' %}#f44336{% else %}#f0f0f0{% endif %};
+              color: {% if current_status == 'rejected' %}white{% else %}#333{% endif %};">
+        ❌ Отклонены ({{ stats.rejected }})
+    </a>
+</div>
+
+<div style="margin-bottom: 20px;">
+    <a href="/admin/review" class="button">← Назад к модерации</a>
+</div>
+
+<!-- Список заявок -->
+{% if requests %}
+    {% for req in requests %}
+    <div style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 15px; 
+                background-color: {% if req.status == 'rejected' %}#ffe8e8{% elif req.status == 'approved' %}#e8f5e8{% else %}#fff3e0{% endif %};">
+        <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap;">
+            <div style="flex: 1;">
+                <h3 style="margin-top: 0;">
+                    Заявка #{{ req.id }}
+                    {% if req.status == 'rejected' %}
+                        <span style="color: #f44336;">[ОТКЛОНЕНА]</span>
+                    {% elif req.status == 'approved' %}
+                        <span style="color: #4CAF50;">[ОДОБРЕНА]</span>
+                    {% else %}
+                        <span style="color: #FF9800;">[ОЖИДАЕТ]</span>
+                    {% endif %}
+                </h3>
+                <p><strong>👤 Имя:</strong> {{ req.full_name or 'Не указано' }}</p>
+                <p><strong>📱 Телефон:</strong> {{ req.phone or 'Не указан' }}</p>
+                <p><strong>🆔 Telegram ID:</strong> <code>{{ req.telegram_id }}</code></p>
+                
+                {% if req.instagram %}
+                <p><strong>📸 Instagram:</strong> <a href="https://instagram.com/{{ req.instagram }}" target="_blank">@{{ req.instagram }}</a></p>
+                {% endif %}
+                
+                {% if req.vkontakte %}
+                <p><strong>📱 VK:</strong> <a href="https://vk.com/{{ req.vkontakte }}" target="_blank">{{ req.vkontakte }}</a></p>
+                {% endif %}
+                
+                <p><strong>🕐 Создана:</strong> {{ req.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+                
+                {% if req.status == 'rejected' and req.review_comment %}
+                <p><strong>❌ Причина отклонения:</strong> {{ req.review_comment }}</p>
+                {% endif %}
+                
+                {% if req.status == 'approved' and req.reviewed_at %}
+                <p><strong>✅ Одобрена:</strong> {{ req.reviewed_at.strftime('%d.%m.%Y %H:%M') }}</p>
+                {% endif %}
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                {% if req.status == 'pending' %}
+                <form action="/api/admin/approve/{{ req.id }}" method="post" style="display: inline;">
+                    <button type="submit" class="button" style="background-color: #4CAF50;">✅ Одобрить</button>
+                </form>
+                <form action="/api/admin/reject/{{ req.id }}" method="post" style="display: inline;">
+                    <button type="submit" class="button button-red" style="background-color: #f44336;">❌ Отклонить</button>
+                </form>
+                <button onclick="showBanModal({{ req.id }})" class="button button-red">🚫 Бан</button>
+                {% elif req.status == 'rejected' %}
+                <form action="/admin/review/restore/{{ req.id }}" method="post" style="display: inline;">
+                    <button type="submit" class="button button-small" style="background-color: #FF9800;" onclick="return confirm('Восстановить заявку? Она снова появится в списке ожидающих.')">
+                        ↩️ Восстановить
+                    </button>
+                </form>
+                <form action="/api/admin/delete_request/{{ req.id }}" method="post" style="display: inline;">
+                    <button type="submit" class="button button-small" style="background-color: #666;" onclick="return confirm('Удалить заявку навсегда?')">
+                        🗑️ Удалить
+                    </button>
+                </form>
+                {% else %}
+                <form action="/api/admin/delete_request/{{ req.id }}" method="post" style="display: inline;">
+                    <button type="submit" class="button button-small" style="background-color: #666;" onclick="return confirm('Удалить заявку?')">
+                        🗑️ Удалить
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    
+    <!-- Пагинация -->
+    {% if total_pages > 1 %}
+    <div style="margin-top: 20px; text-align: center;">
+        {% if page > 1 %}
+            <a href="?status={{ current_status }}&page=1&per_page={{ per_page }}" class="button button-small">« Первая</a>
+            <a href="?status={{ current_status }}&page={{ page-1 }}&per_page={{ per_page }}" class="button button-small">‹ Предыдущая</a>
+        {% endif %}
+        
+        <span style="margin: 0 10px;">
+            Страница {{ page }} из {{ total_pages }}
+        </span>
+        
+        {% if page < total_pages %}
+            <a href="?status={{ current_status }}&page={{ page+1 }}&per_page={{ per_page }}" class="button button-small">Следующая ›</a>
+            <a href="?status={{ current_status }}&page={{ total_pages }}&per_page={{ per_page }}" class="button button-small">Последняя »</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    
+{% else %}
+    <p style="text-align: center; padding: 40px; background: #f5f5f5; border-radius: 8px;">
+        📭 Нет заявок со статусом "{{ current_status }}"
+    </p>
+{% endif %}
+
+<!-- Модальное окно для бана -->
+<div id="banModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000;">
+    <div style="background-color: white; margin: 15% auto; padding: 25px; border-radius: 8px; width: 400px;">
+        <h3 style="color: #f44336; margin-top: 0;">🚫 Блокировка пользователя</h3>
+        <p>Укажите причину блокировки:</p>
+        <form id="banForm" method="post">
+            <textarea name="reason" rows="3" style="width: 100%; padding: 8px; margin-bottom: 15px;" placeholder="Например: подозрение на бота, спам, нарушение правил"></textarea>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" onclick="hideBanModal()" class="button" style="background-color: #666;">Отмена</button>
+                <button type="submit" class="button button-red">🚫 Заблокировать</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function showBanModal(requestId) {
+    const modal = document.getElementById('banModal');
+    const form = document.getElementById('banForm');
+    form.action = `/api/admin/ban/${requestId}`;
+    modal.style.display = 'block';
+}
+
+function hideBanModal() {
+    document.getElementById('banModal').style.display = 'none';
+}
+
+window.onclick = function(event) {
+    const modal = document.getElementById('banModal');
+    if (event.target == modal) {
+        modal.style.display = 'none';
+    }
+}
+</script>
+{% endblock %}
