@@ -74,7 +74,7 @@
     <div style="background-color: white; margin: 15% auto; padding: 25px; border-radius: 8px; width: 400px;">
         <h3 style="color: #f44336; margin-top: 0;">🚫 Блокировка пользователя</h3>
         <p>Укажите причину блокировки:</p>
-        <form id="banForm" method="post" action="/admin/review/api/ban/{{ req.id }}">
+        <form id="banForm" method="post">
             <textarea name="reason" rows="3" style="width: 100%; padding: 8px; margin-bottom: 15px;" placeholder="Например: подозрение на бота, спам, нарушение правил"></textarea>
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
                 <button type="button" onclick="hideBanModal()" class="button" style="background-color: #666;">Отмена</button>
