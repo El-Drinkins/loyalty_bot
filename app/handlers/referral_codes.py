@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import random
 import string
 
-from ..models import AsyncSessionLocal, User, ReferralCode, Referral, UserLog  # изменен импорт
+from ..models import AsyncSessionLocal, User, ReferralCode, Referral, UserLog
 from ..config import settings
 
 router = Router()
@@ -333,7 +333,12 @@ async def admin_create_single(callback: CallbackQuery):
 
 @router.callback_query(F.data.startswith("delete_code_"))
 async def delete_code(callback: CallbackQuery):
+    print(f"🔍 delete_code вызван от пользователя {callback.from_user.id}")
+    print(f"🔍 ADMIN_IDS = {settings.ADMIN_IDS}")
+    
     if not is_admin(callback.from_user.id):
+        print(f"❌ Пользователь {callback.from_user.id} не является администратором")
+        await callback.answer("❌ Эта функция доступна только администраторам.", show_alert=True)
         return
     
     code_id = int(callback.data.replace("delete_code_", ""))
