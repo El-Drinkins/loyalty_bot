@@ -27,17 +27,17 @@ app.add_middleware(
     same_site="lax"
 )
 
-# Потом AuthMiddleware (который использует request.session)
-app.add_middleware(
-    AuthMiddleware,
-    secret_key="your-secret-key-here-change-this-in-production"
-)
+# AuthMiddleware ВРЕМЕННО ОТКЛЮЧЁН ДЛЯ ОТЛАДКИ
+# app.add_middleware(
+#     AuthMiddleware,
+#     secret_key="your-secret-key-here-change-this-in-production"
+# )
 
 # Подключаем шаблоны
 templates = Jinja2Templates(directory="app/web/templates")
 
 # Подключаем все роутеры
-app.include_router(auth_router)                      # Роутер авторизации (должен быть ПЕРВЫМ)
+app.include_router(auth_router)                      # Роутер авторизации
 app.include_router(main_router)                    # Главная страница
 app.include_router(points_router)                  # Начисление/списание баллов
 app.include_router(stats_router)                    # Статистика
