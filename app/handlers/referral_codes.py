@@ -22,16 +22,15 @@ def generate_referral_code(owner_id: int) -> str:
 def is_admin(user_id: int) -> bool:
     return user_id in ADMIN_IDS
 
-@router.message(Command("my_links"))
-async def cmd_my_links(message: Message):
-    """Показывает все реферальные ссылки (только для админа)"""
-    if not is_admin(message.from_user.id):
+async def show_my_links(telegram_id: int, message: Message):
+    """Показывает список ссылок для пользователя"""
+    if not is_admin(telegram_id):
         await message.answer("❌ Эта функция доступна только администраторам.")
         return
     
     async with AsyncSessionLocal() as session:
         user = await session.execute(
-            select(User).where(User.telegram_id == message.from_user.id)
+            select(User).where(User.telegram_id == telegram_id)
         )
         user = user.scalar_one_or_none()
         
@@ -60,8 +59,9 @@ async def cmd_my_links(message: Message):
         
         await message.answer(stats_text, parse_mode="Markdown")
         
+        bot_username = (await message.bot.get_me()).username
+        
         for code in codes:
-            bot_username = (await message.bot.get_me()).username
             link = f"https://t.me/{bot_username}?start={code.code}"
             
             if code.is_permanent:
@@ -112,12 +112,17 @@ async def cmd_my_links(message: Message):
         )
         await message.answer("🔧 **Действия:**", reply_markup=create_keyboard, parse_mode="Markdown")
 
+@router.message(Command("my_links"))
+async def cmd_my_links(message: Message):
+    """Показывает все реферальные ссылки (только для админа)"""
+    await show_my_links(message.from_user.id, message)
+
 @router.message(F.text == "🔗 Управление ссылками")
 async def manage_links_button(message: Message):
     if not is_admin(message.from_user.id):
         await message.answer("❌ Эта функция доступна только администраторам.")
         return
-    await cmd_my_links(message)
+    await show_my_links(message.from_user.id, message)
 
 @router.callback_query(F.data == "admin_create_link")
 async def admin_create_link(callback: CallbackQuery):
@@ -354,7 +359,8 @@ async def delete_code(callback: CallbackQuery):
             await session.commit()
             await callback.answer("✅ Ссылка удалена", show_alert=True)
     
-    await cmd_my_links(callback.message)
+    # Показываем обновлённый список ссылок
+    await show_my_links(callback.from_user.id, callback.message)
 
 @router.callback_query(F.data.startswith("code_stats_"))
 async def code_stats(callback: CallbackQuery):
@@ -420,5 +426,5 @@ async def code_stats(callback: CallbackQuery):
 
 @router.callback_query(F.data == "admin_back_to_links")
 async def admin_back_to_links(callback: CallbackQuery):
-    await cmd_my_links(callback.message)
+    await show_my_links(callback.from_user.id, callback.message)
     await callback.answer()
