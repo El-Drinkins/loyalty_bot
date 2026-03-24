@@ -12,13 +12,13 @@ from .routers import (
     search_router,
     admin_review_router,
     mailing_router,
-    auth_router  # <--- НОВЫЙ ИМПОРТ
+    auth_router
 )
-from .middleware import AuthMiddleware  # <--- НОВЫЙ ИМПОРТ
+from .middleware import AuthMiddleware
 
 app = FastAPI()
 
-# Добавляем middleware для сессий
+# Сначала SessionMiddleware (чтобы request.session был доступен)
 app.add_middleware(
     SessionMiddleware,
     secret_key="your-secret-key-here-change-this-in-production",
@@ -27,7 +27,7 @@ app.add_middleware(
     same_site="lax"
 )
 
-# Добавляем middleware для проверки аутентификации
+# Потом AuthMiddleware (который использует request.session)
 app.add_middleware(
     AuthMiddleware,
     secret_key="your-secret-key-here-change-this-in-production"
@@ -37,7 +37,7 @@ app.add_middleware(
 templates = Jinja2Templates(directory="app/web/templates")
 
 # Подключаем все роутеры
-app.include_router(auth_router)                      # <--- НОВЫЙ РОУТЕР (должен быть ПЕРВЫМ)
+app.include_router(auth_router)                      # Роутер авторизации (должен быть ПЕРВЫМ)
 app.include_router(main_router)                    # Главная страница
 app.include_router(points_router)                  # Начисление/списание баллов
 app.include_router(stats_router)                    # Статистика
