@@ -41,25 +41,20 @@ WELCOME_MESSAGE = (
 
 def clean_phone_number(phone: str) -> str:
     """Очищает номер телефона от лишних символов"""
-    # Удаляем все кроме цифр
     digits = re.sub(r'\D', '', phone)
     
-    # Если номер начинается с 8, заменяем на +7
     if len(digits) == 11 and digits.startswith('8'):
         digits = '7' + digits[1:]
     
-    # Если номер начинается с 7 и имеет 11 цифр
     if len(digits) == 11 and digits.startswith('7'):
         return '+' + digits
     
-    # Если номер начинается с 9 (десятизначный)
     if len(digits) == 10:
         return '+7' + digits
     
     return None
 
 async def get_security_setting(session, key: str, default: str = "false") -> str:
-    """Получает настройку безопасности из базы данных"""
     result = await session.execute(
         select(SecuritySettings).where(SecuritySettings.key == key)
     )
@@ -71,6 +66,11 @@ async def cmd_start(message: Message, state: FSMContext):
     start_total = time.time()
     logger.info(f"▶️ Начало обработки /start от пользователя {message.from_user.id}")
     
+    # Получаем ref_code из аргументов команды
+    args = message.text.split()
+    ref_code = args[1] if len(args) > 1 else None
+    
+    # Проверяем, есть ли пользователь в базе
     start_db = time.time()
     async with AsyncSessionLocal() as session:
         result = await session.execute(select(User).where(User.telegram_id == message.from_user.id))
@@ -89,7 +89,36 @@ async def cmd_start(message: Message, state: FSMContext):
             )
             return
 
-    # Новый пользователь — показываем приветствие с кнопкой
+    # Новый пользователь
+    # Сохраняем ref_code в состояние, если он есть
+    if ref_code:
+        # Проверяем, существует ли такой код
+        async with AsyncSessionLocal() as session:
+            code_record = await session.execute(
+                select(ReferralCode).where(ReferralCode.code == ref_code)
+            )
+            code_record = code_record.scalar_one_or_none()
+            
+            if code_record and code_record.is_active:
+                if code_record.expires_at and code_record.expires_at < datetime.utcnow():
+                    await message.answer("⏰ Срок действия кода истек. Регистрация без кода.")
+                    ref_code = None
+                elif code_record.max_uses > 0 and code_record.used_count >= code_record.max_uses:
+                    await message.answer("⚠️ Лимит ссылки исчерпан. Регистрация без кода.")
+                    ref_code = None
+                else:
+                    await state.update_data(ref_code=ref_code, referrer_id=code_record.owner_id)
+                    referrer = await session.get(User, code_record.owner_id)
+                    if referrer:
+                        await message.answer(f"🎉 Вас пригласил: {referrer.full_name}")
+            else:
+                await message.answer("❌ Недействительная ссылка. Регистрация без кода.")
+                ref_code = None
+        
+        # Сохраняем ref_code в состояние для использования при нажатии кнопки
+        await state.update_data(ref_code=ref_code)
+    
+    # Показываем приветствие с кнопкой
     start_keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="🚀 Начать регистрацию", callback_data="start_registration")]
@@ -105,12 +134,11 @@ async def cmd_start(message: Message, state: FSMContext):
 async def start_registration(callback: CallbackQuery, state: FSMContext):
     """Обработчик кнопки 'Начать регистрацию'"""
     
-    print(f"🔍 start_registration вызван, callback.message.text = {callback.message.text}")
+    # Получаем ref_code из состояния
+    data = await state.get_data()
+    ref_code = data.get("ref_code")
     
-    args = callback.message.text.split()
-    ref_code = args[1] if len(args) > 1 else None
-    
-    print(f"🔍 args = {args}, ref_code = {ref_code}")
+    print(f"🔍 start_registration вызван, ref_code = {ref_code}")
     
     # =========================================================
     # ВКЛЮЧЕНО: регистрация только по реферальному коду
@@ -127,22 +155,8 @@ async def start_registration(callback: CallbackQuery, state: FSMContext):
     # =========================================================
     
     async with AsyncSessionLocal() as session:
-        if ref_code:
-            code_record = await session.execute(
-                select(ReferralCode).where(ReferralCode.code == ref_code)
-            )
-            code_record = code_record.scalar_one_or_none()
-            
-            if code_record and code_record.is_active:
-                if code_record.expires_at and code_record.expires_at < datetime.utcnow():
-                    await callback.message.answer("⏰ Срок действия кода истек. Регистрация без кода.")
-                elif code_record.max_uses > 0 and code_record.used_count >= code_record.max_uses:
-                    await callback.message.answer("⚠️ Лимит ссылки исчерпан. Регистрация без кода.")
-                else:
-                    await state.update_data(ref_code=ref_code, referrer_id=code_record.owner_id)
-                    referrer = await session.get(User, code_record.owner_id)
-                    if referrer:
-                        await callback.message.answer(f"🎉 Вас пригласил: {referrer.full_name}")
+        # Получаем referrer_id из состояния
+        referrer_id = data.get("referrer_id")
         
         await state.update_data(ip_address=str(callback.from_user.id))
         
@@ -242,8 +256,6 @@ async def process_captcha(callback: CallbackQuery, state: FSMContext):
 async def process_phone(message: Message, state: FSMContext):
     """Обрабатывает введённый номер телефона"""
     raw_phone = message.text.strip()
-    
-    # Очищаем номер
     phone = clean_phone_number(raw_phone)
     
     if not phone:
@@ -306,7 +318,6 @@ async def process_phone(message: Message, state: FSMContext):
 
 @router.message(Command("help"))
 async def cmd_help(message: Message):
-    """Команда помощи"""
     help_text = (
         "❓ **Помощь по программе лояльности**\n\n"
         "📌 **Основные команды:**\n"
@@ -329,7 +340,6 @@ async def cmd_help(message: Message):
 
 @router.message(Command("admin"))
 async def cmd_admin(message: Message):
-    """Команда для администраторов (только для админов)"""
     if message.from_user.id not in settings.ADMIN_IDS:
         await message.answer("❌ У вас нет прав администратора.")
         return
@@ -349,7 +359,6 @@ async def cmd_admin(message: Message):
 
 @router.message(Command("enter_code"))
 async def cmd_enter_code(message: Message, state: FSMContext):
-    """Команда для ручного ввода кода"""
     await message.answer(
         "🔗 Введите пригласительный код\n\n"
         "Если у вас есть ссылка от друга, введите код из неё:\n\n"
@@ -361,7 +370,6 @@ async def cmd_enter_code(message: Message, state: FSMContext):
 
 @router.message(Registration.waiting_for_manual_code)
 async def process_manual_code(message: Message, state: FSMContext):
-    """Обработка ручного ввода кода"""
     code = message.text.strip()
     
     async with AsyncSessionLocal() as session:
@@ -386,10 +394,19 @@ async def process_manual_code(message: Message, state: FSMContext):
         
         await state.update_data(ref_code=code, referrer_id=code_record.owner_id)
         
-        await cmd_start(message, state)
+        # Показываем приветствие с кнопкой
+        start_keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="🚀 Начать регистрацию", callback_data="start_registration")]
+            ]
+        )
+        
+        await message.answer(
+            WELCOME_MESSAGE,
+            reply_markup=start_keyboard
+        )
 
 async def log_user_action(user_id: int, action_type: str, details: str = None):
-    """Вспомогательная функция для логирования"""
     async with AsyncSessionLocal() as session:
         log = UserLog(
             user_id=user_id,
