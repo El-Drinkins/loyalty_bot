@@ -137,7 +137,7 @@ async def api_reject_request(
     request_id: int,
     db: AsyncSession = Depends(get_db)
 ):
-    """Отклоняет заявку"""
+    """Отклоняет заявку и отправляет уведомление пользователю"""
     req = await db.get(RegistrationRequest, request_id)
     if not req:
         raise HTTPException(404, "Заявка не найдена")
@@ -146,6 +146,17 @@ async def api_reject_request(
     req.reviewed_at = datetime.utcnow()
     
     await db.commit()
+    
+    # Отправляем уведомление пользователю
+    try:
+        await send_telegram_notification(
+            req.telegram_id,
+            "❌ **Регистрация отклонена**\n\n"
+            "К сожалению, ваша заявка была отклонена.\n\n"
+            "Если вы считаете, что произошла ошибка, свяжитесь с поддержкой: @admin_support"
+        )
+    except Exception as e:
+        print(f"Не удалось отправить уведомление пользователю {req.telegram_id}: {e}")
     
     return RedirectResponse(url="/admin/review", status_code=303)
 
@@ -165,6 +176,18 @@ async def api_ban_request(
     req.reviewed_at = datetime.utcnow()
     
     await db.commit()
+    
+    # Отправляем уведомление пользователю
+    try:
+        await send_telegram_notification(
+            req.telegram_id,
+            f"❌ **Регистрация отклонена**\n\n"
+            f"К сожалению, ваша заявка была отклонена.\n\n"
+            f"Причина: {reason}\n\n"
+            f"Если вы считаете, что произошла ошибка, свяжитесь с поддержкой: @admin_support"
+        )
+    except Exception as e:
+        print(f"Не удалось отправить уведомление пользователю {req.telegram_id}: {e}")
     
     return RedirectResponse(url="/admin/review", status_code=303)
 
