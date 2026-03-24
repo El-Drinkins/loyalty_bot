@@ -109,6 +109,20 @@ async def start_registration(callback: CallbackQuery, state: FSMContext):
     args = callback.message.text.split()
     ref_code = args[1] if len(args) > 1 else None
     
+    # =========================================================
+    # ВКЛЮЧЕНО: регистрация только по реферальному коду
+    # =========================================================
+    if not ref_code:
+        await callback.message.answer(
+            "🔒 Регистрация только по приглашениям\n\n"
+            "К сожалению, регистрация в боте возможна только по пригласительным ссылкам.\n\n"
+            "Если вас пригласил друг, попросите у него ссылку.\n\n"
+            "Пример ссылки: https://t.me/your_bot?start=ref123"
+        )
+        await callback.answer()
+        return
+    # =========================================================
+    
     async with AsyncSessionLocal() as session:
         if ref_code:
             code_record = await session.execute(
