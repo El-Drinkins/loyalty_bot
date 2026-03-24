@@ -117,11 +117,11 @@ async def api_approve_request(
     
     await db.commit()
     
-    # Отправляем уведомление пользователю
+    # Отправляем уведомление пользователю (без Markdown)
     try:
         await send_telegram_notification(
             req.telegram_id,
-            f"✅ **Регистрация подтверждена!**\n\n"
+            f"✅ Регистрация подтверждена!\n\n"
             f"Ваша заявка одобрена. Добро пожаловать в программу лояльности!\n\n"
             f"🎁 Вам начислено {settings.WELCOME_BONUS} приветственных баллов.\n\n"
             f"Отправьте /start для начала работы."
@@ -129,7 +129,6 @@ async def api_approve_request(
     except Exception as e:
         print(f"Не удалось отправить уведомление пользователю {req.telegram_id}: {e}")
     
-    # Возвращаемся на страницу модерации
     return RedirectResponse(url="/admin/review", status_code=303)
 
 @router.post("/api/reject/{request_id}")
@@ -147,11 +146,11 @@ async def api_reject_request(
     
     await db.commit()
     
-    # Отправляем уведомление пользователю
+    # Отправляем уведомление пользователю (без Markdown)
     try:
         await send_telegram_notification(
             req.telegram_id,
-            "❌ **Регистрация отклонена**\n\n"
+            "❌ Регистрация отклонена\n\n"
             "К сожалению, ваша заявка была отклонена.\n\n"
             "Если вы считаете, что произошла ошибка, свяжитесь с поддержкой: @admin_support"
         )
@@ -177,11 +176,11 @@ async def api_ban_request(
     
     await db.commit()
     
-    # Отправляем уведомление пользователю
+    # Отправляем уведомление пользователю (без Markdown)
     try:
         await send_telegram_notification(
             req.telegram_id,
-            f"❌ **Регистрация отклонена**\n\n"
+            f"❌ Регистрация отклонена\n\n"
             f"К сожалению, ваша заявка была отклонена.\n\n"
             f"Причина: {reason}\n\n"
             f"Если вы считаете, что произошла ошибка, свяжитесь с поддержкой: @admin_support"
@@ -233,16 +232,13 @@ async def delete_all_rejected(
     db: AsyncSession = Depends(get_db)
 ):
     """Удаляет все отклонённые заявки с подтверждением количества"""
-    # Получаем количество отклонённых заявок
     rejected_count = await db.scalar(
         select(func.count()).where(RegistrationRequest.status == "rejected")
     ) or 0
     
-    # Проверяем, что введённое число совпадает с количеством
     if confirm_count != rejected_count:
         raise HTTPException(400, f"Введите число {rejected_count} для подтверждения")
     
-    # Удаляем все отклонённые заявки
     await db.execute(
         RegistrationRequest.__table__.delete().where(RegistrationRequest.status == "rejected")
     )
