@@ -11,12 +11,7 @@ router = APIRouter(tags=["auth"])
 
 # Пароль администратора (хранится в хэшированном виде)
 # По умолчанию пароль: admin123
-# Чтобы сменить пароль, измени эту строку и перезапусти бота
 ADMIN_PASSWORD_HASH = hashlib.sha256("admin123".encode()).hexdigest()
-
-# Можно также читать пароль из переменной окружения
-# import os
-# ADMIN_PASSWORD_HASH = hashlib.sha256(os.getenv("ADMIN_PASSWORD", "admin123").encode()).hexdigest()
 
 
 @router.get("/login", response_class=HTMLResponse)
