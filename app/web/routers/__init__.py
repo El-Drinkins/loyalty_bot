@@ -8,6 +8,7 @@ from .search_routes import router as search_router
 from .catalog import router as catalog_router
 from .admin_review_routes import router as admin_review_router
 from .mailing_routes import router as mailing_router
+from .auth_routes import router as auth_router  # <--- НОВАЯ СТРОКА
 
 __all__ = [
     "main_router",
@@ -18,5 +19,7 @@ __all__ = [
     "api_router",
     "search_router",
     "catalog_router",
-    "admin_review_router"
+    "admin_review_router",
+    "mailing_router",
+    "auth_router"  # <--- НОВАЯ СТРОКА
 ]

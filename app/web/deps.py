@@ -1,8 +1,9 @@
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+from fastapi import Request, HTTPException
 
-from ..models import AsyncSessionLocal  # изменен импорт
+from ..models import AsyncSessionLocal
 
 templates = Jinja2Templates(directory="app/web/templates")
 
@@ -29,3 +30,13 @@ async def get_db() -> AsyncSession:
             traceback.print_exc()
         
         yield session
+
+# НОВАЯ ФУНКЦИЯ: проверка аутентификации
+def require_auth(request: Request):
+    """
+    Проверяет, авторизован ли пользователь.
+    Используется в защищённых маршрутах для гарантии.
+    """
+    if not request.session.get("authenticated"):
+        raise HTTPException(status_code=303, headers={"Location": "/login"})
+    return True

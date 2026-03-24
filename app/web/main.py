@@ -11,8 +11,10 @@ from .routers import (
     catalog_router,
     search_router,
     admin_review_router,
-    mailing_router  # <--- ДОБАВЛЕНО
+    mailing_router,
+    auth_router  # <--- НОВЫЙ ИМПОРТ
 )
+from .middleware import AuthMiddleware  # <--- НОВЫЙ ИМПОРТ
 
 app = FastAPI()
 
@@ -21,14 +23,21 @@ app.add_middleware(
     SessionMiddleware,
     secret_key="your-secret-key-here-change-this-in-production",
     session_cookie="loyalty_session",
-    max_age=3600,
+    max_age=3600 * 24,  # 24 часа
     same_site="lax"
+)
+
+# Добавляем middleware для проверки аутентификации
+app.add_middleware(
+    AuthMiddleware,
+    secret_key="your-secret-key-here-change-this-in-production"
 )
 
 # Подключаем шаблоны
 templates = Jinja2Templates(directory="app/web/templates")
 
 # Подключаем все роутеры
+app.include_router(auth_router)                      # <--- НОВЫЙ РОУТЕР (должен быть ПЕРВЫМ)
 app.include_router(main_router)                    # Главная страница
 app.include_router(points_router)                  # Начисление/списание баллов
 app.include_router(stats_router)                    # Статистика
@@ -38,7 +47,7 @@ app.include_router(api_router)                      # API для поиска
 app.include_router(catalog_router, prefix="/catalog")  # Каталог техники
 app.include_router(search_router)                   # Поиск клиентов
 app.include_router(admin_review_router)             # Модерация
-app.include_router(mailing_router)                  # Рассылка <--- ДОБАВЛЕНО
+app.include_router(mailing_router)                  # Рассылка
 
 print("=== ЗАРЕГИСТРИРОВАННЫЕ МАРШРУТЫ ===")
 for route in app.routes:
