@@ -5,7 +5,7 @@ from datetime import datetime
 import random
 import string
 
-from ..models import AsyncSessionLocal, User, Referral, ReferralCode, UserLog  # изменен импорт
+from ..models import AsyncSessionLocal, User, Referral, ReferralCode, UserLog
 from ..config import settings
 from ..keyboards import main_menu_keyboard
 
@@ -67,6 +67,19 @@ async def invite_friend(message: Message):
         session.add(log)
         await session.commit()
     
+    # Сообщение 1: Заголовок
+    await message.answer(
+        "🎁 Пригласить друга в бот\n\n"
+        "🔗 Ваша ссылка:"
+    )
+    
+    # Сообщение 2: Только ссылка (отдельным сообщением для удобного копирования)
+    await message.answer(
+        link,
+        disable_web_page_preview=True
+    )
+    
+    # Сообщение 3: Инструкция и кнопки
     share_keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(
@@ -79,14 +92,11 @@ async def invite_friend(message: Message):
     )
     
     await message.answer(
-        f"🎁 **Пригласить друга в бот**\n\n"
-        f"🔗 **Ваша ссылка:**\n"
-        f"`{link}`\n\n"
-        f"📱 **Как поделиться:**\n"
-        f"1️⃣ Нажмите на ссылку выше, чтобы выделить её\n"
-        f"2️⃣ Скопируйте ссылку (Ctrl+C или долгое нажатие)\n"
-        f"3️⃣ Отправьте другу\n\n"
-        f"Или нажмите кнопку ниже, чтобы отправить через Telegram:\n\n"
+        "📱 Как поделиться:\n"
+        "1️⃣ Нажмите на ссылку выше, чтобы выделить её\n"
+        "2️⃣ Скопируйте ссылку\n"
+        "3️⃣ Отправьте другу\n\n"
+        "Или нажмите кнопку ниже, чтобы отправить через Telegram:\n\n"
         f"За каждого друга, который совершит первую аренду, вы получите **{settings.REFERRAL_BONUS}** баллов.",
         reply_markup=share_keyboard,
         parse_mode="Markdown"
@@ -246,15 +256,25 @@ async def back_to_invite(callback: CallbackQuery):
             ]
         )
         
+        # Сообщение 1: Заголовок
         await callback.message.answer(
-            f"🎁 **Пригласить друга в бот**\n\n"
-            f"🔗 **Ваша ссылка:**\n"
-            f"`{link}`\n\n"
-            f"📱 **Как поделиться:**\n"
-            f"1️⃣ Нажмите на ссылку выше, чтобы выделить её\n"
-            f"2️⃣ Скопируйте ссылку (Ctrl+C или долгое нажатие)\n"
-            f"3️⃣ Отправьте другу\n\n"
-            f"Или нажмите кнопку ниже, чтобы отправить через Telegram:\n\n"
+            "🎁 Пригласить друга в бот\n\n"
+            "🔗 Ваша ссылка:"
+        )
+        
+        # Сообщение 2: Только ссылка
+        await callback.message.answer(
+            link,
+            disable_web_page_preview=True
+        )
+        
+        # Сообщение 3: Инструкция и кнопки
+        await callback.message.answer(
+            "📱 Как поделиться:\n"
+            "1️⃣ Нажмите на ссылку выше, чтобы выделить её\n"
+            "2️⃣ Скопируйте ссылку\n"
+            "3️⃣ Отправьте другу\n\n"
+            "Или нажмите кнопку ниже, чтобы отправить через Telegram:\n\n"
             f"За каждого друга, который совершит первую аренду, вы получите **{settings.REFERRAL_BONUS}** баллов.",
             reply_markup=share_keyboard,
             parse_mode="Markdown"
