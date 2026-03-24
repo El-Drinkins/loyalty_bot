@@ -104,10 +104,13 @@ async def cmd_start(message: Message, state: FSMContext):
 @router.callback_query(F.data == "start_registration")
 async def start_registration(callback: CallbackQuery, state: FSMContext):
     """Обработчик кнопки 'Начать регистрацию'"""
-    # Не удаляем приветственное сообщение
+    
+    print(f"🔍 start_registration вызван, callback.message.text = {callback.message.text}")
     
     args = callback.message.text.split()
     ref_code = args[1] if len(args) > 1 else None
+    
+    print(f"🔍 args = {args}, ref_code = {ref_code}")
     
     # =========================================================
     # ВКЛЮЧЕНО: регистрация только по реферальному коду
