@@ -1,7 +1,7 @@
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
-import os
+import time
 
 # Список маршрутов, которые доступны без авторизации
 PUBLIC_PATHS = [
@@ -26,11 +26,15 @@ class AuthMiddleware(BaseHTTPMiddleware):
             if path.startswith(public_path):
                 return await call_next(request)
         
+        # Проверяем, есть ли session в scope
+        if "session" not in request.scope:
+            # Если SessionMiddleware не установлен, пропускаем (не должно происходить)
+            return await call_next(request)
+        
         # Проверяем, есть ли сессия и ключ authenticated
         if request.session.get("authenticated") is True:
             # Проверяем, не истекла ли сессия
             if request.session.get("expires_at"):
-                import time
                 if time.time() > request.session["expires_at"]:
                     # Сессия истекла
                     request.session.clear()

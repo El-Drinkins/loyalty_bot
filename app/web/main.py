@@ -27,11 +27,11 @@ app.add_middleware(
     same_site="lax"
 )
 
-# AuthMiddleware ВРЕМЕННО ОТКЛЮЧЁН ДЛЯ ОТЛАДКИ
-# app.add_middleware(
-#     AuthMiddleware,
-#     secret_key="your-secret-key-here-change-this-in-production"
-# )
+# Потом AuthMiddleware (который использует request.session)
+app.add_middleware(
+    AuthMiddleware,
+    secret_key="your-secret-key-here-change-this-in-production"
+)
 
 # Подключаем шаблоны
 templates = Jinja2Templates(directory="app/web/templates")
