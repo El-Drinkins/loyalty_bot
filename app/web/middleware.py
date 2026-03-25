@@ -26,19 +26,17 @@ class AuthMiddleware(BaseHTTPMiddleware):
             if path.startswith(public_path):
                 return await call_next(request)
         
-        # Проверяем, есть ли session в scope
-        if "session" not in request.scope:
-            # Если SessionMiddleware не установлен, пропускаем (не должно происходить)
-            return await call_next(request)
+        # Проверяем, авторизован ли пользователь
+        # Сессия уже должна быть доступна благодаря SessionMiddleware
+        authenticated = request.session.get("authenticated", False)
         
-        # Проверяем, есть ли сессия и ключ authenticated
-        if request.session.get("authenticated") is True:
+        if authenticated:
             # Проверяем, не истекла ли сессия
-            if request.session.get("expires_at"):
-                if time.time() > request.session["expires_at"]:
-                    # Сессия истекла
-                    request.session.clear()
-                    return RedirectResponse(url="/login", status_code=303)
+            expires_at = request.session.get("expires_at")
+            if expires_at and time.time() > expires_at:
+                # Сессия истекла
+                request.session.clear()
+                return RedirectResponse(url="/login", status_code=303)
             return await call_next(request)
         
         # Не авторизован — редирект на логин
