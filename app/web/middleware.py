@@ -26,18 +26,15 @@ class AuthMiddleware(BaseHTTPMiddleware):
             if path.startswith(public_path):
                 return await call_next(request)
         
-        # Проверяем, авторизован ли пользователь
-        # Сессия уже должна быть доступна благодаря SessionMiddleware
-        authenticated = request.session.get("authenticated", False)
+        # Проверяем авторизацию
+        # SessionMiddleware уже должен быть установлен, так как мы добавили его ПЕРВЫМ
+        if not request.session.get("authenticated"):
+            return RedirectResponse(url="/login", status_code=303)
         
-        if authenticated:
-            # Проверяем, не истекла ли сессия
-            expires_at = request.session.get("expires_at")
-            if expires_at and time.time() > expires_at:
-                # Сессия истекла
-                request.session.clear()
-                return RedirectResponse(url="/login", status_code=303)
-            return await call_next(request)
+        # Проверяем, не истекла ли сессия
+        expires_at = request.session.get("expires_at")
+        if expires_at and time.time() > expires_at:
+            request.session.clear()
+            return RedirectResponse(url="/login", status_code=303)
         
-        # Не авторизован — редирект на логин
-        return RedirectResponse(url="/login", status_code=303)
+        return await call_next(request)

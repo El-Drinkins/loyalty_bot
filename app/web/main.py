@@ -18,7 +18,7 @@ from .middleware import AuthMiddleware
 
 app = FastAPI()
 
-# Сначала SessionMiddleware (чтобы request.session был доступен)
+# Добавляем SessionMiddleware ПЕРВЫМ
 app.add_middleware(
     SessionMiddleware,
     secret_key="your-secret-key-here-change-this-in-production",
@@ -27,7 +27,7 @@ app.add_middleware(
     same_site="lax"
 )
 
-# Потом AuthMiddleware (который использует request.session)
+# Добавляем AuthMiddleware ВТОРЫМ (после SessionMiddleware)
 app.add_middleware(
     AuthMiddleware,
     secret_key="your-secret-key-here-change-this-in-production"
@@ -37,17 +37,17 @@ app.add_middleware(
 templates = Jinja2Templates(directory="app/web/templates")
 
 # Подключаем все роутеры
-app.include_router(auth_router)                      # Роутер авторизации
-app.include_router(main_router)                    # Главная страница
-app.include_router(points_router)                  # Начисление/списание баллов
-app.include_router(stats_router)                    # Статистика
-app.include_router(admin_router)                    # Админские логи
-app.include_router(user_router)                     # Управление пользователями
-app.include_router(api_router)                      # API для поиска
-app.include_router(catalog_router, prefix="/catalog")  # Каталог техники
-app.include_router(search_router)                   # Поиск клиентов
-app.include_router(admin_review_router)             # Модерация
-app.include_router(mailing_router)                  # Рассылка
+app.include_router(auth_router)
+app.include_router(main_router)
+app.include_router(points_router)
+app.include_router(stats_router)
+app.include_router(admin_router)
+app.include_router(user_router)
+app.include_router(api_router)
+app.include_router(catalog_router, prefix="/catalog")
+app.include_router(search_router)
+app.include_router(admin_review_router)
+app.include_router(mailing_router)
 
 print("=== ЗАРЕГИСТРИРОВАННЫЕ МАРШРУТЫ ===")
 for route in app.routes:
