@@ -61,7 +61,14 @@ async def show_my_links(telegram_id: int, message: Message):
         
         bot_username = (await message.bot.get_me()).username
         
+        # Переменная для отслеживания, была ли уже отправлена первая ссылка
+        first_link = True
+        
         for code in codes:
+            # Добавляем разделитель между блоками ссылок (кроме первого)
+            if not first_link:
+                await message.answer("——————————")
+            
             link = f"https://t.me/{bot_username}?start={code.code}"
             
             # Сообщение 1: только ссылка (чистый текст)
@@ -109,6 +116,8 @@ async def show_my_links(telegram_id: int, message: Message):
                 await message.answer(link_text, reply_markup=keyboard, parse_mode="Markdown")
             else:
                 await message.answer(link_text, parse_mode="Markdown")
+            
+            first_link = False
         
         create_keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
