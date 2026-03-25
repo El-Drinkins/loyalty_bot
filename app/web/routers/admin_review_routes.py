@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from datetime import datetime
 
-from ..deps import get_db, templates
+from ..deps import get_db, templates, require_auth
 from ...models import User, RegistrationRequest, SecuritySettings, Whitelist, StormLog, Transaction
 from ...config import settings
 from ...notifications import send_telegram_notification
@@ -15,9 +15,9 @@ router = APIRouter(prefix="/admin/review", tags=["admin"])
 @router.get("/", response_class=HTMLResponse)
 async def review_dashboard(
     request: Request,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
-    """Дашборд для модерации заявок (только ожидающие)"""
     pending_count = await db.scalar(
         select(func.count()).where(RegistrationRequest.status == "pending")
     ) or 0
@@ -50,9 +50,9 @@ async def review_rejected(
     request: Request,
     page: int = 1,
     per_page: int = 20,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
-    """Страница отклонённых заявок"""
     query = select(RegistrationRequest).where(RegistrationRequest.status == "rejected")
     total_count = await db.scalar(select(func.count()).select_from(query.subquery())) or 0
     
@@ -76,9 +76,9 @@ async def review_rejected(
 @router.post("/api/approve/{request_id}")
 async def api_approve_request(
     request_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
-    """Одобряет заявку и создаёт пользователя"""
     req = await db.get(RegistrationRequest, request_id)
     if not req:
         raise HTTPException(404, "Заявка не найдена")
@@ -86,7 +86,6 @@ async def api_approve_request(
     if req.status != "pending":
         raise HTTPException(400, "Заявка уже обработана")
     
-    # Создаем пользователя
     user = User(
         telegram_id=req.telegram_id,
         full_name=req.full_name or "Имя не указано",
@@ -102,12 +101,10 @@ async def api_approve_request(
     db.add(user)
     await db.flush()
     
-    # Обновляем статус заявки
     req.status = "approved"
     req.user_id = user.id
     req.reviewed_at = datetime.utcnow()
     
-    # Добавляем транзакцию на начисление бонусов
     transaction = Transaction(
         user_id=user.id,
         amount=settings.WELCOME_BONUS,
@@ -117,7 +114,6 @@ async def api_approve_request(
     
     await db.commit()
     
-    # Отправляем уведомление пользователю (без Markdown)
     try:
         await send_telegram_notification(
             req.telegram_id,
@@ -134,9 +130,9 @@ async def api_approve_request(
 @router.post("/api/reject/{request_id}")
 async def api_reject_request(
     request_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
-    """Отклоняет заявку и отправляет уведомление пользователю"""
     req = await db.get(RegistrationRequest, request_id)
     if not req:
         raise HTTPException(404, "Заявка не найдена")
@@ -146,13 +142,12 @@ async def api_reject_request(
     
     await db.commit()
     
-    # Отправляем уведомление пользователю (без Markdown)
     try:
         await send_telegram_notification(
             req.telegram_id,
             "❌ Регистрация отклонена\n\n"
             "К сожалению, ваша заявка была отклонена.\n\n"
-            "Если вы считаете, что произошла ошибка, свяжитесь с поддержкой: @fototehnika_arenda_ufa"
+            "Если вы считаете, что произошла ошибка, свяжитесь с поддержкой: @admin_support"
         )
     except Exception as e:
         print(f"Не удалось отправить уведомление пользователю {req.telegram_id}: {e}")
@@ -163,9 +158,9 @@ async def api_reject_request(
 async def api_ban_request(
     request_id: int,
     reason: str = Form(...),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
-    """Блокирует пользователя и отклоняет заявку"""
     req = await db.get(RegistrationRequest, request_id)
     if not req:
         raise HTTPException(404, "Заявка не найдена")
@@ -176,7 +171,6 @@ async def api_ban_request(
     
     await db.commit()
     
-    # Отправляем уведомление пользователю (без Markdown)
     try:
         await send_telegram_notification(
             req.telegram_id,
@@ -193,9 +187,9 @@ async def api_ban_request(
 @router.post("/restore/{request_id}")
 async def restore_request(
     request_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
-    """Восстанавливает отклонённую заявку (меняет статус на pending)"""
     req = await db.get(RegistrationRequest, request_id)
     if not req:
         raise HTTPException(404, "Заявка не найдена")
@@ -213,9 +207,9 @@ async def restore_request(
 @router.post("/api/delete_request/{request_id}")
 async def delete_request(
     request_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
-    """Удаляет заявку навсегда"""
     req = await db.get(RegistrationRequest, request_id)
     if not req:
         raise HTTPException(404, "Заявка не найдена")
@@ -229,9 +223,9 @@ async def delete_request(
 async def delete_all_rejected(
     request: Request,
     confirm_count: int = Form(...),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
-    """Удаляет все отклонённые заявки с подтверждением количества"""
     rejected_count = await db.scalar(
         select(func.count()).where(RegistrationRequest.status == "rejected")
     ) or 0
@@ -249,9 +243,9 @@ async def delete_all_rejected(
 @router.get("/settings", response_class=HTMLResponse)
 async def review_settings(
     request: Request,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
-    """Настройки защиты"""
     settings_dict = {}
     keys = ['storm_threshold', 'storm_cooldown', 'ip_limit', 
             'captcha_enabled', 'manual_review_enabled', 'whitelist_enabled']
@@ -283,9 +277,9 @@ async def update_settings(
     captcha_enabled: bool = Form(False),
     manual_review_enabled: bool = Form(False),
     whitelist_enabled: bool = Form(False),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
-    """Обновляет настройки защиты"""
     updates = {
         'storm_threshold': str(storm_threshold),
         'storm_cooldown': str(storm_cooldown),
@@ -312,9 +306,9 @@ async def add_to_whitelist(
     value: str = Form(...),
     reason: str = Form(...),
     expires_at: str = Form(""),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
-    """Добавляет запись в белый список"""
     expires = None
     if expires_at:
         try:
@@ -337,9 +331,9 @@ async def add_to_whitelist(
 async def delete_from_whitelist(
     request: Request,
     entry_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
-    """Удаляет запись из белого списка"""
     entry = await db.get(Whitelist, entry_id)
     if entry:
         await db.delete(entry)

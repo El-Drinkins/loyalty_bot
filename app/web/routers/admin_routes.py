@@ -6,8 +6,8 @@ from sqlalchemy.orm import selectinload
 from datetime import datetime, timedelta
 from itertools import groupby
 
-from ..deps import get_db, templates
-from ...models import User, AdminLog, UserLog, Referral, Transaction, ReferralStatus  # изменен импорт
+from ..deps import get_db, templates, require_auth
+from ...models import User, AdminLog, UserLog, Referral, Transaction, ReferralStatus
 from ...notifications import send_telegram_notification
 
 router = APIRouter()
@@ -21,7 +21,8 @@ async def admin_logs_page(
     per_page: int = 50,
     action: str = "",
     user_id: str = "",
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     query = select(AdminLog).order_by(AdminLog.created_at.desc())
     
@@ -78,7 +79,8 @@ async def user_logs_page(
     per_page: int = 50,
     action: str = "",
     user_id: str = "",
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     query = select(UserLog).order_by(UserLog.created_at.desc())
     
@@ -136,7 +138,8 @@ async def add_to_blacklist(
     reason: str = Form(...),
     comment: str = Form(""),
     db: AsyncSession = Depends(get_db),
-    admin_id: int = Form(0)
+    admin_id: int = Form(0),
+    _=Depends(require_auth)
 ):
     user = await db.get(User, user_id)
     if not user:
@@ -190,7 +193,8 @@ async def add_to_blacklist(
 async def remove_from_blacklist(
     user_id: int,
     db: AsyncSession = Depends(get_db),
-    admin_id: int = Form(0)
+    admin_id: int = Form(0),
+    _=Depends(require_auth)
 ):
     user = await db.get(User, user_id)
     if not user:
@@ -238,7 +242,11 @@ async def remove_from_blacklist(
     return RedirectResponse(url=f"/client/{user_id}", status_code=303)
 
 @router.get("/blacklist", response_class=HTMLResponse)
-async def blacklist_page(request: Request, db: AsyncSession = Depends(get_db)):
+async def blacklist_page(
+    request: Request, 
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
+):
     result = await db.execute(
         select(User)
         .where(User.blacklisted == True)

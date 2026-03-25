@@ -4,15 +4,16 @@ from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 
-from ..deps import get_db
-from ...models import User, Referral, RegistrationRequest  # изменен импорт
+from ..deps import get_db, require_auth
+from ...models import User, Referral, RegistrationRequest
 
 router = APIRouter()
 
 @router.get("/api/search_users")
 async def search_users(
     q: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     """API для поиска пользователей (для модального окна)"""
     if len(q) < 2:
@@ -50,7 +51,8 @@ async def search_users(
 @router.post("/api/admin/approve/{request_id}")
 async def api_approve_request(
     request_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     """API для одобрения заявки"""
     req = await db.get(RegistrationRequest, request_id)
@@ -85,7 +87,8 @@ async def api_approve_request(
 @router.post("/api/admin/reject/{request_id}")
 async def api_reject_request(
     request_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     """API для отклонения заявки"""
     req = await db.get(RegistrationRequest, request_id)
@@ -103,7 +106,8 @@ async def api_reject_request(
 async def api_ban_request(
     request_id: int,
     reason: str = Form(...),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     """API для блокировки пользователя"""
     req = await db.get(RegistrationRequest, request_id)
@@ -123,7 +127,8 @@ async def api_ban_request(
 async def update_user_notes(
     user_id: int,
     notes: str = Form(...),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     """Обновляет примечания администратора"""
     user = await db.get(User, user_id)

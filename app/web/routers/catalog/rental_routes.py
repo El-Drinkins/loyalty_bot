@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from datetime import datetime
 
-from ...deps import get_db, templates
+from ...deps import get_db, templates, require_auth
 from ....models import User, Model, Brand, Category, Rental
 from .base_routes import generate_rental_number
 
@@ -18,7 +18,8 @@ async def rentals_list(
     per_page: int = 20,
     status: str = "",
     user_id: int = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     query = select(Rental).options(
         selectinload(Rental.user),
@@ -58,7 +59,8 @@ async def rentals_list(
 async def rental_add_form(
     request: Request,
     admin_id: int = 1,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     models = await db.execute(
         select(Model)
@@ -95,7 +97,8 @@ async def rental_add(
     notes: str = Form(""),
     status: str = Form("active"),
     admin_id: int = Form(...),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     admin = await db.get(User, admin_id)
     
@@ -123,7 +126,8 @@ async def rental_edit_form(
     request: Request,
     rental_id: int,
     admin_id: int = 1,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     rental = await db.get(Rental, rental_id)
     if not rental:
@@ -160,7 +164,8 @@ async def rental_edit(
     deposit: int = Form(0),
     notes: str = Form(""),
     status: str = Form(...),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     rental = await db.get(Rental, rental_id)
     if not rental:
@@ -184,7 +189,8 @@ async def rental_edit(
 async def rental_delete(
     request: Request,
     rental_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     rental = await db.get(Rental, rental_id)
     if rental:
@@ -196,7 +202,8 @@ async def rental_delete(
 async def rental_detail(
     request: Request,
     rental_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     rental = await db.get(
         Rental, 

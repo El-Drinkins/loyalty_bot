@@ -4,7 +4,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from ...deps import get_db, templates
+from ...deps import get_db, templates, require_auth
 from ....models import Model, Brand, Category, Rental
 
 router = APIRouter(prefix="/stats", tags=["catalog"])
@@ -12,9 +12,9 @@ router = APIRouter(prefix="/stats", tags=["catalog"])
 @router.get("/", response_class=HTMLResponse)
 async def catalog_stats(
     request: Request,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
-    # Общая статистика
     total_models = await db.scalar(select(func.count(Model.id)))
     active_models = await db.scalar(select(func.count(Model.id)).where(Model.is_active == True))
     
@@ -24,7 +24,6 @@ async def catalog_stats(
     
     total_revenue = await db.scalar(select(func.sum(Rental.total_price))) or 0
     
-    # Топ моделей с загрузкой бренда и его категории
     top_models = await db.execute(
         select(Model, func.count(Rental.id).label('rental_count'))
         .join(Rental, Rental.model_id == Model.id)
@@ -37,7 +36,6 @@ async def catalog_stats(
     )
     top_models = top_models.all()
     
-    # Статистика по категориям
     category_stats = await db.execute(
         select(
             Category.name,

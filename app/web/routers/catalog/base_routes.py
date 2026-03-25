@@ -7,21 +7,20 @@ from datetime import datetime
 import random
 import string
 
-from ...deps import get_db, templates
+from ...deps import get_db, templates, require_auth
 from ....models import Category, Brand, Model
 
 router = APIRouter(tags=["catalog"])
 
-# Функция для генерации номера аренды (общая для всех)
 def generate_rental_number():
     return f"R-{datetime.now().strftime('%Y%m')}-{random.randint(1000, 9999)}"
 
 @router.get("/", response_class=HTMLResponse)
 async def catalog_index(
     request: Request,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
-    # Получаем все категории с брендами и моделями
     categories = await db.execute(
         select(Category)
         .where(Category.is_active == True)
@@ -32,7 +31,6 @@ async def catalog_index(
     )
     categories = categories.scalars().all()
     
-    # Статистика
     total_models = await db.scalar(select(func.count(Model.id)))
     active_models = await db.scalar(select(func.count(Model.id)).where(Model.is_active == True))
     total_brands = await db.scalar(select(func.count(Brand.id)))

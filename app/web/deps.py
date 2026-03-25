@@ -8,9 +8,6 @@ from ..models import AsyncSessionLocal
 templates = Jinja2Templates(directory="app/web/templates")
 
 async def get_db() -> AsyncSession:
-    """
-    Создает сессию базы данных и устанавливает часовой пояс.
-    """
     async with AsyncSessionLocal() as session:
         try:
             result = await session.execute(text("SHOW TIME ZONE"))
@@ -31,12 +28,8 @@ async def get_db() -> AsyncSession:
         
         yield session
 
-# НОВАЯ ФУНКЦИЯ: проверка аутентификации
 def require_auth(request: Request):
-    """
-    Проверяет, авторизован ли пользователь.
-    Используется в защищённых маршрутах для гарантии.
-    """
+    """Проверяет, авторизован ли пользователь."""
     if not request.session.get("authenticated"):
         raise HTTPException(status_code=303, headers={"Location": "/login"})
     return True

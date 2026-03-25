@@ -14,23 +14,16 @@ from .routers import (
     mailing_router,
     auth_router
 )
-from .middleware import AuthMiddleware
 
 app = FastAPI()
 
-# Добавляем SessionMiddleware ПЕРВЫМ
+# Только SessionMiddleware
 app.add_middleware(
     SessionMiddleware,
     secret_key="your-secret-key-here-change-this-in-production",
     session_cookie="loyalty_session",
-    max_age=3600 * 24,  # 24 часа
+    max_age=3600 * 24,
     same_site="lax"
-)
-
-# Добавляем AuthMiddleware ВТОРЫМ (после SessionMiddleware)
-app.add_middleware(
-    AuthMiddleware,
-    secret_key="your-secret-key-here-change-this-in-production"
 )
 
 # Подключаем шаблоны

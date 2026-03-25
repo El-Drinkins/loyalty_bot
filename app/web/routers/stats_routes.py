@@ -5,13 +5,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timedelta
 
-from ..deps import get_db, templates
-from ...models import User, Referral, Transaction, ReferralStatus  # изменен импорт
+from ..deps import get_db, templates, require_auth
+from ...models import User, Referral, Transaction, ReferralStatus
 
 router = APIRouter()
 
 @router.get("/stats", response_class=HTMLResponse)
-async def stats_page(request: Request, db: AsyncSession = Depends(get_db)):
+async def stats_page(
+    request: Request, 
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
+):
     total_users = await db.scalar(select(func.count(User.id)))
     total_balance = await db.scalar(select(func.sum(User.balance))) or 0
     avg_balance = total_balance // total_users if total_users else 0
@@ -83,7 +87,8 @@ async def spent_stats_page(
     request: Request, 
     page: int = 1, 
     per_page: int = 50,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     total_spent = await db.scalar(
         select(func.sum(Transaction.amount)).where(Transaction.amount < 0)
@@ -217,7 +222,8 @@ async def earned_stats_page(
     request: Request, 
     page: int = 1, 
     per_page: int = 50,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     total_earned = await db.scalar(
         select(func.sum(Transaction.amount)).where(Transaction.amount > 0)

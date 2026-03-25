@@ -3,8 +3,8 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 
-from ..deps import get_db
-from ...models import User, Transaction, AdminLog, Referral, ReferralStatus  # изменен импорт
+from ..deps import get_db, require_auth
+from ...models import User, Transaction, AdminLog, Referral, ReferralStatus
 from ...utils import calculate_expiry_date
 from ...config import settings
 from ...notifications import send_telegram_notification
@@ -17,7 +17,8 @@ async def add_points(
     amount: int = Form(...),
     reason: str = Form(...),
     db: AsyncSession = Depends(get_db),
-    admin_id: int = Form(0)
+    admin_id: int = Form(0),
+    _=Depends(require_auth)
 ):
     user = await db.get(User, user_id)
     if not user:
@@ -61,7 +62,8 @@ async def subtract_points(
     amount: int = Form(...),
     reason: str = Form(...),
     db: AsyncSession = Depends(get_db),
-    admin_id: int = Form(0)
+    admin_id: int = Form(0),
+    _=Depends(require_auth)
 ):
     user = await db.get(User, user_id)
     if not user:
@@ -103,7 +105,8 @@ async def subtract_points(
 async def confirm_referral(
     referral_id: int,
     db: AsyncSession = Depends(get_db),
-    admin_id: int = Form(0)
+    admin_id: int = Form(0),
+    _=Depends(require_auth)
 ):
     referral = await db.get(Referral, referral_id)
     if not referral:

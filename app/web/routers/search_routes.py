@@ -4,7 +4,7 @@ from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from ..deps import get_db, templates
+from ..deps import get_db, templates, require_auth
 from ...models import User
 
 router = APIRouter(tags=["search"])
@@ -13,7 +13,8 @@ router = APIRouter(tags=["search"])
 async def search_page(
     request: Request,
     q: str = "",
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     """Страница поиска клиентов"""
     results = []

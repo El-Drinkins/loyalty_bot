@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from datetime import datetime
 
-from ...deps import get_db, templates
+from ...deps import get_db, templates, require_auth
 from ....models import Model, Brand, Category, Rental
 
 router = APIRouter(prefix="/models", tags=["catalog"])
@@ -18,7 +18,8 @@ async def models_list(
     category_id: int = None,
     brand_id: int = None,
     search: str = "",
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     query = select(Model).options(
         selectinload(Model.brand).selectinload(Brand.category)
@@ -64,7 +65,8 @@ async def models_list(
 @router.get("/add", response_class=HTMLResponse)
 async def model_add_form(
     request: Request,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     result = await db.execute(
         select(Brand)
@@ -92,7 +94,8 @@ async def model_add(
     review_url: str = Form(""),
     default_equipment: str = Form(""),
     is_active: bool = Form(True),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     model = Model(
         name=name,
@@ -114,7 +117,8 @@ async def model_add(
 async def model_edit_form(
     request: Request,
     model_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     model = await db.get(Model, model_id)
     if not model:
@@ -147,7 +151,8 @@ async def model_edit(
     review_url: str = Form(""),
     default_equipment: str = Form(""),
     is_active: bool = Form(False),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     model = await db.get(Model, model_id)
     if not model:
@@ -171,7 +176,8 @@ async def model_edit(
 async def model_delete(
     request: Request,
     model_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     model = await db.get(Model, model_id)
     if model:
@@ -183,7 +189,8 @@ async def model_delete(
 async def model_stats(
     request: Request,
     model_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     model = await db.get(Model, model_id)
     if not model:

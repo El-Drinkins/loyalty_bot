@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from ...deps import get_db, templates
+from ...deps import get_db, templates, require_auth
 from ....models import Brand, Category
 
 router = APIRouter(prefix="/brands", tags=["catalog"])
@@ -12,7 +12,8 @@ router = APIRouter(prefix="/brands", tags=["catalog"])
 @router.get("/", response_class=HTMLResponse)
 async def brands_list(
     request: Request,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     brands = await db.execute(
         select(Brand)
@@ -36,7 +37,8 @@ async def brand_add(
     name: str = Form(...),
     category_id: int = Form(...),
     sort_order: int = Form(0),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     brand = Brand(
         name=name,
@@ -55,7 +57,8 @@ async def brand_edit(
     category_id: int = Form(...),
     sort_order: int = Form(...),
     is_active: bool = Form(False),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     brand = await db.get(Brand, brand_id)
     if not brand:
@@ -73,7 +76,8 @@ async def brand_edit(
 async def brand_delete(
     request: Request,
     brand_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     brand = await db.get(Brand, brand_id)
     if brand:

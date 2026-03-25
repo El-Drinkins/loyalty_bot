@@ -5,8 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from datetime import datetime
 
-from ..deps import get_db, templates
-from ...models import User, Referral, Transaction, AdminLog, UserLog  # изменен импорт
+from ..deps import get_db, templates, require_auth
+from ...models import User, Referral, Transaction, AdminLog, UserLog
 
 router = APIRouter()
 
@@ -15,7 +15,8 @@ async def users_list(
     request: Request, 
     page: int = 1, 
     per_page: int = 20,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     total_users = await db.scalar(select(func.count(User.id)))
     
@@ -47,7 +48,8 @@ async def update_real_name(
     user_id: int,
     real_name: str = Form(...),
     db: AsyncSession = Depends(get_db),
-    admin_id: int = Form(0)
+    admin_id: int = Form(0),
+    _=Depends(require_auth)
 ):
     user = await db.get(User, user_id)
     if not user:
@@ -75,7 +77,8 @@ async def delete_user(
     user_id: int,
     confirm_name: str = Form(...),
     db: AsyncSession = Depends(get_db),
-    admin_id: int = Form(0)
+    admin_id: int = Form(0),
+    _=Depends(require_auth)
 ):
     user = await db.get(User, user_id)
     if not user:

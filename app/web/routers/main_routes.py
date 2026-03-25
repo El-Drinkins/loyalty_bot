@@ -5,13 +5,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from itertools import groupby
 
-from ..deps import get_db, templates
-from ...models import User, Referral, Transaction, ReferralStatus  # изменен импорт
+from ..deps import get_db, templates, require_auth
+from ...models import User, Referral, Transaction, ReferralStatus
 
 router = APIRouter()
 
 @router.get("/", response_class=HTMLResponse)
-async def admin_index(request: Request, db: AsyncSession = Depends(get_db)):
+async def admin_index(
+    request: Request, 
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
+):
     total_users = await db.execute(select(func.count(User.id)))
     total_users = total_users.scalar()
     
@@ -36,7 +40,12 @@ async def admin_index(request: Request, db: AsyncSession = Depends(get_db)):
     })
 
 @router.get("/client/{user_id}", response_class=HTMLResponse)
-async def client_card(request: Request, user_id: int, db: AsyncSession = Depends(get_db)):
+async def client_card(
+    request: Request, 
+    user_id: int, 
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
+):
     user = await db.get(User, user_id)
     if not user:
         raise HTTPException(404, "Клиент не найден")

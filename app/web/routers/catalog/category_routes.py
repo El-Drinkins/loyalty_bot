@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...deps import get_db, templates
+from ...deps import get_db, templates, require_auth
 from ....models import Category
 
 router = APIRouter(prefix="/categories", tags=["catalog"])
@@ -11,7 +11,8 @@ router = APIRouter(prefix="/categories", tags=["catalog"])
 @router.get("/", response_class=HTMLResponse)
 async def categories_list(
     request: Request,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     categories = await db.execute(
         select(Category).order_by(Category.sort_order)
@@ -28,7 +29,8 @@ async def category_add(
     name: str = Form(...),
     icon: str = Form("📦"),
     sort_order: int = Form(0),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     category = Category(
         name=name,
@@ -47,7 +49,8 @@ async def category_edit(
     icon: str = Form(...),
     sort_order: int = Form(...),
     is_active: bool = Form(False),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     category = await db.get(Category, category_id)
     if not category:
@@ -65,7 +68,8 @@ async def category_edit(
 async def category_delete(
     request: Request,
     category_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
 ):
     category = await db.get(Category, category_id)
     if category:
