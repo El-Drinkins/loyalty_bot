@@ -64,6 +64,13 @@ async def show_my_links(telegram_id: int, message: Message):
         for code in codes:
             link = f"https://t.me/{bot_username}?start={code.code}"
             
+            # Сообщение 1: только ссылка (чистый текст)
+            await message.answer(
+                link,
+                disable_web_page_preview=True
+            )
+            
+            # Сообщение 2: тип ссылки, статистика, кнопки
             if code.is_permanent:
                 link_type = "🔵 **Постоянная (основная)**"
             elif code.max_uses == 1:
@@ -81,7 +88,6 @@ async def show_my_links(telegram_id: int, message: Message):
             
             link_text = (
                 f"{link_type}\n"
-                f"`{link}`\n"
                 f"📊 Использовано: {code.used_count}/{limit}\n"
                 f"⏰ Действует до: {expires}\n"
             )
