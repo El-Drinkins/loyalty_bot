@@ -116,6 +116,15 @@ async def show_friends_directly(message: Message):
             await message.answer("⛔ Вы заблокированы в системе лояльности.")
             return
         
+        # Логируем действие
+        log = UserLog(
+            user_id=user.id,
+            action_type="view_friends",
+            action_details="Просмотр списка друзей"
+        )
+        session.add(log)
+        await session.commit()
+        
         total_invited = await session.scalar(
             select(func.count()).where(Referral.old_user_id == user.id)
         ) or 0
@@ -171,6 +180,15 @@ async def show_friends_list(callback: CallbackQuery):
         if not user:
             await callback.answer("Ошибка: пользователь не найден")
             return
+        
+        # Логируем действие
+        log = UserLog(
+            user_id=user.id,
+            action_type="view_friends",
+            action_details="Просмотр списка друзей (callback)"
+        )
+        session.add(log)
+        await session.commit()
         
         total_invited = await session.scalar(
             select(func.count()).where(Referral.old_user_id == user.id)
