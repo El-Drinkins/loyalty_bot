@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 from datetime import datetime
 
 from ..deps import get_db, templates, require_auth
-from ...models import User, RegistrationRequest, SecuritySettings, Whitelist, StormLog, Transaction
+from ...models import User, RegistrationRequest, SecuritySettings, Whitelist, StormLog, Transaction, Referral, ReferralStatus
 from ...config import settings
 from ...notifications import send_telegram_notification
 
@@ -86,6 +86,7 @@ async def api_approve_request(
     if req.status != "pending":
         raise HTTPException(400, "Заявка уже обработана")
     
+    # Создаем пользователя
     user = User(
         telegram_id=req.telegram_id,
         full_name=req.full_name or "Имя не указано",
@@ -101,10 +102,22 @@ async def api_approve_request(
     db.add(user)
     await db.flush()
     
+    # Создаём реферальную запись, если есть пригласивший
+    if req.invited_by_id:
+        referral = Referral(
+            new_user_id=user.id,
+            old_user_id=req.invited_by_id,
+            status=ReferralStatus.pending,
+            registration_date=datetime.utcnow()
+        )
+        db.add(referral)
+    
+    # Обновляем статус заявки
     req.status = "approved"
     req.user_id = user.id
     req.reviewed_at = datetime.utcnow()
     
+    # Добавляем транзакцию на начисление бонусов
     transaction = Transaction(
         user_id=user.id,
         amount=settings.WELCOME_BONUS,
@@ -114,6 +127,7 @@ async def api_approve_request(
     
     await db.commit()
     
+    # Отправляем уведомление пользователю
     try:
         await send_telegram_notification(
             req.telegram_id,
