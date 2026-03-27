@@ -1,0 +1,5 @@
+# Резервное копирование базы данных каждый день в 3:00
+0 3 * * * /root/loyalty_bot/backup/backup.sh
+
+# Отправка бэкапа на Яндекс.Диск в 3:05
+5 3 * * * /root/loyalty_bot/backup/upload_to_yandex.sh
