@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from ..deps import get_db, templates, require_auth
 from ...models import User, RegistrationRequest, SecuritySettings, Whitelist, StormLog, Transaction, Referral, ReferralStatus
@@ -86,7 +86,7 @@ async def api_approve_request(
     if req.status != "pending":
         raise HTTPException(400, "Заявка уже обработана")
     
-    # Создаем пользователя
+    # Создаем пользователя с установленным сроком действия баллов
     user = User(
         telegram_id=req.telegram_id,
         full_name=req.full_name or "Имя не указано",
@@ -97,7 +97,8 @@ async def api_approve_request(
         vkontakte=req.vkontakte,
         verification_level="basic",
         badge="🟢",
-        verified_at=datetime.utcnow()
+        verified_at=datetime.utcnow(),
+        points_expiry_date=datetime.utcnow() + timedelta(days=90)
     )
     db.add(user)
     await db.flush()
@@ -133,7 +134,8 @@ async def api_approve_request(
             req.telegram_id,
             f"✅ Регистрация подтверждена!\n\n"
             f"Ваша заявка одобрена. Добро пожаловать в программу лояльности!\n\n"
-            f"🎁 Вам начислено {settings.WELCOME_BONUS} приветственных баллов.\n\n"
+            f"🎁 Вам начислено {settings.WELCOME_BONUS} приветственных баллов.\n"
+            f"⏳ Баллы действительны 3 месяца.\n\n"
             f"Отправьте /start для начала работы."
         )
     except Exception as e:

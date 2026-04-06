@@ -2,9 +2,9 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 from sqlalchemy import select
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from ..models import AsyncSessionLocal, User, RegistrationRequest, UserLog, Referral  # изменен импорт
+from ..models import AsyncSessionLocal, User, RegistrationRequest, UserLog, Referral
 from ..config import settings
 from .storm import StormProtection
 
@@ -95,6 +95,7 @@ async def approve_request(callback: CallbackQuery):
             await callback.answer("❌ Заявка не найдена", show_alert=True)
             return
         
+        # Создаем пользователя с установленным сроком действия баллов
         user = User(
             telegram_id=req.telegram_id,
             full_name=req.full_name or "Имя не указано",
@@ -106,10 +107,20 @@ async def approve_request(callback: CallbackQuery):
             verification_level="basic",
             badge="🟢",
             verified_at=datetime.utcnow(),
-            verified_by_id=await get_admin_id(session, callback.from_user.id)
+            points_expiry_date=datetime.utcnow() + timedelta(days=90)
         )
         session.add(user)
         await session.flush()
+        
+        # Создаём реферальную запись, если есть пригласивший
+        if req.invited_by_id:
+            referral = Referral(
+                new_user_id=user.id,
+                old_user_id=req.invited_by_id,
+                status="pending",
+                registration_date=datetime.utcnow()
+            )
+            session.add(referral)
         
         req.status = "approved"
         req.user_id = user.id
@@ -131,6 +142,7 @@ async def approve_request(callback: CallbackQuery):
                 "✅ **Регистрация подтверждена!**\n\n"
                 "Ваша заявка одобрена. Добро пожаловать в программу лояльности!\n\n"
                 "🎁 Вам начислено 200 приветственных баллов.\n"
+                "⏳ Баллы действительны 3 месяца.\n\n"
                 "👥 Ваш друг получит бонус после вашей первой аренды.\n\n"
                 "Отправьте /start для начала работы.",
                 parse_mode="Markdown"
