@@ -7,15 +7,19 @@ import hashlib
 import secrets
 import random
 import string
+import re
 
 from ..deps import get_db, templates
-from ...models import User, Referral, Transaction, TelegramAuthCode, PasswordResetCode, UserSession
+from ...models import User, Referral, Transaction, UserSession, TelegramAuthCode, PasswordResetCode
 from ...config import settings
 from ...notifications import send_telegram_notification
 
 router = APIRouter(prefix="/client", tags=["web_client"])
 
-# Вспомогательные функции
+# ==========================================
+# ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+# ==========================================
+
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
@@ -28,7 +32,15 @@ def generate_code(length: int = 6) -> str:
 def generate_session_token() -> str:
     return secrets.token_urlsafe(32)
 
-async def get_current_user(request: Request, db: AsyncSession) -> User | None:
+def normalize_phone(phone: str) -> str:
+    digits = re.sub(r'\D', '', phone)
+    if len(digits) == 11 and digits.startswith('8'):
+        digits = '7' + digits[1:]
+    if len(digits) == 10:
+        digits = '7' + digits
+    return '+' + digits if digits.startswith('7') else phone
+
+async def get_current_user(request: Request, db: AsyncSession):
     session_token = request.cookies.get("session_token")
     if not session_token:
         return None
@@ -46,26 +58,270 @@ async def get_current_user(request: Request, db: AsyncSession) -> User | None:
     user = await db.get(User, session.user_id)
     return user
 
-def create_session_response(user_id: int, remember_me: bool, request: Request) -> RedirectResponse:
+
+# ==========================================
+# СТРАНИЦЫ АВТОРИЗАЦИИ (ДОЛЖНЫ БЫТЬ ПЕРВЫМИ)
+# ==========================================
+
+@router.get("/login", response_class=HTMLResponse)
+async def client_login_page(request: Request, error: str = None):
+    return templates.TemplateResponse("web_client/auth/login.html", {
+        "request": request,
+        "error": error
+    })
+
+@router.post("/login")
+async def client_login(
+    request: Request,
+    phone: str = Form(...),
+    password: str = Form(...),
+    remember_me: bool = Form(False),
+    db: AsyncSession = Depends(get_db)
+):
+    normalized_phone = normalize_phone(phone)
+    
+    result = await db.execute(
+        select(User).where(User.phone == normalized_phone)
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        return templates.TemplateResponse("web_client/auth/login.html", {
+            "request": request,
+            "error": "Пользователь с таким номером не найден. Зарегистрируйтесь в Telegram-боте."
+        })
+    
+    if not user.password_hash:
+        return templates.TemplateResponse("web_client/auth/login.html", {
+            "request": request,
+            "error": "У вас ещё не установлен пароль. Восстановите пароль через Telegram."
+        })
+    
+    if not verify_password(password, user.password_hash):
+        return templates.TemplateResponse("web_client/auth/login.html", {
+            "request": request,
+            "error": "Неверный пароль"
+        })
+    
     session_token = generate_session_token()
     expires_at = datetime.utcnow() + timedelta(days=30 if remember_me else 1)
     
-    # Сохраняем сессию в БД (асинхронно, но здесь синхронный контекст)
-    # В реальном коде нужно делать через await, но для роутера это отдельная функция
+    user_session = UserSession(
+        user_id=user.id,
+        session_token=session_token,
+        expires_at=expires_at,
+        user_agent=request.headers.get("user-agent"),
+        ip_address=request.client.host
+    )
+    db.add(user_session)
+    await db.commit()
     
     response = RedirectResponse(url="/client/", status_code=303)
     response.set_cookie(
         key="session_token",
         value=session_token,
-        expires= expires_at,
+        expires=expires_at,
         httponly=True,
         samesite="lax"
     )
-    return response, session_token, expires_at
+    return response
+
+@router.get("/telegram-auth", response_class=HTMLResponse)
+async def telegram_auth_page(request: Request, db: AsyncSession = Depends(get_db)):
+    user = await get_current_user(request, db)
+    if user:
+        return RedirectResponse(url="/client/", status_code=303)
+    return templates.TemplateResponse("web_client/auth/telegram_auth.html", {"request": request})
+
+@router.post("/telegram-auth/request-code")
+async def request_telegram_auth_code(
+    request: Request,
+    phone: str = Form(...),
+    db: AsyncSession = Depends(get_db)
+):
+    normalized_phone = normalize_phone(phone)
+    
+    result = await db.execute(
+        select(User).where(User.phone == normalized_phone)
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        return JSONResponse({"error": "Пользователь не найден"}, status_code=404)
+    
+    code = generate_code(6)
+    expires_at = datetime.utcnow() + timedelta(minutes=10)
+    
+    auth_code = TelegramAuthCode(
+        user_id=user.id,
+        code=code,
+        expires_at=expires_at
+    )
+    db.add(auth_code)
+    await db.commit()
+    
+    try:
+        await send_telegram_notification(
+            user.telegram_id,
+            f"🔐 Код для входа на сайт: `{code}`\n\nКод действителен 10 минут."
+        )
+    except Exception as e:
+        print(f"Не удалось отправить код: {e}")
+        return JSONResponse({"error": "Не удалось отправить код"}, status_code=500)
+    
+    return JSONResponse({"success": True, "user_id": user.id})
+
+@router.post("/telegram-auth/verify")
+async def verify_telegram_auth_code(
+    request: Request,
+    user_id: int = Form(...),
+    code: str = Form(...),
+    remember_me: bool = Form(False),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(TelegramAuthCode).where(
+            TelegramAuthCode.user_id == user_id,
+            TelegramAuthCode.code == code,
+            TelegramAuthCode.expires_at > datetime.utcnow()
+        )
+    )
+    auth_code = result.scalar_one_or_none()
+    
+    if not auth_code:
+        return JSONResponse({"error": "Неверный или истёкший код"}, status_code=400)
+    
+    await db.delete(auth_code)
+    
+    user = await db.get(User, user_id)
+    if not user:
+        return JSONResponse({"error": "Пользователь не найден"}, status_code=404)
+    
+    session_token = generate_session_token()
+    expires_at = datetime.utcnow() + timedelta(days=30 if remember_me else 1)
+    
+    user_session = UserSession(
+        user_id=user.id,
+        session_token=session_token,
+        expires_at=expires_at,
+        user_agent=request.headers.get("user-agent"),
+        ip_address=request.client.host
+    )
+    db.add(user_session)
+    await db.commit()
+    
+    response = JSONResponse({"success": True})
+    response.set_cookie(
+        key="session_token",
+        value=session_token,
+        expires=expires_at,
+        httponly=True,
+        samesite="lax"
+    )
+    return response
+
+@router.get("/reset-password", response_class=HTMLResponse)
+async def reset_password_page(request: Request, error: str = None, step: str = "phone"):
+    return templates.TemplateResponse("web_client/auth/reset_password.html", {
+        "request": request,
+        "error": error,
+        "step": step
+    })
+
+@router.post("/reset-password/request-code")
+async def request_reset_code(
+    request: Request,
+    phone: str = Form(...),
+    db: AsyncSession = Depends(get_db)
+):
+    normalized_phone = normalize_phone(phone)
+    
+    result = await db.execute(
+        select(User).where(User.phone == normalized_phone)
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        return JSONResponse({"error": "Пользователь не найден"}, status_code=404)
+    
+    recent_attempts = await db.execute(
+        select(PasswordResetCode).where(
+            PasswordResetCode.user_id == user.id,
+            PasswordResetCode.created_at > datetime.utcnow() - timedelta(minutes=15)
+        )
+    )
+    attempts = recent_attempts.scalars().all()
+    if len(attempts) >= 3:
+        return JSONResponse({"error": "Слишком много попыток. Попробуйте через 15 минут"}, status_code=429)
+    
+    code = generate_code(6)
+    expires_at = datetime.utcnow() + timedelta(minutes=10)
+    
+    reset_code = PasswordResetCode(
+        user_id=user.id,
+        code=code,
+        expires_at=expires_at
+    )
+    db.add(reset_code)
+    await db.commit()
+    
+    try:
+        await send_telegram_notification(
+            user.telegram_id,
+            f"🔐 Код для восстановления пароля: `{code}`\n\nКод действителен 10 минут."
+        )
+    except Exception as e:
+        print(f"Не удалось отправить код: {e}")
+        return JSONResponse({"error": "Не удалось отправить код"}, status_code=500)
+    
+    return JSONResponse({"success": True, "user_id": user.id})
+
+@router.post("/reset-password/verify")
+async def verify_reset_code(
+    request: Request,
+    user_id: int = Form(...),
+    code: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+    db: AsyncSession = Depends(get_db)
+):
+    if new_password != confirm_password:
+        return JSONResponse({"error": "Пароли не совпадают"}, status_code=400)
+    
+    if len(new_password) < 6:
+        return JSONResponse({"error": "Пароль должен быть не менее 6 символов"}, status_code=400)
+    
+    result = await db.execute(
+        select(PasswordResetCode).where(
+            PasswordResetCode.user_id == user_id,
+            PasswordResetCode.code == code,
+            PasswordResetCode.expires_at > datetime.utcnow()
+        )
+    )
+    reset_code = result.scalar_one_or_none()
+    
+    if not reset_code:
+        return JSONResponse({"error": "Неверный или истёкший код"}, status_code=400)
+    
+    reset_code.attempts += 1
+    if reset_code.attempts >= 3:
+        await db.delete(reset_code)
+        await db.commit()
+        return JSONResponse({"error": "Исчерпано количество попыток"}, status_code=400)
+    
+    user = await db.get(User, user_id)
+    if user:
+        user.password_hash = hash_password(new_password)
+        user.password_set_at = datetime.utcnow()
+    
+    await db.delete(reset_code)
+    await db.commit()
+    
+    return JSONResponse({"success": True})
 
 
 # ==========================================
-# СТРАНИЦЫ
+# СТРАНИЦЫ ДЛЯ АВТОРИЗОВАННЫХ ПОЛЬЗОВАТЕЛЕЙ
 # ==========================================
 
 @router.get("/", response_class=HTMLResponse)
@@ -75,7 +331,6 @@ async def client_index(request: Request, db: AsyncSession = Depends(get_db)):
     if not user:
         return templates.TemplateResponse("web_client/auth/login.html", {"request": request})
     
-    # Получаем статистику друзей
     total_invited = await db.scalar(
         select(func.count()).where(Referral.old_user_id == user.id)
     ) or 0
@@ -87,7 +342,6 @@ async def client_index(request: Request, db: AsyncSession = Depends(get_db)):
         )
     ) or 0
     
-    # Получаем последние 5 транзакций
     transactions = await db.execute(
         select(Transaction)
         .where(Transaction.user_id == user.id)
@@ -96,7 +350,6 @@ async def client_index(request: Request, db: AsyncSession = Depends(get_db)):
     )
     transactions = transactions.scalars().all()
     
-    # Получаем реферальную ссылку
     bot_username = "Take_a_picBot"
     from app.handlers.invite import get_or_create_permanent_link
     code = await get_or_create_permanent_link(user.id, bot_username, db)
@@ -113,7 +366,6 @@ async def client_index(request: Request, db: AsyncSession = Depends(get_db)):
         "referral_link": referral_link,
         "expiry_date": expiry_date
     })
-
 
 @router.get("/friends", response_class=HTMLResponse)
 async def client_friends(request: Request, db: AsyncSession = Depends(get_db)):
@@ -160,7 +412,6 @@ async def client_friends(request: Request, db: AsyncSession = Depends(get_db)):
         "friends": friends_list
     })
 
-
 @router.get("/history", response_class=HTMLResponse)
 async def client_history(request: Request, db: AsyncSession = Depends(get_db)):
     user = await get_current_user(request, db)
@@ -175,7 +426,6 @@ async def client_history(request: Request, db: AsyncSession = Depends(get_db)):
     )
     transactions = transactions.scalars().all()
     
-    # Группируем по датам
     grouped = {}
     for t in transactions:
         date_str = t.timestamp.strftime("%d.%m.%Y")
@@ -188,7 +438,6 @@ async def client_history(request: Request, db: AsyncSession = Depends(get_db)):
         "user": user,
         "grouped_transactions": grouped
     })
-
 
 @router.get("/regulations", response_class=HTMLResponse)
 async def client_regulations(request: Request, db: AsyncSession = Depends(get_db)):
@@ -263,7 +512,6 @@ async def client_regulations(request: Request, db: AsyncSession = Depends(get_db
         "regulations_text": regulations_text
     })
 
-
 @router.get("/profile", response_class=HTMLResponse)
 async def client_profile(request: Request, db: AsyncSession = Depends(get_db)):
     user = await get_current_user(request, db)
@@ -275,7 +523,6 @@ async def client_profile(request: Request, db: AsyncSession = Depends(get_db)):
         "request": request,
         "user": user
     })
-
 
 @router.post("/profile/change_password")
 async def change_password(
@@ -295,7 +542,6 @@ async def change_password(
     if len(new_password) < 6:
         return JSONResponse({"error": "Пароль должен быть не менее 6 символов"}, status_code=400)
     
-    # Проверяем текущий пароль
     if user.password_hash and not verify_password(current_password, user.password_hash):
         return JSONResponse({"error": "Неверный текущий пароль"}, status_code=400)
     
@@ -304,7 +550,6 @@ async def change_password(
     await db.commit()
     
     return JSONResponse({"success": True})
-
 
 @router.post("/logout")
 async def client_logout(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
@@ -318,307 +563,3 @@ async def client_logout(request: Request, response: Response, db: AsyncSession =
     response = RedirectResponse(url="/client/", status_code=303)
     response.delete_cookie("session_token")
     return response
-
-
-# ==========================================
-# АВТОРИЗАЦИЯ
-# ==========================================
-
-@router.get("/login", response_class=HTMLResponse)
-async def client_login_page(request: Request, error: str = None):
-    return templates.TemplateResponse("web_client/auth/login.html", {
-        "request": request,
-        "error": error
-    })
-
-
-@router.post("/login")
-async def client_login(
-    request: Request,
-    phone: str = Form(...),
-    password: str = Form(...),
-    remember_me: bool = Form(False),
-    db: AsyncSession = Depends(get_db)
-):
-    # Нормализуем номер телефона
-    import re
-    digits = re.sub(r'\D', '', phone)
-    if len(digits) == 11 and digits.startswith('8'):
-        digits = '7' + digits[1:]
-    if len(digits) == 10:
-        digits = '7' + digits
-    normalized_phone = '+' + digits if digits.startswith('7') else phone
-    
-    # Ищем пользователя
-    result = await db.execute(
-        select(User).where(User.phone == normalized_phone)
-    )
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        return templates.TemplateResponse("web_client/auth/login.html", {
-            "request": request,
-            "error": "Пользователь с таким номером не найден"
-        })
-    
-    if not user.password_hash:
-        return templates.TemplateResponse("web_client/auth/login.html", {
-            "request": request,
-            "error": "У вас ещё не установлен пароль. Восстановите пароль через Telegram"
-        })
-    
-    if not verify_password(password, user.password_hash):
-        return templates.TemplateResponse("web_client/auth/login.html", {
-            "request": request,
-            "error": "Неверный пароль"
-        })
-    
-    # Создаём сессию
-    session_token = generate_session_token()
-    expires_at = datetime.utcnow() + timedelta(days=30 if remember_me else 1)
-    
-    user_session = UserSession(
-        user_id=user.id,
-        session_token=session_token,
-        expires_at=expires_at,
-        user_agent=request.headers.get("user-agent"),
-        ip_address=request.client.host
-    )
-    db.add(user_session)
-    await db.commit()
-    
-    response = RedirectResponse(url="/client/", status_code=303)
-    response.set_cookie(
-        key="session_token",
-        value=session_token,
-        expires=expires_at,
-        httponly=True,
-        samesite="lax"
-    )
-    return response
-
-
-@router.get("/telegram-auth")
-async def telegram_auth_page(request: Request, db: AsyncSession = Depends(get_db)):
-    user = await get_current_user(request, db)
-    if user:
-        return RedirectResponse(url="/client/", status_code=303)
-    
-    return templates.TemplateResponse("web_client/auth/telegram_auth.html", {"request": request})
-
-
-@router.post("/telegram-auth/request-code")
-async def request_telegram_auth_code(
-    request: Request,
-    phone: str = Form(...),
-    db: AsyncSession = Depends(get_db)
-):
-    # Нормализуем номер
-    import re
-    digits = re.sub(r'\D', '', phone)
-    if len(digits) == 11 and digits.startswith('8'):
-        digits = '7' + digits[1:]
-    if len(digits) == 10:
-        digits = '7' + digits
-    normalized_phone = '+' + digits if digits.startswith('7') else phone
-    
-    result = await db.execute(
-        select(User).where(User.phone == normalized_phone)
-    )
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        return JSONResponse({"error": "Пользователь не найден"}, status_code=404)
-    
-    # Генерируем код
-    code = generate_code(6)
-    expires_at = datetime.utcnow() + timedelta(minutes=10)
-    
-    # Сохраняем код в БД
-    auth_code = TelegramAuthCode(
-        user_id=user.id,
-        code=code,
-        expires_at=expires_at
-    )
-    db.add(auth_code)
-    await db.commit()
-    
-    # Отправляем код в Telegram
-    try:
-        await send_telegram_notification(
-            user.telegram_id,
-            f"🔐 Код для входа на сайт: `{code}`\n\nКод действителен 10 минут."
-        )
-    except Exception as e:
-        print(f"Не удалось отправить код: {e}")
-        return JSONResponse({"error": "Не удалось отправить код. Убедитесь, что бот не заблокирован"}, status_code=500)
-    
-    return JSONResponse({"success": True, "user_id": user.id})
-
-
-@router.post("/telegram-auth/verify")
-async def verify_telegram_auth_code(
-    request: Request,
-    user_id: int = Form(...),
-    code: str = Form(...),
-    db: AsyncSession = Depends(get_db)
-):
-    # Ищем код
-    result = await db.execute(
-        select(TelegramAuthCode).where(
-            TelegramAuthCode.user_id == user_id,
-            TelegramAuthCode.code == code,
-            TelegramAuthCode.expires_at > datetime.utcnow()
-        )
-    )
-    auth_code = result.scalar_one_or_none()
-    
-    if not auth_code:
-        return JSONResponse({"error": "Неверный или истёкший код"}, status_code=400)
-    
-    # Удаляем использованный код
-    await db.delete(auth_code)
-    
-    # Получаем пользователя
-    user = await db.get(User, user_id)
-    if not user:
-        return JSONResponse({"error": "Пользователь не найден"}, status_code=404)
-    
-    # Создаём сессию
-    session_token = generate_session_token()
-    expires_at = datetime.utcnow() + timedelta(days=30)
-    
-    user_session = UserSession(
-        user_id=user.id,
-        session_token=session_token,
-        expires_at=expires_at,
-        user_agent=request.headers.get("user-agent"),
-        ip_address=request.client.host
-    )
-    db.add(user_session)
-    await db.commit()
-    
-    response = JSONResponse({"success": True})
-    response.set_cookie(
-        key="session_token",
-        value=session_token,
-        expires=expires_at,
-        httponly=True,
-        samesite="lax"
-    )
-    return response
-
-
-@router.get("/reset-password", response_class=HTMLResponse)
-async def reset_password_page(request: Request, error: str = None, step: str = "phone"):
-    return templates.TemplateResponse("web_client/auth/reset_password.html", {
-        "request": request,
-        "error": error,
-        "step": step
-    })
-
-
-@router.post("/reset-password/request-code")
-async def request_reset_code(
-    request: Request,
-    phone: str = Form(...),
-    db: AsyncSession = Depends(get_db)
-):
-    # Нормализуем номер
-    import re
-    digits = re.sub(r'\D', '', phone)
-    if len(digits) == 11 and digits.startswith('8'):
-        digits = '7' + digits[1:]
-    if len(digits) == 10:
-        digits = '7' + digits
-    normalized_phone = '+' + digits if digits.startswith('7') else phone
-    
-    result = await db.execute(
-        select(User).where(User.phone == normalized_phone)
-    )
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        return JSONResponse({"error": "Пользователь не найден"}, status_code=404)
-    
-    # Проверяем количество попыток
-    recent_attempts = await db.execute(
-        select(PasswordResetCode).where(
-            PasswordResetCode.user_id == user.id,
-            PasswordResetCode.created_at > datetime.utcnow() - timedelta(minutes=15)
-        )
-    )
-    attempts = recent_attempts.scalars().all()
-    if len(attempts) >= 3:
-        return JSONResponse({"error": "Слишком много попыток. Попробуйте через 15 минут"}, status_code=429)
-    
-    # Генерируем код
-    code = generate_code(6)
-    expires_at = datetime.utcnow() + timedelta(minutes=10)
-    
-    reset_code = PasswordResetCode(
-        user_id=user.id,
-        code=code,
-        expires_at=expires_at
-    )
-    db.add(reset_code)
-    await db.commit()
-    
-    # Отправляем код в Telegram
-    try:
-        await send_telegram_notification(
-            user.telegram_id,
-            f"🔐 Код для восстановления пароля: `{code}`\n\nКод действителен 10 минут.\nЕсли вы не запрашивали восстановление пароля, проигнорируйте это сообщение."
-        )
-    except Exception as e:
-        print(f"Не удалось отправить код: {e}")
-        return JSONResponse({"error": "Не удалось отправить код. Убедитесь, что бот не заблокирован"}, status_code=500)
-    
-    return JSONResponse({"success": True, "user_id": user.id})
-
-
-@router.post("/reset-password/verify")
-async def verify_reset_code(
-    request: Request,
-    user_id: int = Form(...),
-    code: str = Form(...),
-    new_password: str = Form(...),
-    confirm_password: str = Form(...),
-    db: AsyncSession = Depends(get_db)
-):
-    if new_password != confirm_password:
-        return JSONResponse({"error": "Пароли не совпадают"}, status_code=400)
-    
-    if len(new_password) < 6:
-        return JSONResponse({"error": "Пароль должен быть не менее 6 символов"}, status_code=400)
-    
-    # Ищем код
-    result = await db.execute(
-        select(PasswordResetCode).where(
-            PasswordResetCode.user_id == user_id,
-            PasswordResetCode.code == code,
-            PasswordResetCode.expires_at > datetime.utcnow()
-        )
-    )
-    reset_code = result.scalar_one_or_none()
-    
-    if not reset_code:
-        return JSONResponse({"error": "Неверный или истёкший код"}, status_code=400)
-    
-    # Увеличиваем счётчик попыток
-    reset_code.attempts += 1
-    if reset_code.attempts >= 3:
-        await db.delete(reset_code)
-        await db.commit()
-        return JSONResponse({"error": "Исчерпано количество попыток"}, status_code=400)
-    
-    # Обновляем пароль
-    user = await db.get(User, user_id)
-    if user:
-        user.password_hash = hash_password(new_password)
-        user.password_set_at = datetime.utcnow()
-    
-    await db.delete(reset_code)
-    await db.commit()
-    
-    return JSONResponse({"success": True})
