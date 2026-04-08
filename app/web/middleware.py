@@ -9,10 +9,7 @@ PUBLIC_PATHS = [
     "/logout",
     "/static",
     "/public",
-    "/client",      # <--- ВЕБ-ВЕРСИЯ
-    "/client/login",
-    "/client/telegram-auth",
-    "/client/reset-password"
+    "/client/",      # <--- ВАЖНО: слэш в конце
 ]
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -23,23 +20,17 @@ class AuthMiddleware(BaseHTTPMiddleware):
         self.secret_key = secret_key
     
     async def dispatch(self, request: Request, call_next):
-        # Проверяем, не публичный ли маршрут
         path = request.url.path
         
         # Пропускаем публичные маршруты
         for public_path in PUBLIC_PATHS:
-            if path == public_path or path.startswith(public_path + "/"):
+            if path == public_path or path.startswith(public_path):
                 return await call_next(request)
         
-        # Для админки проверяем авторизацию
-        # Проверяем, есть ли session в scope
-        if "session" not in request.scope:
-            return await call_next(request)
-        
+        # Проверяем авторизацию для админки
         if not request.session.get("authenticated"):
             return RedirectResponse(url="/login", status_code=303)
         
-        # Проверяем, не истекла ли сессия
         expires_at = request.session.get("expires_at")
         if expires_at and time.time() > expires_at:
             request.session.clear()
