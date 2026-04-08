@@ -9,7 +9,7 @@ PUBLIC_PATHS = [
     "/logout",
     "/static",
     "/public",
-    "/client/",      # <--- ВАЖНО: слэш в конце
+    "/client",
 ]
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -22,12 +22,16 @@ class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
         
-        # Пропускаем публичные маршруты
+        # СНАЧАЛА проверяем публичные пути
         for public_path in PUBLIC_PATHS:
-            if path == public_path or path.startswith(public_path):
+            if path == public_path or path.startswith(public_path + "/"):
                 return await call_next(request)
         
-        # Проверяем авторизацию для админки
+        # ТОЛЬКО ДЛЯ НЕПУБЛИЧНЫХ ПУТЕЙ проверяем авторизацию
+        # Проверяем наличие сессии
+        if "session" not in request.scope:
+            return RedirectResponse(url="/login", status_code=303)
+        
         if not request.session.get("authenticated"):
             return RedirectResponse(url="/login", status_code=303)
         
