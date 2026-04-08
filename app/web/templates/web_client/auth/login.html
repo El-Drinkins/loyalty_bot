@@ -1,0 +1,45 @@
+{% extends "web_client/base.html" %}
+
+{% block title %}Вход{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <h1>🔐 Вход в личный кабинет</h1>
+        
+        {% if error %}
+        <div class="error-message">{{ error }}</div>
+        {% endif %}
+        
+        <form method="post" action="/client/login" class="auth-form">
+            <div class="form-group">
+                <label for="phone">📱 Номер телефона</label>
+                <input type="tel" id="phone" name="phone" placeholder="+7 999 123-45-67" required>
+            </div>
+            <div class="form-group">
+                <label for="password">🔑 Пароль</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <div class="form-group checkbox">
+                <label>
+                    <input type="checkbox" name="remember_me" value="true">
+                    Запомнить меня
+                </label>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Войти</button>
+        </form>
+        
+        <div class="auth-divider">или</div>
+        
+        <a href="/client/telegram-auth" class="btn btn-telegram btn-block">📱 Войти через Telegram</a>
+        
+        <div class="auth-links">
+            <a href="/client/reset-password">Забыли пароль?</a>
+        </div>
+        
+        <div class="auth-register">
+            <p>Нет аккаунта? <a href="https://t.me/Take_a_picBot" target="_blank">Зарегистрируйтесь в Telegram</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

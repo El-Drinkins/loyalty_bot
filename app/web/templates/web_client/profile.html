@@ -1,0 +1,93 @@
+{% extends "web_client/base.html" %}
+
+{% block title %}Профиль{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>👤 Личные данные</h2>
+    <div class="profile-info">
+        <div class="info-row">
+            <span class="info-label">Имя:</span>
+            <span class="info-value">{{ user.full_name }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Телефон:</span>
+            <span class="info-value">{{ user.phone }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Telegram ID:</span>
+            <span class="info-value">{{ user.telegram_id }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Дата регистрации:</span>
+            <span class="info-value">{{ user.registration_date.strftime('%d.%m.%Y %H:%M') }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Баланс:</span>
+            <span class="info-value">{{ user.balance }} ⭐</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Сгорают:</span>
+            <span class="info-value">{{ user.points_expiry_date.strftime('%d.%m.%Y') if user.points_expiry_date else 'не ограничен' }}</span>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>🔐 Сменить пароль</h2>
+    <form id="change-password-form" class="form">
+        <div class="form-group">
+            <label for="current_password">Текущий пароль</label>
+            <input type="password" id="current_password" name="current_password" required>
+        </div>
+        <div class="form-group">
+            <label for="new_password">Новый пароль</label>
+            <input type="password" id="new_password" name="new_password" required>
+            <small>Минимум 6 символов</small>
+        </div>
+        <div class="form-group">
+            <label for="confirm_password">Подтвердите пароль</label>
+            <input type="password" id="confirm_password" name="confirm_password" required>
+        </div>
+        <div id="password-error" class="error-message" style="display: none;"></div>
+        <div id="password-success" class="success-message" style="display: none;">✅ Пароль успешно изменён</div>
+        <button type="submit" class="btn btn-primary">Сохранить пароль</button>
+    </form>
+</div>
+
+<script>
+document.getElementById('change-password-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const currentPassword = document.getElementById('current_password').value;
+    const newPassword = document.getElementById('new_password').value;
+    const confirmPassword = document.getElementById('confirm_password').value;
+    
+    const errorDiv = document.getElementById('password-error');
+    const successDiv = document.getElementById('password-success');
+    
+    errorDiv.style.display = 'none';
+    successDiv.style.display = 'none';
+    
+    const response = await fetch('/client/profile/change_password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            current_password: currentPassword,
+            new_password: newPassword,
+            confirm_password: confirmPassword
+        })
+    });
+    
+    const data = await response.json();
+    
+    if (data.error) {
+        errorDiv.textContent = data.error;
+        errorDiv.style.display = 'block';
+    } else if (data.success) {
+        successDiv.style.display = 'block';
+        document.getElementById('change-password-form').reset();
+    }
+});
+</script>
+{% endblock %}

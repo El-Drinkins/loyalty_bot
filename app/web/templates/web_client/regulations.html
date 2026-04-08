@@ -1,0 +1,21 @@
+{% extends "web_client/base.html" %}
+
+{% block title %}Правила программы{% endblock %}
+
+{% block content %}
+<div class="card regulations-card">
+    <div class="regulations-content">
+        {% for line in regulations_text.split('\n') %}
+            {% if line.startswith('📋') or line.startswith('Что такое') or line.startswith('Как получить') or line.startswith('1.') or line.startswith('2.') or line.startswith('3.') or line.startswith('Как потратить') or line.startswith('Срок действия') or line.startswith('Важно') %}
+                <h3>{{ line }}</h3>
+            {% elif line.startswith('•') %}
+                <p class="bullet">{{ line }}</p>
+            {% elif line.strip() == '' %}
+                <br>
+            {% else %}
+                <p>{{ line }}</p>
+            {% endif %}
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

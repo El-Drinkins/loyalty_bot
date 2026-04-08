@@ -1,0 +1,31 @@
+{% extends "web_client/base.html" %}
+
+{% block title %}История операций{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>📜 История операций</h2>
+    {% if grouped_transactions %}
+        <div class="history-list">
+            {% for date, transactions in grouped_transactions.items()|sort(reverse=True) %}
+            <div class="history-date-group">
+                <h3 class="history-date">📅 {{ date }}</h3>
+                {% for t in transactions %}
+                <div class="transaction-item {% if t.amount > 0 %}transaction-plus{% else %}transaction-minus{% endif %}">
+                    <div class="transaction-info">
+                        <span class="transaction-amount">
+                            {% if t.amount > 0 %}🟢 +{{ t.amount }}{% else %}🔴 {{ t.amount }}{% endif %}
+                        </span>
+                        <span class="transaction-reason">{{ t.reason }}</span>
+                    </div>
+                    <div class="transaction-time">{{ t.timestamp.strftime('%H:%M') }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-state">📭 У вас пока нет операций</p>
+    {% endif %}
+</div>
+{% endblock %}

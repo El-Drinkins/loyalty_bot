@@ -1,6 +1,9 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
+import os
+
 from .routers import (
     main_router, 
     points_router, 
@@ -12,12 +15,14 @@ from .routers import (
     search_router,
     admin_review_router,
     mailing_router,
-    auth_router
+    auth_router,
+    web_client_router
 )
+from .middleware import AuthMiddleware
 
 app = FastAPI()
 
-# Только SessionMiddleware
+# SessionMiddleware
 app.add_middleware(
     SessionMiddleware,
     secret_key="your-secret-key-here-change-this-in-production",
@@ -25,6 +30,20 @@ app.add_middleware(
     max_age=3600 * 24,
     same_site="lax"
 )
+
+# AuthMiddleware для админки
+app.add_middleware(
+    AuthMiddleware,
+    secret_key="your-secret-key-here-change-this-in-production"
+)
+
+# Подключаем статические файлы веб-версии из папки public
+public_dir = os.path.join(os.path.dirname(__file__), "public")
+if os.path.exists(public_dir):
+    app.mount("/public", StaticFiles(directory=public_dir), name="public")
+    print(f"✅ Статические файлы веб-версии подключены из {public_dir}")
+else:
+    print(f"⚠️ Папка public не найдена: {public_dir}")
 
 # Подключаем шаблоны
 templates = Jinja2Templates(directory="app/web/templates")
@@ -41,6 +60,7 @@ app.include_router(catalog_router, prefix="/catalog")
 app.include_router(search_router)
 app.include_router(admin_review_router)
 app.include_router(mailing_router)
+app.include_router(web_client_router)
 
 print("=== ЗАРЕГИСТРИРОВАННЫЕ МАРШРУТЫ ===")
 for route in app.routes:

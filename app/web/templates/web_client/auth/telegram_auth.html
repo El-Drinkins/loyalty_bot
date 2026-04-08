@@ -1,0 +1,104 @@
+{% extends "web_client/base.html" %}
+
+{% block title %}Вход через Telegram{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <h1>📱 Вход через Telegram</h1>
+        
+        <div id="step-phone" class="auth-step">
+            <form id="telegram-auth-form" class="auth-form">
+                <div class="form-group">
+                    <label for="phone">📱 Номер телефона</label>
+                    <input type="tel" id="phone" name="phone" placeholder="+7 999 123-45-67" required>
+                </div>
+                <div id="telegram-error" class="error-message" style="display: none;"></div>
+                <button type="submit" class="btn btn-primary btn-block">Отправить код</button>
+            </form>
+        </div>
+        
+        <div id="step-code" class="auth-step" style="display: none;">
+            <form id="telegram-verify-form" class="auth-form">
+                <input type="hidden" id="user_id" name="user_id">
+                <div class="form-group">
+                    <label for="code">🔢 Код из Telegram</label>
+                    <input type="text" id="code" name="code" placeholder="123456" required>
+                </div>
+                <div class="form-group checkbox">
+                    <label>
+                        <input type="checkbox" id="remember_me" name="remember_me" value="true">
+                        Запомнить меня
+                    </label>
+                </div>
+                <div id="verify-error" class="error-message" style="display: none;"></div>
+                <button type="submit" class="btn btn-primary btn-block">Подтвердить</button>
+            </form>
+        </div>
+        
+        <div class="auth-links">
+            <a href="/client/login">← Назад ко входу</a>
+        </div>
+    </div>
+</div>
+
+<script>
+let userId = null;
+
+document.getElementById('telegram-auth-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const phone = document.getElementById('phone').value;
+    const errorDiv = document.getElementById('telegram-error');
+    
+    errorDiv.style.display = 'none';
+    
+    const response = await fetch('/client/telegram-auth/request-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ phone: phone })
+    });
+    
+    const data = await response.json();
+    
+    if (data.error) {
+        errorDiv.textContent = data.error;
+        errorDiv.style.display = 'block';
+    } else if (data.success) {
+        userId = data.user_id;
+        document.getElementById('user_id').value = userId;
+        document.getElementById('step-phone').style.display = 'none';
+        document.getElementById('step-code').style.display = 'block';
+    }
+});
+
+document.getElementById('telegram-verify-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const code = document.getElementById('code').value;
+    const rememberMe = document.getElementById('remember_me').checked;
+    const errorDiv = document.getElementById('verify-error');
+    
+    errorDiv.style.display = 'none';
+    
+    const response = await fetch('/client/telegram-auth/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            user_id: userId,
+            code: code,
+            remember_me: rememberMe
+        })
+    });
+    
+    const data = await response.json();
+    
+    if (data.error) {
+        errorDiv.textContent = data.error;
+        errorDiv.style.display = 'block';
+    } else if (data.success) {
+        window.location.href = '/client/';
+    }
+});
+</script>
+{% endblock %}

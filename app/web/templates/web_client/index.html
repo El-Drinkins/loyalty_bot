@@ -1,0 +1,56 @@
+{% extends "web_client/base.html" %}
+
+{% block title %}Главная{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon">💰</div>
+        <div class="stat-value">{{ user.balance }}</div>
+        <div class="stat-label">Баллов</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">👥</div>
+        <div class="stat-value">{{ total_invited }}</div>
+        <div class="stat-label">Друзей</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">⏳</div>
+        <div class="stat-value">{{ expiry_date }}</div>
+        <div class="stat-label">Сгорают</div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>🔗 Ваша реферальная ссылка</h2>
+    <div class="referral-link-container">
+        <input type="text" id="referral-link" value="{{ referral_link }}" readonly>
+        <button onclick="copyReferralLink()" class="btn btn-secondary">📋 Копировать</button>
+    </div>
+    <p class="referral-hint">За каждого друга, который совершит первую аренду, вы получите {{ user.balance_invite_bonus|default(100) }} баллов</p>
+</div>
+
+<div class="card">
+    <h2>📋 Последние операции</h2>
+    {% if transactions %}
+        <div class="transactions-list">
+            {% for t in transactions %}
+            <div class="transaction-item {% if t.amount > 0 %}transaction-plus{% else %}transaction-minus{% endif %}">
+                <div class="transaction-info">
+                    <span class="transaction-amount">
+                        {% if t.amount > 0 %}🟢 +{{ t.amount }}{% else %}🔴 {{ t.amount }}{% endif %}
+                    </span>
+                    <span class="transaction-reason">{{ t.reason }}</span>
+                </div>
+                <div class="transaction-date">{{ t.timestamp.strftime('%d.%m.%Y %H:%M') }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="card-footer">
+            <a href="/client/history" class="btn btn-link">📜 Вся история →</a>
+        </div>
+    {% else %}
+        <p class="empty-state">📭 У вас пока нет операций</p>
+    {% endif %}
+</div>
+{% endblock %}

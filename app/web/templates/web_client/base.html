@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{% block title %}Программа лояльности{% endblock %}</title>
+    <link rel="stylesheet" href="/public/css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📸</text></svg>">
+    <script src="/public/js/script.js" defer></script>
+</head>
+<body class="{% if user %}logged-in{% endif %}">
+    <div class="theme-toggle">
+        <button id="theme-switch" class="theme-switch" aria-label="Переключить тему">
+            <span class="theme-icon-light">☀️</span>
+            <span class="theme-icon-dark">🌙</span>
+        </button>
+    </div>
+
+    {% if user %}
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <a href="/client/">📸 Лояльность</a>
+            </div>
+            <button class="nav-toggle" aria-label="Открыть меню">☰</button>
+            <div class="nav-menu">
+                <a href="/client/" class="nav-link">🏠 Главная</a>
+                <a href="/client/friends" class="nav-link">👥 Друзья</a>
+                <a href="/client/history" class="nav-link">📜 История</a>
+                <a href="/client/regulations" class="nav-link">📋 Правила</a>
+                <a href="/client/profile" class="nav-link">👤 Профиль</a>
+                <a href="/client/logout" class="nav-link logout-link">🚪 Выйти</a>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+
+    <main class="main-container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <p>📞 Поддержка: <a href="https://t.me/el_drinkins" target="_blank">@el_drinkins</a></p>
+            <p>© 2026 Программа лояльности</p>
+        </div>
+    </footer>
+</body>
+</html>

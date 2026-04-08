@@ -9,6 +9,7 @@ from .catalog import router as catalog_router
 from .admin_review_routes import router as admin_review_router
 from .mailing_routes import router as mailing_router
 from .auth_routes import router as auth_router
+from .web_client_routes import router as web_client_router  # <--- НОВАЯ СТРОКА
 
 __all__ = [
     "main_router",
@@ -21,5 +22,6 @@ __all__ = [
     "catalog_router",
     "admin_review_router",
     "mailing_router",
-    "auth_router"
+    "auth_router",
+    "web_client_router"  # <--- НОВАЯ СТРОКА
 ]

@@ -1,0 +1,54 @@
+{% extends "web_client/base.html" %}
+
+{% block title %}Мои друзья{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon">👥</div>
+        <div class="stat-value">{{ total_invited }}</div>
+        <div class="stat-label">Приглашено</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">✅</div>
+        <div class="stat-value">{{ completed_invited }}</div>
+        <div class="stat-label">Подтвердили</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">⭐</div>
+        <div class="stat-value">{{ earned }}</div>
+        <div class="stat-label">Заработано</div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>👥 Список друзей</h2>
+    {% if friends %}
+        <div class="friends-list">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Статус</th>
+                        <th>Имя</th>
+                        <th>Дата регистрации</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for friend in friends %}
+                    <tr>
+                        <td class="status-cell">{{ friend.status_emoji }}</td>
+                        <td>{{ friend.full_name }}</td>
+                        <td>{{ friend.registration_date }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="empty-state">👥 У вас пока нет приглашённых друзей</p>
+        <div class="card-footer">
+            <a href="/client/" class="btn btn-primary">🎁 Пригласить друга</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
