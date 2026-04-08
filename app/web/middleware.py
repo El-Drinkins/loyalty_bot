@@ -9,7 +9,10 @@ PUBLIC_PATHS = [
     "/logout",
     "/static",
     "/public",
-    "/client"
+    "/client",      # <--- ВЕБ-ВЕРСИЯ
+    "/client/login",
+    "/client/telegram-auth",
+    "/client/reset-password"
 ]
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -25,10 +28,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
         
         # Пропускаем публичные маршруты
         for public_path in PUBLIC_PATHS:
-            if path.startswith(public_path):
+            if path == public_path or path.startswith(public_path + "/"):
                 return await call_next(request)
         
-        # Проверяем авторизацию для админки
+        # Для админки проверяем авторизацию
+        # Проверяем, есть ли session в scope
+        if "session" not in request.scope:
+            return await call_next(request)
+        
         if not request.session.get("authenticated"):
             return RedirectResponse(url="/login", status_code=303)
         
