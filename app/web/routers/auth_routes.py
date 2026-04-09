@@ -1,9 +1,7 @@
 from fastapi import APIRouter, Request, Form, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
-from starlette import status
 import hashlib
 import time
-import os
 
 from ..deps import templates
 
@@ -44,6 +42,9 @@ async def login(
         # Пароль верный — создаём сессию
         request.session["authenticated"] = True
         request.session["expires_at"] = time.time() + 3600 * 24  # 24 часа
+        # Принудительно сохраняем сессию
+        await request.session.save()
+        print(f"✅ Сессия сохранена: {request.session}")
         return RedirectResponse(url="/admin/", status_code=303)
     else:
         # Неверный пароль
@@ -59,4 +60,5 @@ async def logout(request: Request):
     Выход из админки (очистка сессии)
     """
     request.session.clear()
+    await request.session.save()
     return RedirectResponse(url="/login", status_code=303)
