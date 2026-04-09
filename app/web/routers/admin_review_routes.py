@@ -10,7 +10,7 @@ from ...models import User, RegistrationRequest, SecuritySettings, Whitelist, St
 from ...config import settings
 from ...notifications import send_telegram_notification
 
-router = APIRouter(prefix="/admin/review", tags=["admin"])
+router = APIRouter(tags=["admin"])
 
 @router.get("/", response_class=HTMLResponse)
 async def review_dashboard(
