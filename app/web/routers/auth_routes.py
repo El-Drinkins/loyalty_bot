@@ -7,7 +7,7 @@ from ..deps import templates
 
 router = APIRouter(tags=["auth"])
 
-ADMIN_PASSWORD_HASH = hashlib.sha256("admin123".encode()).hexdigest()
+ADMIN_PASSWORD_HASH = hashlib.sha256("4Ue768k3u!".encode()).hexdigest()
 
 
 @router.get("/login", response_class=HTMLResponse)
