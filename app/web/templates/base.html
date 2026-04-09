@@ -10,7 +10,6 @@
             background-color: #f5f5f5;
         }
         
-        /* Навигационное меню */
         nav { 
             background-color: #333;
             color: white;
@@ -43,7 +42,6 @@
             background-color: #4CAF50;
         }
         
-        /* Выпадающее меню */
         .dropdown {
             position: relative;
             display: inline-block;
@@ -81,14 +79,12 @@
             display: block;
         }
         
-        /* Основной контейнер */
         .container {
             max-width: 1200px;
             margin: 0 auto;
             padding: 0 20px;
         }
         
-        /* Карточки статистики */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -117,7 +113,6 @@
             color: #333;
         }
         
-        /* Таблицы */
         table { 
             border-collapse: collapse; 
             width: 100%; 
@@ -147,7 +142,6 @@
             background-color: #f5f5f5;
         }
         
-        /* Кнопки */
         .button { 
             background-color: #4CAF50; 
             border: none; 
@@ -180,7 +174,6 @@
             font-size: 12px; 
         }
         
-        /* Формы */
         form { 
             display: inline; 
         }
@@ -208,7 +201,6 @@
             padding: 10px;
         }
         
-        /* Сообщения */
         .alert {
             padding: 15px;
             margin-bottom: 20px;
@@ -227,7 +219,6 @@
             border: 1px solid #f5c6cb;
         }
         
-        /* Логи */
         .log-entry {
             border-left: 4px solid #4CAF50;
             margin-bottom: 15px;
@@ -257,40 +248,38 @@
 </head>
 <body>
     <nav>
-        <a href="/" {% if request.url.path == '/' %}class="active"{% endif %}>🏠 Главная</a>
-        <a href="/users" {% if request.url.path == '/users' %}class="active"{% endif %}>👥 Все пользователи</a>
-        <a href="/blacklist" {% if request.url.path == '/blacklist' %}class="active"{% endif %}>⛔ Черный список</a>
+        <a href="/admin/" {% if request.url.path == '/admin/' %}class="active"{% endif %}>🏠 Главная</a>
+        <a href="/admin/users" {% if request.url.path == '/admin/users' %}class="active"{% endif %}>👥 Все пользователи</a>
+        <a href="/admin/blacklist" {% if request.url.path == '/admin/blacklist' %}class="active"{% endif %}>⛔ Черный список</a>
         
-        <!-- Выпадающее меню статистики -->
         <div class="dropdown">
             <span class="dropbtn">📊 Статистика ▼</span>
             <div class="dropdown-content">
-                <a href="/stats">📊 Общая статистика</a>
-                <a href="/spent_stats">📉 Статистика списаний</a>
-                <a href="/earned_stats">📈 Статистика начислений</a>
-                <a href="/admin_logs">📋 Журнал админов</a>
-                <a href="/user_logs">📋 Логи пользователей</a>
+                <a href="/admin/stats">📊 Общая статистика</a>
+                <a href="/admin/spent_stats">📉 Статистика списаний</a>
+                <a href="/admin/earned_stats">📈 Статистика начислений</a>
+                <a href="/admin/admin_logs">📋 Журнал админов</a>
+                <a href="/admin/user_logs">📋 Логи пользователей</a>
             </div>
         </div>
         
-        <!-- Выпадающее меню каталога -->
         <div class="dropdown">
             <span class="dropbtn">📦 Каталог ▼</span>
             <div class="dropdown-content">
-                <a href="/catalog">🏠 Главная каталога</a>
-                <a href="/catalog/categories">📁 Категории</a>
-                <a href="/catalog/brands">🏷️ Бренды</a>
-                <a href="/catalog/models">📷 Модели</a>
-                <a href="/catalog/rentals">📦 Аренды</a>
-                <a href="/catalog/stats">📊 Статистика каталога</a>
+                <a href="/admin/catalog">🏠 Главная каталога</a>
+                <a href="/admin/catalog/categories">📁 Категории</a>
+                <a href="/admin/catalog/brands">🏷️ Бренды</a>
+                <a href="/admin/catalog/models">📷 Модели</a>
+                <a href="/admin/catalog/rentals">📦 Аренды</a>
+                <a href="/admin/catalog/stats">📊 Статистика каталога</a>
             </div>
         </div>
         
-        <!-- Кнопка модерации -->
-        <a href="/admin/review" {% if request.url.path.startswith('/admin/review') %}class="active"{% endif %}>👮‍♂️ Модерация</a>
+        <a href="/admin/admin/review" {% if request.url.path.startswith('/admin/admin/review') %}class="active"{% endif %}>👮‍♂️ Модерация</a>
         
-        <a href="/search" {% if request.url.path == '/search' %}class="active"{% endif %}>🔍 Найти клиента</a>
-        <a href="/mailing" {% if request.url.path == '/mailing' %}class="active"{% endif %}>📢 Рассылка</a>
+        <a href="/admin/search" {% if request.url.path == '/admin/search' %}class="active"{% endif %}>🔍 Найти клиента</a>
+        <a href="/admin/mailing" {% if request.url.path == '/admin/mailing' %}class="active"{% endif %}>📢 Рассылка</a>
+        
         <a href="/logout" style="margin-left: auto; background-color: #f44336;">🚪 Выход</a>
     </nav>
     
