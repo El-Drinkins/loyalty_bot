@@ -10,13 +10,20 @@
         document.body.classList.add('dark');
     }
     
-    // Переключатель темы
-    const themeSwitch = document.getElementById('theme-switch');
+    // Переключатель темы (кнопка в меню)
+    const themeSwitch = document.getElementById('theme-switch-mobile');
     if (themeSwitch) {
+        // Устанавливаем правильный текст при загрузке
+        const isDark = document.body.classList.contains('dark');
+        themeSwitch.textContent = isDark ? '☀️ Светлая' : '🌙 Тема';
+        
         themeSwitch.addEventListener('click', () => {
             document.body.classList.toggle('dark');
-            const isDark = document.body.classList.contains('dark');
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            const isDarkNow = document.body.classList.contains('dark');
+            localStorage.setItem('theme', isDarkNow ? 'dark' : 'light');
+            
+            // Меняем текст кнопки
+            themeSwitch.textContent = isDarkNow ? '☀️ Светлая' : '🌙 Тема';
         });
     }
 })();

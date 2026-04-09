@@ -9,13 +9,6 @@
     <script src="/public/js/script.js" defer></script>
 </head>
 <body class="{% if user %}logged-in{% endif %}">
-    <div class="theme-toggle">
-        <button id="theme-switch" class="theme-switch" aria-label="Переключить тему">
-            <span class="theme-icon-light">☀️</span>
-            <span class="theme-icon-dark">🌙</span>
-        </button>
-    </div>
-
     {% if user %}
     <nav class="navbar">
         <div class="nav-container">
@@ -29,6 +22,7 @@
                 <a href="/client/history" class="nav-link">📜 История</a>
                 <a href="/client/regulations" class="nav-link">📋 Правила</a>
                 <a href="/client/profile" class="nav-link">👤 Профиль</a>
+                <button id="theme-switch-mobile" class="nav-link theme-nav-btn" style="background: none; border: none; cursor: pointer;">🌙 Тема</button>
                 <a href="/client/logout" class="nav-link logout-link">🚪 Выйти</a>
             </div>
         </div>
