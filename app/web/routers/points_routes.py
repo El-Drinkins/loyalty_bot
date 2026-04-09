@@ -54,7 +54,7 @@ async def add_points(
         f"💰 Вам начислено {amount} баллов.\nПричина: {reason}"
     )
     
-    return RedirectResponse(url=f"/client/{user_id}", status_code=303)
+    return RedirectResponse(url=f"/admin/client/{user_id}", status_code=303)
 
 @router.post("/client/{user_id}/subtract_points")
 async def subtract_points(
@@ -99,7 +99,7 @@ async def subtract_points(
         f"💸 С вашего счета списано {amount} баллов.\nПричина: {reason}"
     )
     
-    return RedirectResponse(url=f"/client/{user_id}", status_code=303)
+    return RedirectResponse(url=f"/admin/client/{user_id}", status_code=303)
 
 @router.post("/confirm_referral/{referral_id}")
 async def confirm_referral(
