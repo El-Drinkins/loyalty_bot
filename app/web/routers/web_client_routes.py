@@ -561,7 +561,7 @@ async def change_password(
     
     return JSONResponse({"success": True})
 
-@router.post("/logout")
+@router.get("/logout")
 async def client_logout(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
     session_token = request.cookies.get("session_token")
     if session_token:
