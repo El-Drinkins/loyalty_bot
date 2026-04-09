@@ -39,7 +39,7 @@ async def category_add(
     )
     db.add(category)
     await db.commit()
-    return RedirectResponse(url="/catalog/categories", status_code=303)
+    return RedirectResponse(url="/admin/catalog/categories", status_code=303)
 
 @router.post("/{category_id}/edit")
 async def category_edit(
@@ -62,7 +62,7 @@ async def category_edit(
     category.is_active = is_active
     
     await db.commit()
-    return RedirectResponse(url="/catalog/categories", status_code=303)
+    return RedirectResponse(url="/admin/catalog/categories", status_code=303)
 
 @router.post("/{category_id}/delete")
 async def category_delete(
@@ -75,4 +75,4 @@ async def category_delete(
     if category:
         await db.delete(category)
         await db.commit()
-    return RedirectResponse(url="/catalog/categories", status_code=303)
+    return RedirectResponse(url="/admin/catalog/categories", status_code=303)

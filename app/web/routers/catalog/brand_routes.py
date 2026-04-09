@@ -47,7 +47,7 @@ async def brand_add(
     )
     db.add(brand)
     await db.commit()
-    return RedirectResponse(url="/catalog/brands", status_code=303)
+    return RedirectResponse(url="/admin/catalog/brands", status_code=303)
 
 @router.post("/{brand_id}/edit")
 async def brand_edit(
@@ -70,7 +70,7 @@ async def brand_edit(
     brand.is_active = is_active
     
     await db.commit()
-    return RedirectResponse(url="/catalog/brands", status_code=303)
+    return RedirectResponse(url="/admin/catalog/brands", status_code=303)
 
 @router.post("/{brand_id}/delete")
 async def brand_delete(
@@ -83,4 +83,4 @@ async def brand_delete(
     if brand:
         await db.delete(brand)
         await db.commit()
-    return RedirectResponse(url="/catalog/brands", status_code=303)
+    return RedirectResponse(url="/admin/catalog/brands", status_code=303)

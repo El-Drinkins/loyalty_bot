@@ -119,7 +119,7 @@ async def rental_add(
     db.add(rental)
     await db.commit()
     
-    return RedirectResponse(url="/catalog/rentals", status_code=303)
+    return RedirectResponse(url="/admin/catalog/rentals", status_code=303)
 
 @router.get("/{rental_id}/edit", response_class=HTMLResponse)
 async def rental_edit_form(
@@ -183,7 +183,7 @@ async def rental_edit(
     rental.updated_at = datetime.utcnow()
     
     await db.commit()
-    return RedirectResponse(url="/catalog/rentals", status_code=303)
+    return RedirectResponse(url="/admin/catalog/rentals", status_code=303)
 
 @router.post("/{rental_id}/delete")
 async def rental_delete(
@@ -196,7 +196,7 @@ async def rental_delete(
     if rental:
         await db.delete(rental)
         await db.commit()
-    return RedirectResponse(url="/catalog/rentals", status_code=303)
+    return RedirectResponse(url="/admin/catalog/rentals", status_code=303)
 
 @router.get("/{rental_id}", response_class=HTMLResponse)
 async def rental_detail(

@@ -111,7 +111,7 @@ async def model_add(
     db.add(model)
     await db.commit()
     
-    return RedirectResponse(url="/catalog/models", status_code=303)
+    return RedirectResponse(url="/admin/catalog/models", status_code=303)
 
 @router.get("/{model_id}/edit", response_class=HTMLResponse)
 async def model_edit_form(
@@ -170,7 +170,7 @@ async def model_edit(
     model.updated_at = datetime.utcnow()
     
     await db.commit()
-    return RedirectResponse(url="/catalog/models", status_code=303)
+    return RedirectResponse(url="/admin/catalog/models", status_code=303)
 
 @router.post("/{model_id}/delete")
 async def model_delete(
@@ -183,7 +183,7 @@ async def model_delete(
     if model:
         await db.delete(model)
         await db.commit()
-    return RedirectResponse(url="/catalog/models", status_code=303)
+    return RedirectResponse(url="/admin/catalog/models", status_code=303)
 
 @router.get("/{model_id}/stats", response_class=HTMLResponse)
 async def model_stats(
