@@ -250,7 +250,7 @@
     <nav>
         <a href="/admin/" {% if request.url.path == '/admin/' %}class="active"{% endif %}>🏠 Главная</a>
         <a href="/admin/users" {% if request.url.path == '/admin/users' %}class="active"{% endif %}>👥 Все пользователи</a>
-        <a href="/admin/blacklist" {% if request.url.path == '/admin/blacklist' %}class="active"{% endif %}>⛔ Черный список</a>
+        <a href="/blacklist" {% if request.url.path == '/blacklist' %}class="active"{% endif %}>⛔ Черный список</a>
         
         <div class="dropdown">
             <span class="dropbtn">📊 Статистика ▼</span>
