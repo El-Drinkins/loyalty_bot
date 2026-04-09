@@ -60,7 +60,7 @@ async def get_current_user(request: Request, db: AsyncSession):
 
 
 # ==========================================
-# СТРАНИЦЫ АВТОРИЗАЦИИ (ДОЛЖНЫ БЫТЬ ПЕРВЫМИ)
+# СТРАНИЦЫ АВТОРИЗАЦИИ
 # ==========================================
 
 @router.get("/login", response_class=HTMLResponse)
@@ -221,7 +221,14 @@ async def verify_telegram_auth_code(
     return response
 
 @router.get("/reset-password", response_class=HTMLResponse)
-async def reset_password_page(request: Request, error: str = None, step: str = "phone"):
+async def reset_password_page(request: Request, error: str = None, step: str = "phone", db: AsyncSession = Depends(get_db)):
+    print(f"🔍 reset_password_page вызвана")
+    user = await get_current_user(request, db)
+    print(f"🔍 user = {user.id if user else None}")
+    if user:
+        print(f"🔍 Пользователь авторизован, редирект на /client/")
+        return RedirectResponse(url="/client/", status_code=303)
+    print(f"🔍 Пользователь не авторизован, показываем страницу")
     return templates.TemplateResponse("web_client/auth/reset_password.html", {
         "request": request,
         "error": error,
