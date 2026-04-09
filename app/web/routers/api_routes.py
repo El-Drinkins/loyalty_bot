@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 
 from ..deps import get_db, require_auth
-from ...models import User, Referral, RegistrationRequest
+from ...models import User, Referral, RegistrationRequest, Rental
 
 router = APIRouter()
 
@@ -114,7 +114,6 @@ async def api_ban_request(
     if not req:
         raise HTTPException(404, "Заявка не найдена")
     
-    # Здесь можно добавить логику блокировки IP
     req.status = "rejected"
     req.review_comment = reason
     req.reviewed_at = datetime.utcnow()
@@ -138,8 +137,10 @@ async def update_user_notes(
     user.admin_notes = notes
     await db.commit()
     
-    return RedirectResponse(url=f"/client/{user_id}", status_code=303)
-    @router.put("/api/rentals/{rental_id}/status")
+    return RedirectResponse(url=f"/admin/client/{user_id}", status_code=303)
+
+
+@router.put("/api/rentals/{rental_id}/status")
 async def update_rental_status(
     rental_id: int,
     request: Request,
@@ -147,6 +148,7 @@ async def update_rental_status(
     _=Depends(require_auth)
 ):
     """Обновляет статус аренды"""
+    from fastapi import Request
     data = await request.json()
     new_status = data.get("status")
     
