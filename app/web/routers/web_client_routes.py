@@ -117,10 +117,12 @@ async def client_login(
     await db.commit()
     
     response = RedirectResponse(url="/client/", status_code=303)
+    # Используем max_age вместо expires
+    max_age = 30 * 24 * 3600 if remember_me else 3600
     response.set_cookie(
         key="session_token",
         value=session_token,
-        expires=expires_at,
+        max_age=max_age,
         httponly=True,
         samesite="lax"
     )
@@ -211,10 +213,11 @@ async def verify_telegram_auth_code(
     await db.commit()
     
     response = JSONResponse({"success": True})
+    max_age = 30 * 24 * 3600 if remember_me else 3600
     response.set_cookie(
         key="session_token",
         value=session_token,
-        expires=expires_at,
+        max_age=max_age,
         httponly=True,
         samesite="lax"
     )
