@@ -52,7 +52,7 @@ app.include_router(web_client_router)
 app.include_router(main_router, prefix="/admin")
 app.include_router(points_router, prefix="/admin")
 app.include_router(stats_router, prefix="/admin")
-app.include_router(admin_router, prefix="/admin")
+app.include_router(admin_router)  # без префикса, так как у него уже есть свои
 app.include_router(user_router, prefix="/admin")
 app.include_router(api_router, prefix="/admin")
 app.include_router(search_router, prefix="/admin")
