@@ -299,7 +299,7 @@
         <!-- Левая колонка: начисление/списание -->
         <div style="border: 1px solid #ddd; border-radius: 8px; padding: 20px;">
             <h3>💰 Начислить баллы</h3>
-            <form action="/client/{{ user.id }}/add_points" method="post" onsubmit="return confirm('Действие будет записано в журнал. Продолжить?')">
+            <form action="/admin/client/{{ user.id }}/add_points" method="post" onsubmit="return confirm('Действие будет записано в журнал. Продолжить?')">
                 <div style="margin-bottom: 10px;">
                     <label>Сумма:</label>
                     <input type="number" name="amount" required style="width: 100%; padding: 8px; margin-top: 5px;">
@@ -314,7 +314,7 @@
             
             <div style="margin-top: 20px;">
                 <h3>💸 Списать баллы</h3>
-                <form action="/client/{{ user.id }}/subtract_points" method="post" onsubmit="return confirm('Действие будет записано в журнал. Продолжить?')">
+                <form action="/admin/client/{{ user.id }}/subtract_points" method="post" onsubmit="return confirm('Действие будет записано в журнал. Продолжить?')">
                     <div style="margin-bottom: 10px;">
                         <label>Сумма:</label>
                         <input type="number" name="amount" required style="width: 100%; padding: 8px; margin-top: 5px;">
