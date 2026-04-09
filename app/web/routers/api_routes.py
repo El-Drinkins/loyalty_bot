@@ -139,3 +139,26 @@ async def update_user_notes(
     await db.commit()
     
     return RedirectResponse(url=f"/client/{user_id}", status_code=303)
+    @router.put("/api/rentals/{rental_id}/status")
+async def update_rental_status(
+    rental_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
+):
+    """Обновляет статус аренды"""
+    data = await request.json()
+    new_status = data.get("status")
+    
+    if new_status not in ["active", "completed", "cancelled"]:
+        raise HTTPException(400, "Неверный статус")
+    
+    rental = await db.get(Rental, rental_id)
+    if not rental:
+        raise HTTPException(404, "Аренда не найдена")
+    
+    rental.status = new_status
+    rental.updated_at = datetime.utcnow()
+    await db.commit()
+    
+    return {"success": True}

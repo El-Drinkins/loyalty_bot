@@ -58,6 +58,9 @@
         <a href="/admin/catalog/rentals?user_id={{ user.id }}" class="button" style="background-color: #FF9800;">
             📦 История аренд
         </a>
+        <a href="/admin/client/{{ user.id }}/finance" class="button" style="background-color: #9C27B0;">
+            📊 Финансовая статистика
+        </a>
     </div>
 
     <!-- Блок с примечаниями и значками -->
@@ -173,7 +176,7 @@
         }
         
         searchTimeout = setTimeout(() => {
-            fetch(`/api/search_users?q=${encodeURIComponent(query)}`)
+            fetch(`/admin/api/search_users?q=${encodeURIComponent(query)}`)
                 .then(response => response.json())
                 .then(users => {
                     const resultsDiv = document.getElementById('searchResults');

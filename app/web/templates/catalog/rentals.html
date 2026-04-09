@@ -28,6 +28,7 @@
         <option value="">Все статусы</option>
         <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Активные</option>
         <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Завершенные</option>
+        <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Отмененные</option>
     </select>
     
     <input type="number" name="user_id" placeholder="ID клиента" value="{{ user_filter or '' }}" style="padding: 8px; width: 150px;">
@@ -35,6 +36,19 @@
     <button type="submit" class="button">🔍 Применить</button>
     <a href="/admin/catalog/rentals" class="button button-red">Сбросить</a>
 </form>
+
+<style>
+    .status-select {
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    .status-active { background-color: #fff3e0; color: #ff9800; border-color: #ff9800; }
+    .status-completed { background-color: #e8f5e8; color: #4CAF50; border-color: #4CAF50; }
+    .status-cancelled { background-color: #ffe8e8; color: #f44336; border-color: #f44336; }
+</style>
 
 <table>
     <thead>
@@ -50,24 +64,21 @@
     </thead>
     <tbody>
         {% for rental in rentals %}
-        <tr>
+        <tr id="rental-{{ rental.id }}">
             <td>{{ rental.rental_number }}</td>
-            <td>
-                <a href="/admin/client/{{ rental.user.id }}">{{ rental.user.full_name }}</a>
-            </td>
+            <td><a href="/admin/client/{{ rental.user.id }}">{{ rental.user.full_name }}</a></td>
             <td>{{ rental.model.brand.name }} {{ rental.model.name }}</td>
-            <td>{{ rental.start_date.strftime('%d.%m.%Y') }}<br>
-                <small>{{ rental.end_date.strftime('%d.%m.%Y') }}</small>
-            </td>
+            <td>{{ rental.start_date.strftime('%d.%m.%Y') }}<br><small>{{ rental.end_date.strftime('%d.%m.%Y') }}</small></td>
             <td>{{ rental.total_price }} ₽</td>
             <td>
-                {% if rental.status == 'active' %}
-                    🟢 Активна
-                {% elif rental.status == 'completed' %}
-                    ✅ Завершена
-                {% else %}
-                    ⚪ {{ rental.status }}
-                {% endif %}
+                <select class="status-select" data-rental-id="{{ rental.id }}" 
+                        onchange="updateStatus(this, {{ rental.id }})"
+                        style="background-color: {% if rental.status == 'active' %}#fff3e0{% elif rental.status == 'completed' %}#e8f5e8{% else %}#ffe8e8{% endif %}; 
+                               color: {% if rental.status == 'active' %}#ff9800{% elif rental.status == 'completed' %}#4CAF50{% else %}#f44336{% endif %};">
+                    <option value="active" {% if rental.status == 'active' %}selected{% endif %} style="color: #ff9800;">🟡 Активна</option>
+                    <option value="completed" {% if rental.status == 'completed' %}selected{% endif %} style="color: #4CAF50;">🟢 Завершена</option>
+                    <option value="cancelled" {% if rental.status == 'cancelled' %}selected{% endif %} style="color: #f44336;">🔴 Отменена</option>
+                </select>
             </td>
             <td>
                 <a href="/admin/catalog/rentals/{{ rental.id }}" class="button button-small">👁️</a>
@@ -80,6 +91,37 @@
         {% endfor %}
     </tbody>
 </table>
+
+<script>
+async function updateStatus(selectElement, rentalId) {
+    const newStatus = selectElement.value;
+    
+    const response = await fetch(`/admin/api/rentals/${rentalId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+    });
+    
+    if (response.ok) {
+        // Обновляем стиль select
+        if (newStatus === 'active') {
+            selectElement.style.backgroundColor = '#fff3e0';
+            selectElement.style.color = '#ff9800';
+        } else if (newStatus === 'completed') {
+            selectElement.style.backgroundColor = '#e8f5e8';
+            selectElement.style.color = '#4CAF50';
+        } else {
+            selectElement.style.backgroundColor = '#ffe8e8';
+            selectElement.style.color = '#f44336';
+        }
+    } else {
+        alert('Ошибка при обновлении статуса');
+        // Возвращаем предыдущее значение
+        const currentStatus = selectElement.querySelector('option[selected]')?.value;
+        if (currentStatus) selectElement.value = currentStatus;
+    }
+}
+</script>
 
 <!-- Пагинация -->
 {% if total_pages > 1 %}
