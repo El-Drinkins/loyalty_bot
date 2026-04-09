@@ -9,8 +9,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
         self.secret_key = secret_key
     
     async def dispatch(self, request: Request, call_next):
-        path = request.url.path
-        
-        # Временно пропускаем все запросы для проверки админки
-        print(f"🔍 Временно пропускаем: {path}")
+        # Временно отключаем проверку авторизации для отладки
+        print(f"🔍 AuthMiddleware временно отключена, пропускаем: {request.url.path}")
         return await call_next(request)
