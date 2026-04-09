@@ -5,7 +5,6 @@ from .model_routes import router as model_router
 from .rental_routes import router as rental_router
 from .stats_routes import router as stats_router
 
-# Собираем все роутеры в один
 from fastapi import APIRouter
 
 router = APIRouter()

@@ -86,7 +86,6 @@ async def api_approve_request(
     if req.status != "pending":
         raise HTTPException(400, "Заявка уже обработана")
     
-    # Создаем пользователя с установленным сроком действия баллов
     user = User(
         telegram_id=req.telegram_id,
         full_name=req.full_name or "Имя не указано",
@@ -103,7 +102,6 @@ async def api_approve_request(
     db.add(user)
     await db.flush()
     
-    # Создаём реферальную запись, если есть пригласивший
     if req.invited_by_id:
         referral = Referral(
             new_user_id=user.id,
@@ -113,12 +111,10 @@ async def api_approve_request(
         )
         db.add(referral)
     
-    # Обновляем статус заявки
     req.status = "approved"
     req.user_id = user.id
     req.reviewed_at = datetime.utcnow()
     
-    # Добавляем транзакцию на начисление бонусов
     transaction = Transaction(
         user_id=user.id,
         amount=settings.WELCOME_BONUS,
@@ -128,14 +124,12 @@ async def api_approve_request(
     
     await db.commit()
     
-    # Отправляем уведомление пользователю
     try:
         await send_telegram_notification(
             req.telegram_id,
             f"✅ Регистрация подтверждена!\n\n"
             f"Ваша заявка одобрена. Добро пожаловать в программу лояльности!\n\n"
-            f"🎁 Вам начислено {settings.WELCOME_BONUS} приветственных баллов.\n"
-            f"⏳ Баллы действительны 3 месяца.\n\n"
+            f"🎁 Вам начислено {settings.WELCOME_BONUS} приветственных баллов.\n\n"
             f"Отправьте /start для начала работы."
         )
     except Exception as e:

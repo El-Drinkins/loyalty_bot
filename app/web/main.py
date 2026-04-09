@@ -48,7 +48,7 @@ templates = Jinja2Templates(directory="app/web/templates")
 app.include_router(auth_router)
 app.include_router(web_client_router)
 
-# Админские роутеры
+# Админские роутеры с префиксами
 app.include_router(main_router, prefix="/admin")
 app.include_router(points_router, prefix="/admin")
 app.include_router(stats_router, prefix="/admin")
@@ -57,10 +57,8 @@ app.include_router(user_router, prefix="/admin")
 app.include_router(api_router, prefix="/admin")
 app.include_router(search_router, prefix="/admin")
 app.include_router(mailing_router, prefix="/admin")
-
-# Эти роутеры уже имеют свои префиксы, подключаем их БЕЗ дополнительного префикса
-app.include_router(catalog_router)          # уже имеет prefix="/catalog"
-app.include_router(admin_review_router)     # уже имеет prefix="/admin/review"
+app.include_router(catalog_router, prefix="/admin/catalog")
+app.include_router(admin_review_router, prefix="/admin/review")
 
 print("=== ЗАРЕГИСТРИРОВАННЫЕ МАРШРУТЫ ===")
 for route in app.routes:
