@@ -1,19 +1,160 @@
 from fastapi import APIRouter, Request, Form, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
-from sqlalchemy import select, func, and_, extract
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from datetime import datetime, date
 from collections import defaultdict
-import csv
-import io
+import secrets
+import string
+import hashlib
 
 from ..deps import get_db, templates, require_auth
-from ...models import User, Referral, Transaction, AdminLog, UserLog, Rental, Model, Brand, Category
+from ...models import User, Referral, Transaction, AdminLog, UserLog, Rental, Model, Brand
 
 router = APIRouter()
 
-# ... существующие функции (users_list, update_real_name, delete_user) ...
+
+@router.get("/users", response_class=HTMLResponse)
+async def users_list(
+    request: Request, 
+    page: int = 1, 
+    per_page: int = 20,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
+):
+    total_users = await db.scalar(select(func.count(User.id)))
+    
+    offset = (page - 1) * per_page
+    
+    stmt = (
+        select(User)
+        .options(selectinload(User.invited_by))
+        .order_by(User.id.desc())
+        .offset(offset)
+        .limit(per_page)
+    )
+    result = await db.execute(stmt)
+    users = result.scalars().all()
+    
+    total_pages = (total_users + per_page - 1) // per_page
+    
+    return templates.TemplateResponse("users.html", {
+        "request": request,
+        "users": users,
+        "total_users": total_users,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": total_pages
+    })
+
+
+@router.post("/user/{user_id}/update_real_name")
+async def update_real_name(
+    user_id: int,
+    real_name: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+    admin_id: int = Form(0),
+    _=Depends(require_auth)
+):
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(404, "Пользователь не найден")
+    
+    old_value = user.full_name_real
+    user.full_name_real = real_name.strip() if real_name.strip() else None
+    
+    log = AdminLog(
+        admin_id=admin_id,
+        action_type="update_real_name",
+        user_id=user_id,
+        old_value=old_value or "",
+        new_value=user.full_name_real or "",
+        reason="Обновление ФИО вручную"
+    )
+    db.add(log)
+    
+    await db.commit()
+    
+    return RedirectResponse(url="/admin/users", status_code=303)
+
+
+@router.post("/client/{user_id}/delete")
+async def delete_user(
+    user_id: int,
+    confirm_name: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+    admin_id: int = Form(0),
+    _=Depends(require_auth)
+):
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(404, "Пользователь не найден")
+    
+    if confirm_name.strip() != user.full_name:
+        raise HTTPException(400, "Имя для подтверждения не совпадает")
+    
+    try:
+        log = AdminLog(
+            admin_id=admin_id,
+            action_type="delete_user",
+            user_id=user_id,
+            old_value="",
+            new_value="",
+            reason=f"Удален пользователь {user.full_name}"
+        )
+        db.add(log)
+        
+        await db.execute(Transaction.__table__.delete().where(Transaction.user_id == user_id))
+        await db.execute(Referral.__table__.delete().where(Referral.old_user_id == user_id))
+        await db.execute(Referral.__table__.delete().where(Referral.new_user_id == user_id))
+        await db.execute(AdminLog.__table__.delete().where(AdminLog.user_id == user_id))
+        await db.execute(UserLog.__table__.delete().where(UserLog.user_id == user_id))
+        await db.execute(User.__table__.delete().where(User.id == user_id))
+        
+        await db.commit()
+        
+        return RedirectResponse(url="/admin/users?deleted=1", status_code=303)
+        
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(500, f"Ошибка при удалении: {str(e)}")
+
+
+@router.post("/client/{user_id}/reset_password")
+async def reset_user_password(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    admin_id: int = Form(0),
+    _=Depends(require_auth)
+):
+    """Сброс пароля пользователя администратором"""
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(404, "Пользователь не найден")
+    
+    alphabet = string.ascii_letters + string.digits
+    temp_password = ''.join(secrets.choice(alphabet) for _ in range(10))
+    
+    user.password_hash = hashlib.sha256(temp_password.encode()).hexdigest()
+    user.password_set_at = datetime.utcnow()
+    await db.commit()
+    
+    log = AdminLog(
+        admin_id=admin_id,
+        action_type="reset_password",
+        user_id=user_id,
+        old_value="",
+        new_value="",
+        reason=f"Сброс пароля администратором"
+    )
+    db.add(log)
+    await db.commit()
+    
+    return JSONResponse({
+        "success": True,
+        "temp_password": temp_password
+    })
 
 
 @router.get("/client/{user_id}/finance", response_class=HTMLResponse)
@@ -28,7 +169,6 @@ async def client_finance_page(
     if not user:
         raise HTTPException(404, "Пользователь не найден")
     
-    # Получаем все аренды пользователя с ПРЕДВАРИТЕЛЬНОЙ ЗАГРУЗКОЙ связанных данных
     rentals_query = (
         select(Rental)
         .where(Rental.user_id == user_id)
@@ -39,17 +179,14 @@ async def client_finance_page(
     result = await db.execute(rentals_query)
     rentals = result.scalars().all()
     
-    # 1. Общая статистика
     total_spent = sum(r.total_price for r in rentals)
     total_rentals = len(rentals)
     avg_check = total_spent // total_rentals if total_rentals > 0 else 0
     
-    # 2. Потрачено с начала текущего года
     current_year = datetime.utcnow().year
     start_of_year = date(current_year, 1, 1)
     spent_current_year = sum(r.total_price for r in rentals if r.start_date.date() >= start_of_year)
     
-    # 3. Динамика по годам
     years_data = defaultdict(lambda: {"total": 0, "count": 0})
     for rental in rentals:
         year = rental.start_date.year
@@ -65,7 +202,6 @@ async def client_finance_page(
             "avg": years_data[year]["total"] // years_data[year]["count"] if years_data[year]["count"] > 0 else 0
         })
     
-    # 4. Статистика по моделям техники
     models_data = defaultdict(lambda: {"total": 0, "count": 0, "model": None, "brand_name": ""})
     for rental in rentals:
         model_id = rental.model_id
@@ -93,10 +229,8 @@ async def client_finance_page(
             "avg": data["total"] // data["count"] if data["count"] > 0 else 0
         })
     
-    # Сортируем по убыванию потраченной суммы
     models_list.sort(key=lambda x: x["total"], reverse=True)
     
-    # Годы для фильтра
     available_years = sorted(set(r.start_date.year for r in rentals), reverse=True)
     
     return templates.TemplateResponse("client/finance.html", {
@@ -121,11 +255,11 @@ async def export_finance_csv(
     db: AsyncSession = Depends(get_db),
     _=Depends(require_auth)
 ):
+    from fastapi.responses import Response
     user = await db.get(User, user_id)
     if not user:
         raise HTTPException(404, "Пользователь не найден")
     
-    # Получаем все аренды пользователя с загрузкой связанных данных
     rentals = await db.execute(
         select(Rental, Model, Brand)
         .join(Model, Rental.model_id == Model.id)
@@ -135,11 +269,11 @@ async def export_finance_csv(
     )
     rentals = rentals.all()
     
-    # Создаём CSV
+    import csv
+    import io
     output = io.StringIO()
     writer = csv.writer(output, delimiter=';')
     
-    # Заголовки
     writer.writerow(['Номер аренды', 'Модель', 'Бренд', 'Дата начала', 'Дата окончания', 'Сумма', 'Статус'])
     
     for rental, model, brand in rentals:
@@ -153,7 +287,6 @@ async def export_finance_csv(
             rental.status
         ])
     
-    # Отправляем файл
     return Response(
         content=output.getvalue().encode('utf-8-sig'),
         media_type="text/csv",
