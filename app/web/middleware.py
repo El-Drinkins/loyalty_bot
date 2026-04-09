@@ -3,15 +3,6 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse
 import time
 
-# Список маршрутов, которые доступны без авторизации для админки
-PUBLIC_PATHS = [
-    "/login",
-    "/logout",
-    "/static",
-    "/public",
-    "/client",
-]
-
 class AuthMiddleware(BaseHTTPMiddleware):
     """Middleware для проверки аутентификации в админке"""
     
@@ -22,13 +13,29 @@ class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
         
-        # СНАЧАЛА проверяем публичные пути
+        # Все пути, которые НЕ требуют авторизации
+        PUBLIC_PATHS = [
+            "/login",
+            "/logout", 
+            "/static",
+            "/public",
+            "/client",
+            "/client/login",
+            "/client/telegram-auth",
+            "/client/reset-password"
+        ]
+        
+        # Проверяем, публичный ли путь
+        is_public = False
         for public_path in PUBLIC_PATHS:
             if path == public_path or path.startswith(public_path + "/"):
-                return await call_next(request)
+                is_public = True
+                break
         
-        # ТОЛЬКО ДЛЯ НЕПУБЛИЧНЫХ ПУТЕЙ проверяем авторизацию
-        # Проверяем наличие сессии
+        if is_public:
+            return await call_next(request)
+        
+        # Для всех остальных путей (админка) проверяем авторизацию
         if "session" not in request.scope:
             return RedirectResponse(url="/login", status_code=303)
         
