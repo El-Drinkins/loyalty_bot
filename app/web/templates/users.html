@@ -54,13 +54,13 @@
             <td>{{ user.registration_date.strftime('%d.%m.%Y %H:%M') }}</td>
             <td>
                 {% if user.invited_by %}
-                    <a href="/client/{{ user.invited_by.id }}">{{ user.invited_by.full_name }}</a>
+                    <a href="/admin/client/{{ user.invited_by.id }}">{{ user.invited_by.full_name }}</a>
                 {% else %}
                     —
                 {% endif %}
             </td>
             <td>
-                <a href="/admin/client/{{ user.id }}" class="button button-small">Карточка</a>
+                <a href="/admin/admin/client/{{ user.id }}" class="button button-small">Карточка</a>
             </td>
         </tr>
         {% endfor %}
