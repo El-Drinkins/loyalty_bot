@@ -13,7 +13,8 @@ from ...models import User, Referral, Transaction, AdminLog, UserLog, Rental, Mo
 
 router = APIRouter()
 
-# ... существующие функции ...
+# ... существующие функции (users_list, update_real_name, delete_user) ...
+
 
 @router.get("/client/{user_id}/finance", response_class=HTMLResponse)
 async def client_finance_page(
@@ -27,8 +28,14 @@ async def client_finance_page(
     if not user:
         raise HTTPException(404, "Пользователь не найден")
     
-    # Получаем все аренды пользователя
-    rentals_query = select(Rental).where(Rental.user_id == user_id)
+    # Получаем все аренды пользователя с ПРЕДВАРИТЕЛЬНОЙ ЗАГРУЗКОЙ связанных данных
+    rentals_query = (
+        select(Rental)
+        .where(Rental.user_id == user_id)
+        .options(
+            selectinload(Rental.model).selectinload(Model.brand)
+        )
+    )
     result = await db.execute(rentals_query)
     rentals = result.scalars().all()
     
@@ -59,7 +66,7 @@ async def client_finance_page(
         })
     
     # 4. Статистика по моделям техники
-    models_data = defaultdict(lambda: {"total": 0, "count": 0, "model": None})
+    models_data = defaultdict(lambda: {"total": 0, "count": 0, "model": None, "brand_name": ""})
     for rental in rentals:
         model_id = rental.model_id
         if year_filter and rental.start_date.year != year_filter:
@@ -68,13 +75,19 @@ async def client_finance_page(
         models_data[model_id]["count"] += 1
         if not models_data[model_id]["model"]:
             models_data[model_id]["model"] = rental.model
+            if rental.model and rental.model.brand:
+                models_data[model_id]["brand_name"] = rental.model.brand.name
     
     models_list = []
     for model_id, data in models_data.items():
         model = data["model"]
+        if model:
+            model_name = f"{data['brand_name']} {model.name}" if data['brand_name'] else model.name
+        else:
+            model_name = f"Модель #{model_id} (удалена)"
         models_list.append({
-            "id": model.id,
-            "name": f"{model.brand.name} {model.name}",
+            "id": model_id,
+            "name": model_name,
             "total": data["total"],
             "count": data["count"],
             "avg": data["total"] // data["count"] if data["count"] > 0 else 0
@@ -112,7 +125,7 @@ async def export_finance_csv(
     if not user:
         raise HTTPException(404, "Пользователь не найден")
     
-    # Получаем все аренды пользователя
+    # Получаем все аренды пользователя с загрузкой связанных данных
     rentals = await db.execute(
         select(Rental, Model, Brand)
         .join(Model, Rental.model_id == Model.id)
@@ -141,7 +154,6 @@ async def export_finance_csv(
         ])
     
     # Отправляем файл
-    from fastapi.responses import Response
     return Response(
         content=output.getvalue().encode('utf-8-sig'),
         media_type="text/csv",
