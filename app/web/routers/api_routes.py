@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Form
+from fastapi import APIRouter, Depends, HTTPException, Form, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -148,7 +148,6 @@ async def update_rental_status(
     _=Depends(require_auth)
 ):
     """Обновляет статус аренды"""
-    from fastapi import Request
     data = await request.json()
     new_status = data.get("status")
     
