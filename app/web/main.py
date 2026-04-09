@@ -31,13 +31,13 @@ app.add_middleware(
     same_site="lax"
 )
 
-# AuthMiddleware для админки
+# AuthMiddleware для админки (временно отключён для отладки)
 app.add_middleware(
     AuthMiddleware,
     secret_key="your-secret-key-here-change-this-in-production"
 )
 
-# Подключаем статические файлы веб-версии из папки public
+# Подключаем статические файлы веб-версии
 public_dir = os.path.join(os.path.dirname(__file__), "public")
 if os.path.exists(public_dir):
     app.mount("/public", StaticFiles(directory=public_dir), name="public")
@@ -48,19 +48,21 @@ else:
 # Подключаем шаблоны
 templates = Jinja2Templates(directory="app/web/templates")
 
-# Подключаем все роутеры (ВАЖНО: web_client_router ДО main_router)
+# Подключаем все роутеры
 app.include_router(auth_router)
-app.include_router(web_client_router)      # <--- ДОЛЖЕН БЫТЬ ПЕРВЫМ
-app.include_router(main_router)
-app.include_router(points_router)
-app.include_router(stats_router)
-app.include_router(admin_router)
-app.include_router(user_router)
-app.include_router(api_router)
-app.include_router(catalog_router, prefix="/catalog")
-app.include_router(search_router)
-app.include_router(admin_review_router)
-app.include_router(mailing_router)
+app.include_router(web_client_router)
+
+# Админские роутеры с префиксом /admin
+app.include_router(main_router, prefix="/admin")
+app.include_router(points_router, prefix="/admin")
+app.include_router(stats_router, prefix="/admin")
+app.include_router(admin_router, prefix="/admin")
+app.include_router(user_router, prefix="/admin")
+app.include_router(api_router, prefix="/admin")
+app.include_router(catalog_router, prefix="/admin/catalog")
+app.include_router(search_router, prefix="/admin")
+app.include_router(admin_review_router, prefix="/admin")
+app.include_router(mailing_router, prefix="/admin")
 
 print("=== ЗАРЕГИСТРИРОВАННЫЕ МАРШРУТЫ ===")
 for route in app.routes:
