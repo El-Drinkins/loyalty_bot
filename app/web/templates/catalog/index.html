@@ -44,17 +44,17 @@
         {% endfor %}
         
         <div style="margin-top: 20px;">
-            <a href="/catalog/brands?category={{ category.id }}" class="button button-small">Управление</a>
+            <a href="/admin/catalog/brands?category={{ category.id }}" class="button button-small">Управление</a>
         </div>
     </div>
     {% endfor %}
 </div>
 
 <div style="margin-top: 30px; display: flex; gap: 10px; justify-content: center;">
-    <a href="/catalog/categories" class="button">📁 Категории</a>
-    <a href="/catalog/brands" class="button">🏷️ Бренды</a>
-    <a href="/catalog/models" class="button">📷 Модели</a>
-    <a href="/catalog/rentals" class="button">📦 Аренды</a>
-    <a href="/catalog/stats" class="button">📊 Статистика</a>
+    <a href="/admin/catalog/categories" class="button">📁 Категории</a>
+    <a href="/admin/catalog/brands" class="button">🏷️ Бренды</a>
+    <a href="/admin/catalog/models" class="button">📷 Модели</a>
+    <a href="/admin/catalog/rentals" class="button">📦 Аренды</a>
+    <a href="/admin/catalog/stats" class="button">📊 Статистика</a>
 </div>
 {% endblock %}

@@ -2,7 +2,7 @@
 {% block content %}
 <h1>📦 Детали аренды {{ rental.rental_number }}</h1>
 
-<a href="/catalog/rentals" class="button" style="margin-bottom: 20px;">◀️ Назад к списку</a>
+<a href="/admin/catalog/rentals" class="button" style="margin-bottom: 20px;">◀️ Назад к списку</a>
 
 <div style="background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
@@ -60,8 +60,8 @@
     </div>
     
     <div style="margin-top: 20px; display: flex; gap: 10px;">
-        <a href="/catalog/rentals/{{ rental.id }}/edit" class="button">✏️ Редактировать</a>
-        <form action="/catalog/rentals/{{ rental.id }}/delete" method="post" style="display: inline;">
+        <a href="/admin/catalog/rentals/{{ rental.id }}/edit" class="button">✏️ Редактировать</a>
+        <form action="/admin/catalog/rentals/{{ rental.id }}/delete" method="post" style="display: inline;">
             <button type="submit" class="button button-red" onclick="return confirm('Удалить аренду?')">🗑️ Удалить</button>
         </form>
         <a href="/admin/client/{{ rental.user.id }}" class="button">👤 Карточка клиента</a>

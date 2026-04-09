@@ -2,7 +2,7 @@
 {% block content %}
 <h1>📊 Статистика: {{ model.name }}</h1>
 
-<a href="/catalog/models" class="button" style="margin-bottom: 20px;">◀️ Назад к списку</a>
+<a href="/admin/catalog/models" class="button" style="margin-bottom: 20px;">◀️ Назад к списку</a>
 
 <div class="stats-grid" style="margin-bottom: 30px;">
     <div class="stat-card">
@@ -50,7 +50,7 @@
                 {% endif %}
             </td>
             <td>
-                <a href="/catalog/rentals/{{ rental.id }}" class="button button-small">👁️</a>
+                <a href="/admin/catalog/rentals/{{ rental.id }}" class="button button-small">👁️</a>
             </td>
         </tr>
         {% endfor %}
@@ -61,6 +61,6 @@
 {% endif %}
 
 <div style="margin-top: 20px;">
-    <a href="/catalog/models/{{ model.id }}/edit" class="button">✏️ Редактировать модель</a>
+    <a href="/admin/catalog/models/{{ model.id }}/edit" class="button">✏️ Редактировать модель</a>
 </div>
 {% endblock %}

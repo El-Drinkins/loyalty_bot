@@ -2,7 +2,7 @@
 {% block content %}
 <h1>{% if model %}✏️ Редактирование модели{% else %}➕ Добавление модели{% endif %}</h1>
 
-<a href="/catalog/models" class="button" style="margin-bottom: 20px;">◀️ Назад к списку</a>
+<a href="/admin/catalog/models" class="button" style="margin-bottom: 20px;">◀️ Назад к списку</a>
 
 <form method="post" style="background: white; padding: 20px; border-radius: 8px;">
     {% if model %}
@@ -67,7 +67,7 @@
     
     <div style="display: flex; gap: 10px;">
         <button type="submit" class="button">{% if model %}Сохранить изменения{% else %}Добавить модель{% endif %}</button>
-        <a href="/catalog/models" class="button button-red">Отмена</a>
+        <a href="/admin/catalog/models" class="button button-red">Отмена</a>
     </div>
 </form>
 {% endblock %}

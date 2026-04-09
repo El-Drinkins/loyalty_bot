@@ -2,7 +2,7 @@
 {% block content %}
 <h1>{% if rental %}✏️ Редактирование аренды{% else %}➕ Добавление аренды{% endif %}</h1>
 
-<a href="/catalog/rentals" class="button" style="margin-bottom: 20px;">◀️ Назад к списку</a>
+<a href="/admin/catalog/rentals" class="button" style="margin-bottom: 20px;">◀️ Назад к списку</a>
 
 <form method="post" style="background: white; padding: 20px; border-radius: 8px;" onsubmit="updateTotalPrice()">
     <div style="margin-bottom: 15px;">
@@ -90,7 +90,7 @@
     
     <div style="display: flex; gap: 10px;">
         <button type="submit" class="button">{% if rental %}Сохранить изменения{% else %}Добавить аренду{% endif %}</button>
-        <a href="/catalog/rentals" class="button button-red">Отмена</a>
+        <a href="/admin/catalog/rentals" class="button button-red">Отмена</a>
     </div>
 </form>
 
