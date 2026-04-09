@@ -40,6 +40,10 @@ class User(Base):
     verified_by_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
     badge: Mapped[str] = mapped_column(String(10), default="🟢")
     
+    # Поля для веб-версии (пароль)
+    password_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    password_set_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    
     # Связи (будут заполнены после импорта всех моделей)
     invited_by: Mapped[Optional["User"]] = relationship(
         "User", 
