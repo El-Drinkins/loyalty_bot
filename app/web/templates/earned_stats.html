@@ -118,7 +118,7 @@
         <tr>
             <td>{{ earned.timestamp.strftime('%d.%m.%Y %H:%M') }}</td>
             <td>
-                <a href="/client/{{ earned.user_id }}">{{ earned.user_name }}</a>
+                <a href="/admin/client/{{ earned.user_id }}">{{ earned.user_name }}</a>
             </td>
             <td style="color: green; font-weight: bold;">+{{ earned.amount }} ⭐</td>
             <td>{{ earned.reason }}</td>

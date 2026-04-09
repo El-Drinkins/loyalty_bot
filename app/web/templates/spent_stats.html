@@ -118,7 +118,7 @@
         <tr>
             <td>{{ spent.timestamp.strftime('%d.%m.%Y %H:%M') }}</td>
             <td>
-                <a href="/client/{{ spent.user_id }}">{{ spent.user_name }}</a>
+                <a href="/admin/client/{{ spent.user_id }}">{{ spent.user_name }}</a>
             </td>
             <td style="color: red; font-weight: bold;">-{{ spent.amount }} ⭐</td>
             <td>{{ spent.reason }}</td>
