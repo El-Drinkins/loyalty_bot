@@ -22,7 +22,6 @@ from .middleware import AuthMiddleware
 
 app = FastAPI()
 
-# SessionMiddleware
 app.add_middleware(
     SessionMiddleware,
     secret_key="your-secret-key-here-change-this-in-production",
@@ -31,13 +30,11 @@ app.add_middleware(
     same_site="lax"
 )
 
-# AuthMiddleware для админки (временно отключён для отладки)
 app.add_middleware(
     AuthMiddleware,
     secret_key="your-secret-key-here-change-this-in-production"
 )
 
-# Подключаем статические файлы веб-версии
 public_dir = os.path.join(os.path.dirname(__file__), "public")
 if os.path.exists(public_dir):
     app.mount("/public", StaticFiles(directory=public_dir), name="public")
@@ -45,14 +42,13 @@ if os.path.exists(public_dir):
 else:
     print(f"⚠️ Папка public не найдена: {public_dir}")
 
-# Подключаем шаблоны
 templates = Jinja2Templates(directory="app/web/templates")
 
 # Подключаем все роутеры
 app.include_router(auth_router)
 app.include_router(web_client_router)
 
-# Админские роутеры (без лишних префиксов, так как они уже есть в самих роутерах)
+# Админские роутеры
 app.include_router(main_router, prefix="/admin")
 app.include_router(points_router, prefix="/admin")
 app.include_router(stats_router, prefix="/admin")
@@ -62,9 +58,9 @@ app.include_router(api_router, prefix="/admin")
 app.include_router(search_router, prefix="/admin")
 app.include_router(mailing_router, prefix="/admin")
 
-# Эти роутеры уже имеют свои префиксы, не добавляем лишний
-app.include_router(catalog_router)        # уже имеет prefix="/catalog"
-app.include_router(admin_review_router)   # уже имеет prefix="/admin/review"
+# Эти роутеры уже имеют свои префиксы, подключаем их БЕЗ дополнительного префикса
+app.include_router(catalog_router)          # уже имеет prefix="/catalog"
+app.include_router(admin_review_router)     # уже имеет prefix="/admin/review"
 
 print("=== ЗАРЕГИСТРИРОВАННЫЕ МАРШРУТЫ ===")
 for route in app.routes:
