@@ -10,22 +10,29 @@
         document.body.classList.add('dark');
     }
     
-    // Переключатель темы (кнопка в меню)
-    const themeSwitch = document.getElementById('theme-switch-mobile');
-    if (themeSwitch) {
-        // Устанавливаем правильный текст при загрузке
-        const isDark = document.body.classList.contains('dark');
-        themeSwitch.textContent = isDark ? '☀️ Светлая' : '🌙 Тема';
-        
-        themeSwitch.addEventListener('click', () => {
-            document.body.classList.toggle('dark');
-            const isDarkNow = document.body.classList.contains('dark');
-            localStorage.setItem('theme', isDarkNow ? 'dark' : 'light');
-            
-            // Меняем текст кнопки
-            themeSwitch.textContent = isDarkNow ? '☀️ Светлая' : '🌙 Тема';
-        });
+    function initThemeButton() {
+        const themeSwitch = document.getElementById('theme-switch-mobile');
+        if (themeSwitch) {
+            const isDark = document.body.classList.contains('dark');
+            themeSwitch.textContent = isDark ? '☀️ Светлая' : '🌙 Тема';
+            themeSwitch.removeEventListener('click', themeClickHandler);
+            themeSwitch.addEventListener('click', themeClickHandler);
+        }
     }
+    
+    function themeClickHandler() {
+        document.body.classList.toggle('dark');
+        const isDarkNow = document.body.classList.contains('dark');
+        localStorage.setItem('theme', isDarkNow ? 'dark' : 'light');
+        
+        const themeSwitch = document.getElementById('theme-switch-mobile');
+        if (themeSwitch) {
+            themeSwitch.textContent = isDarkNow ? '☀️ Светлая' : '🌙 Тема';
+        }
+    }
+    
+    document.addEventListener('DOMContentLoaded', initThemeButton);
+    setTimeout(initThemeButton, 500);
 })();
 
 // ==========================================
@@ -52,7 +59,6 @@ function copyReferralLink() {
         input.setSelectionRange(0, 99999);
         document.execCommand('copy');
         
-        // Показываем уведомление
         const button = event.target;
         const originalText = button.textContent;
         button.textContent = '✅ Скопировано!';
@@ -81,7 +87,6 @@ function formatPhoneNumber(input) {
     input.value = formatted;
 }
 
-// Применяем форматирование к полям телефона
 document.addEventListener('DOMContentLoaded', function() {
     const phoneInputs = document.querySelectorAll('input[type="tel"]');
     phoneInputs.forEach(input => {
