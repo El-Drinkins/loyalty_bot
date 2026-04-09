@@ -132,7 +132,7 @@ async def user_logs_page(
         "user_name": user_name
     })
 
-@router.post("/client/{user_id}/add_to_blacklist")
+@router.post("/admin/client/{user_id}/add_to_blacklist")
 async def add_to_blacklist(
     user_id: int,
     reason: str = Form(...),
@@ -187,9 +187,9 @@ async def add_to_blacklist(
     except Exception as e:
         print(f"Failed to send blacklist notification: {e}")
     
-    return RedirectResponse(url=f"/client/{user_id}", status_code=303)
+    return RedirectResponse(url=f"/admin/client/{user_id}", status_code=303)
 
-@router.post("/client/{user_id}/remove_from_blacklist")
+@router.post("/admin/client/{user_id}/remove_from_blacklist")
 async def remove_from_blacklist(
     user_id: int,
     db: AsyncSession = Depends(get_db),
@@ -239,7 +239,7 @@ async def remove_from_blacklist(
     except Exception as e:
         print(f"Failed to send unblock notification: {e}")
     
-    return RedirectResponse(url=f"/client/{user_id}", status_code=303)
+    return RedirectResponse(url=f"/admin/client/{user_id}", status_code=303)
 
 @router.get("/blacklist", response_class=HTMLResponse)
 async def blacklist_page(
