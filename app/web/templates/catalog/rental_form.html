@@ -4,7 +4,7 @@
 
 <a href="/admin/catalog/rentals" class="button" style="margin-bottom: 20px;">◀️ Назад к списку</a>
 
-<form method="post" style="background: white; padding: 20px; border-radius: 8px;" onsubmit="updateTotalPrice()">
+<form method="post" style="background: white; padding: 20px; border-radius: 8px;">
     <div style="margin-bottom: 15px;">
         <label style="display: block; margin-bottom: 5px; font-weight: bold;">Номер аренды:</label>
         <input type="text" name="rental_number" value="{{ rental.rental_number if rental else rental_number }}" readonly style="width: 100%; padding: 8px; background: #f5f5f5;">
@@ -58,10 +58,14 @@
     </div>
     
     <div style="margin-bottom: 15px;">
-        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Итого (₽):</label>
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Итоговая сумма (₽):</label>
         <input type="number" name="total_price" id="total_price" 
                value="{{ rental.total_price if rental else '' }}" 
-               required style="width: 100%; padding: 8px;" readonly>
+               required style="width: 100%; padding: 8px; background-color: #fff9e6;">
+        <small style="color: #666; display: block; margin-top: 5px;">
+            💡 Рассчитано автоматически: <span id="calculated_total">0</span> ₽<br>
+            Вы можете скорректировать сумму вручную (например, для скидки за длительную аренду)
+        </small>
     </div>
     
     <div style="margin-bottom: 15px;">
@@ -74,9 +78,9 @@
     <div style="margin-bottom: 15px;">
         <label style="display: block; margin-bottom: 5px; font-weight: bold;">Статус:</label>
         <select name="status" style="width: 100%; padding: 8px;">
-            <option value="active" {% if not rental or rental.status == 'active' %}selected{% endif %}>🟢 Активна</option>
-            <option value="completed" {% if rental and rental.status == 'completed' %}selected{% endif %}>✅ Завершена</option>
-            <option value="cancelled" {% if rental and rental.status == 'cancelled' %}selected{% endif %}>❌ Отменена</option>
+            <option value="active" {% if not rental or rental.status == 'active' %}selected{% endif %}>🟡 Активна</option>
+            <option value="completed" {% if rental and rental.status == 'completed' %}selected{% endif %}>🟢 Завершена</option>
+            <option value="cancelled" {% if rental and rental.status == 'cancelled' %}selected{% endif %}>🔴 Отменена</option>
         </select>
     </div>
     
@@ -88,8 +92,9 @@
     <!-- Скрытое поле для ID администратора -->
     <input type="hidden" name="admin_id" value="{{ admin_id }}">
     
-    <div style="display: flex; gap: 10px;">
+    <div style="margin-top: 20px; display: flex; gap: 10px;">
         <button type="submit" class="button">{% if rental %}Сохранить изменения{% else %}Добавить аренду{% endif %}</button>
+        <button type="button" class="button button-secondary" onclick="resetToCalculated()">🔄 Вернуть рассчитанную сумму</button>
         <a href="/admin/catalog/rentals" class="button button-red">Отмена</a>
     </div>
 </form>
@@ -110,21 +115,63 @@ function updatePrice() {
     }
 }
 
-function updateTotalPrice() {
+function calculateTotal() {
     const pricePerDay = parseInt(document.getElementById('price_per_day').value) || 0;
     const startDate = new Date(document.getElementById('start_date').value);
     const endDate = new Date(document.getElementById('end_date').value);
     
     if (startDate && endDate && startDate < endDate) {
         const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
-        const total = pricePerDay * days;
-        document.getElementById('total_price').value = total;
+        return pricePerDay * days;
+    }
+    return 0;
+}
+
+function updateTotalPrice() {
+    const calculated = calculateTotal();
+    document.getElementById('calculated_total').textContent = calculated;
+    
+    // Если поле итоговой суммы пустое или равно старому расчёту, обновляем его
+    const totalInput = document.getElementById('total_price');
+    const currentValue = parseInt(totalInput.value) || 0;
+    const oldCalculated = parseInt(totalInput.getAttribute('data-calculated') || '0');
+    
+    if (currentValue === 0 || currentValue === oldCalculated) {
+        totalInput.value = calculated;
+        totalInput.setAttribute('data-calculated', calculated);
     }
 }
+
+function resetToCalculated() {
+    const calculated = calculateTotal();
+    document.getElementById('total_price').value = calculated;
+    document.getElementById('total_price').setAttribute('data-calculated', calculated);
+}
+
+// Сохраняем рассчитанное значение при изменении полей
+document.getElementById('price_per_day').addEventListener('change', function() {
+    updateTotalPrice();
+});
+document.getElementById('start_date').addEventListener('change', function() {
+    updateTotalPrice();
+});
+document.getElementById('end_date').addEventListener('change', function() {
+    updateTotalPrice();
+});
 
 // При загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
     updatePrice();
+    updateTotalPrice();
 });
 </script>
+
+<style>
+.button-secondary {
+    background-color: #666;
+}
+.button-secondary:hover {
+    background-color: #555;
+}
+</style>
 {% endblock %}

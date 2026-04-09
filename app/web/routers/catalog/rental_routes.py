@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from ...deps import get_db, templates, require_auth
 from ....models import User, Model, Brand, Category, Rental
@@ -18,6 +18,7 @@ async def rentals_list(
     per_page: int = 20,
     status: str = "",
     user_id: int = None,
+    model_id: int = None,
     db: AsyncSession = Depends(get_db),
     _=Depends(require_auth)
 ):
@@ -30,6 +31,8 @@ async def rentals_list(
         query = query.where(Rental.status == status)
     if user_id:
         query = query.where(Rental.user_id == user_id)
+    if model_id:
+        query = query.where(Rental.model_id == model_id)
     
     total_count = await db.scalar(select(func.count()).select_from(query.subquery()))
     offset = (page - 1) * per_page
@@ -51,6 +54,7 @@ async def rentals_list(
         "total_count": total_count,
         "status_filter": status,
         "user_filter": user_id,
+        "model_filter": model_id,
         "active_count": active_count,
         "completed_count": completed_count
     })
@@ -117,6 +121,13 @@ async def rental_add(
     )
     
     db.add(rental)
+    
+    # Обновляем срок действия баллов пользователя
+    if user_id:
+        user = await db.get(User, user_id)
+        if user:
+            user.points_expiry_date = datetime.utcnow() + timedelta(days=90)
+    
     await db.commit()
     
     return RedirectResponse(url="/admin/catalog/rentals", status_code=303)
@@ -181,6 +192,11 @@ async def rental_edit(
     rental.notes = notes
     rental.status = status
     rental.updated_at = datetime.utcnow()
+    
+    # Обновляем срок действия баллов у пользователя
+    user = await db.get(User, user_id)
+    if user:
+        user.points_expiry_date = datetime.utcnow() + timedelta(days=90)
     
     await db.commit()
     return RedirectResponse(url="/admin/catalog/rentals", status_code=303)
