@@ -40,7 +40,7 @@ async def client_finance_page(
     # 2. Потрачено с начала текущего года
     current_year = datetime.utcnow().year
     start_of_year = date(current_year, 1, 1)
-    spent_current_year = sum(r.total_price for r in rentals if r.start_date >= start_of_year)
+    spent_current_year = sum(r.total_price for r in rentals if r.start_date.date() >= start_of_year)
     
     # 3. Динамика по годам
     years_data = defaultdict(lambda: {"total": 0, "count": 0})
