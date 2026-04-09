@@ -10,7 +10,8 @@ from ..deps import templates
 router = APIRouter(tags=["auth"])
 
 # Пароль администратора (хранится в хэшированном виде)
-ADMIN_PASSWORD_HASH = hashlib.sha256("4Ue768k3u!".encode()).hexdigest()
+# По умолчанию пароль: admin123
+ADMIN_PASSWORD_HASH = hashlib.sha256("admin123".encode()).hexdigest()
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -18,9 +19,9 @@ async def login_page(request: Request, error: str = None):
     """
     Страница входа в админку
     """
-    # Если уже авторизован — перенаправляем на главную
+    # Если уже авторизован — перенаправляем в админку
     if request.session.get("authenticated"):
-        return RedirectResponse(url="/", status_code=303)
+        return RedirectResponse(url="/admin/", status_code=303)
     
     return templates.TemplateResponse("login.html", {
         "request": request,
@@ -43,7 +44,7 @@ async def login(
         # Пароль верный — создаём сессию
         request.session["authenticated"] = True
         request.session["expires_at"] = time.time() + 3600 * 24  # 24 часа
-        return RedirectResponse(url="/", status_code=303)
+        return RedirectResponse(url="/admin/", status_code=303)
     else:
         # Неверный пароль
         return RedirectResponse(

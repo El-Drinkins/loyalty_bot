@@ -4,14 +4,16 @@ from starlette.responses import RedirectResponse
 import time
 
 class AuthMiddleware(BaseHTTPMiddleware):
+    """Middleware для проверки аутентификации в админке"""
+    
     def __init__(self, app, secret_key: str):
         super().__init__(app)
         self.secret_key = secret_key
     
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
-        print(f"🔍 AuthMiddleware: path={path}")
         
+        # Все пути, которые НЕ требуют авторизации
         PUBLIC_PATHS = [
             "/login",
             "/logout", 
@@ -23,6 +25,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/client/reset-password"
         ]
         
+        # Проверяем, публичный ли путь
         is_public = False
         for public_path in PUBLIC_PATHS:
             if path == public_path or path.startswith(public_path + "/"):
@@ -34,7 +37,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
             print(f"➡️ Пропускаем публичный путь: {path}")
             return await call_next(request)
         
+        # Для всех остальных путей (админка) проверяем авторизацию
         print(f"🔒 Требуется авторизация: {path}")
+        
+        # Проверяем наличие сессии
         if "session" not in request.scope:
             print(f"❌ Нет session в scope, редирект на /login")
             return RedirectResponse(url="/login", status_code=303)
