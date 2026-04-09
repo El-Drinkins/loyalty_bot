@@ -89,7 +89,7 @@
         
         <div style="margin-bottom: 10px;">
             <h4 style="margin: 0 0 5px 0;">📝 Примечания администратора:</h4>
-            <form action="/user/{{ user.id }}/update_notes" method="post" style="display: flex; gap: 10px;">
+            <form action="/admin/user/{{ user.id }}/update_notes" method="post" style="display: flex; gap: 10px;">
                 <textarea name="notes" rows="3" style="flex: 1; padding: 8px;">{{ user.admin_notes or '' }}</textarea>
                 <button type="submit" class="button button-small">💾 Сохранить</button>
             </form>
