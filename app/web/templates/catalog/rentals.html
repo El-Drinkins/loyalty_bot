@@ -53,7 +53,7 @@
         <tr>
             <td>{{ rental.rental_number }}</td>
             <td>
-                <a href="/client/{{ rental.user.id }}">{{ rental.user.full_name }}</a>
+                <a href="/admin/client/{{ rental.user.id }}">{{ rental.user.full_name }}</a>
             </td>
             <td>{{ rental.model.brand.name }} {{ rental.model.name }}</td>
             <td>{{ rental.start_date.strftime('%d.%m.%Y') }}<br>

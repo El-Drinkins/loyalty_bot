@@ -55,7 +55,7 @@
             <td>{{ user.balance }} ⭐</td>
             <td>{{ user.invited_by.full_name if user.invited_by else '—' }}</td>
             <td>
-                <a href="/client/{{ user.id }}" class="button button-small">Карточка</a>
+                <a href="/admin/client/{{ user.id }}" class="button button-small">Карточка</a>
             </td>
         </tr>
         {% endfor %}

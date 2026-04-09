@@ -47,7 +47,7 @@
         <div style="border-left: 4px solid #2196F3; margin-bottom: 15px; padding: 10px; background-color: white; border-radius: 0 8px 8px 0;">
             <div style="display: flex; justify-content: space-between; color: #666; font-size: 12px;">
                 <span>⏱️ <span class="log-time" data-utc="{{ log.created_at.isoformat() }}">{{ log.created_at.strftime('%H:%M:%S') }}</span></span>
-                <span>👤 <a href="/client/{{ log.user_id }}">{{ log.user_name }}</a></span>
+                <span>👤 <a href="/admin/client/{{ log.user_id }}">{{ log.user_name }}</a></span>
             </div>
             
             <div style="margin: 5px 0;">
@@ -108,7 +108,7 @@
 <div style="margin-top: 20px; text-align: center;">
     <a href="/" class="button">🏠 На главную</a>
     {% if user_filter %}
-    <a href="/client/{{ user_filter }}" class="button">👤 Вернуться к карточке</a>
+    <a href="/admin/client/{{ user_filter }}" class="button">👤 Вернуться к карточке</a>
     {% endif %}
 </div>
 

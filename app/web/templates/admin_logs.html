@@ -54,7 +54,7 @@
             
             <div style="margin: 5px 0;">
                 <strong>Пользователь:</strong> 
-                <a href="/client/{{ log.user_id }}">{{ log.user_name or 'ID: ' + log.user_id|string }}</a>
+                <a href="/admin/client/{{ log.user_id }}">{{ log.user_name or 'ID: ' + log.user_id|string }}</a>
             </div>
             
             {% if log.old_value or log.new_value %}

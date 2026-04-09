@@ -27,7 +27,7 @@
                 <td>{{ user.blacklisted_at.strftime('%d.%m.%Y %H:%M') if user.blacklisted_at else '—' }}</td>
                 <td>{{ user.blacklist_reason or '—' }}</td>
                 <td>
-                    <a href="/client/{{ user.id }}" class="button button-small">Карточка</a>
+                    <a href="/admin/client/{{ user.id }}" class="button button-small">Карточка</a>
                     <form action="/client/{{ user.id }}/remove_from_blacklist" method="post" style="display: inline;">
                         <input type="hidden" name="admin_id" value="0">
                         <button type="submit" class="button button-small" style="background-color: #4CAF50;">✅ Разблокировать</button>

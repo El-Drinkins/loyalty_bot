@@ -12,7 +12,7 @@
             <strong>{{ ref.new_user.full_name }}</strong> ({{ ref.new_user.phone }})<br>
             Пригласил: 
             {% if ref.old_user %}
-                <a href="/client/{{ ref.old_user.id }}">{{ ref.old_user.full_name }}</a>
+                <a href="/admin/client/{{ ref.old_user.id }}">{{ ref.old_user.full_name }}</a>
             {% else %}
                 неизвестно
             {% endif %}
@@ -22,7 +22,7 @@
                 <input type="hidden" name="admin_id" value="0">
                 <button type="submit" class="button button-small">✅ Подтвердить первую аренду</button>
             </form>
-            <a href="/client/{{ ref.new_user.id }}" class="button button-small">Карточка новичка</a>
+            <a href="/admin/client/{{ ref.new_user.id }}" class="button button-small">Карточка новичка</a>
         </li>
     {% endfor %}
     </ul>

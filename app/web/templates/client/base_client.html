@@ -40,7 +40,7 @@
     <p>
         <strong>👤 Пригласивший:</strong>
         {% if inviter %}
-            <a href="/client/{{ inviter.id }}">{{ inviter.full_name }}</a>
+            <a href="/admin/client/{{ inviter.id }}">{{ inviter.full_name }}</a>
             <button onclick="showAssignReferralModal()" class="button button-small" style="margin-left: 10px;">✏️ Изменить</button>
         {% else %}
             <span style="color: #999;">не указан</span>

@@ -93,7 +93,7 @@
             <td>{{ client.count }}</td>
             <td>{{ client.avg }} ⭐</td>
             <td>
-                <a href="/client/{{ client.id }}" class="button button-small">Карточка</a>
+                <a href="/admin/client/{{ client.id }}" class="button button-small">Карточка</a>
             </td>
         </tr>
         {% endfor %}
@@ -118,13 +118,13 @@
         <tr>
             <td>{{ earned.timestamp.strftime('%d.%m.%Y %H:%M') }}</td>
             <td>
-                <a href="/admin/client/{{ earned.user_id }}">{{ earned.user_name }}</a>
+                <a href="/admin/admin/client/{{ earned.user_id }}">{{ earned.user_name }}</a>
             </td>
             <td style="color: green; font-weight: bold;">+{{ earned.amount }} ⭐</td>
             <td>{{ earned.reason }}</td>
             <td>{{ earned.admin_id or '—' }}</td>
             <td>
-                <a href="/client/{{ earned.user_id }}" class="button button-small">Карточка</a>
+                <a href="/admin/client/{{ earned.user_id }}" class="button button-small">Карточка</a>
             </td>
         </tr>
         {% endfor %}

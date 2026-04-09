@@ -8,7 +8,7 @@
     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
         <div>
             <h3>Информация о клиенте</h3>
-            <p><strong>Имя:</strong> <a href="/client/{{ rental.user.id }}">{{ rental.user.full_name }}</a></p>
+            <p><strong>Имя:</strong> <a href="/admin/client/{{ rental.user.id }}">{{ rental.user.full_name }}</a></p>
             <p><strong>Телефон:</strong> {{ rental.user.phone }}</p>
             <p><strong>Telegram ID:</strong> {{ rental.user.telegram_id }}</p>
         </div>
@@ -64,7 +64,7 @@
         <form action="/catalog/rentals/{{ rental.id }}/delete" method="post" style="display: inline;">
             <button type="submit" class="button button-red" onclick="return confirm('Удалить аренду?')">🗑️ Удалить</button>
         </form>
-        <a href="/client/{{ rental.user.id }}" class="button">👤 Карточка клиента</a>
+        <a href="/admin/client/{{ rental.user.id }}" class="button">👤 Карточка клиента</a>
     </div>
 </div>
 {% endblock %}
