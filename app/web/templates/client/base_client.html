@@ -113,7 +113,7 @@
             <p><strong>Текущий пригласивший:</strong> {{ inviter.full_name }} (ID: {{ inviter.id }})</p>
             {% endif %}
             
-            <form action="/client/{{ user.id }}/assign_referrer" method="post" onsubmit="return validateAssignForm()">
+            <form action="/admin/client/{{ user.id }}/assign_referrer" method="post" onsubmit="return validateAssignForm()">
                 <div style="margin-bottom: 15px;">
                     <label style="display: block; margin-bottom: 5px; font-weight: bold;">Введите ID или телефон пригласившего:</label>
                     <input type="text" id="referrerSearch" name="referrer_search" 
@@ -337,14 +337,14 @@
                 <p style="color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 4px;">
                     ⚠️ Пользователь заблокирован
                 </p>
-                <form action="/client/{{ user.id }}/remove_from_blacklist" method="post">
+                <form action="/admin/client/{{ user.id }}/remove_from_blacklist" method="post">
                     <input type="hidden" name="admin_id" value="0">
                     <button type="submit" class="button" style="background-color: #4CAF50; width: 100%;">
                         ✅ Разблокировать пользователя
                     </button>
                 </form>
             {% else %}
-                <form action="/client/{{ user.id }}/add_to_blacklist" method="post">
+                <form action="/admin/client/{{ user.id }}/add_to_blacklist" method="post">
                     <div style="margin-bottom: 10px;">
                         <label>Причина блокировки:</label>
                         <select name="reason" required style="width: 100%; padding: 8px; margin-top: 5px;">
@@ -408,7 +408,7 @@
                 <li>👥 Реферальные связи (пригласил {{ total_invited }} друзей)</li>
             </ul>
             
-            <form action="/client/{{ user.id }}/delete" method="post">
+            <form action="/admin/client/{{ user.id }}/delete" method="post">
                 <div style="margin-bottom: 20px;">
                     <label style="display: block; margin-bottom: 8px; font-weight: bold;">
                         Введите полное имя пользователя для подтверждения:
