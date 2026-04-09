@@ -3,8 +3,8 @@
 <h1>📦 Управление арендами</h1>
 
 <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
-    <a href="/catalog/rentals/add" class="button">➕ Добавить аренду</a>
-    <a href="/catalog" class="button">◀️ Назад</a>
+    <a href="/admin/catalog/rentals/add" class="button">➕ Добавить аренду</a>
+    <a href="/admin/catalog" class="button">◀️ Назад</a>
 </div>
 
 <div class="stats-grid" style="margin-bottom: 20px;">
@@ -33,7 +33,7 @@
     <input type="number" name="user_id" placeholder="ID клиента" value="{{ user_filter or '' }}" style="padding: 8px; width: 150px;">
     
     <button type="submit" class="button">🔍 Применить</button>
-    <a href="/catalog/rentals" class="button button-red">Сбросить</a>
+    <a href="/admin/catalog/rentals" class="button button-red">Сбросить</a>
 </form>
 
 <table>
@@ -70,9 +70,9 @@
                 {% endif %}
             </td>
             <td>
-                <a href="/catalog/rentals/{{ rental.id }}" class="button button-small">👁️</a>
-                <a href="/catalog/rentals/{{ rental.id }}/edit" class="button button-small">✏️</a>
-                <form action="/catalog/rentals/{{ rental.id }}/delete" method="post" style="display: inline;">
+                <a href="/admin/catalog/rentals/{{ rental.id }}" class="button button-small">👁️</a>
+                <a href="/admin/catalog/rentals/{{ rental.id }}/edit" class="button button-small">✏️</a>
+                <form action="/admin/catalog/rentals/{{ rental.id }}/delete" method="post" style="display: inline;">
                     <button type="submit" class="button button-small button-red" onclick="return confirm('Удалить аренду?')">🗑️</button>
                 </form>
             </td>

@@ -4,13 +4,13 @@
 
 <div style="margin-bottom: 20px;">
     <button onclick="showAddForm()" class="button">➕ Добавить категорию</button>
-    <a href="/catalog" class="button">◀️ Назад</a>
+    <a href="/admin/catalog" class="button">◀️ Назад</a>
 </div>
 
 <!-- Форма добавления -->
 <div id="addForm" style="display: none; background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
     <h3>Новая категория</h3>
-    <form action="/catalog/categories/add" method="post">
+    <form action="/admin/catalog/categories/add" method="post">
         <div style="margin-bottom: 10px;">
             <label>Название:</label>
             <input type="text" name="name" required style="width: 100%; padding: 8px;">
@@ -49,7 +49,7 @@
             <td>{% if category.is_active %}✅ Активна{% else %}❌ Неактивна{% endif %}</td>
             <td>
                 <button onclick="showEditForm({{ category.id }})" class="button button-small">✏️</button>
-                <form action="/catalog/categories/{{ category.id }}/delete" method="post" style="display: inline;">
+                <form action="/admin/catalog/categories/{{ category.id }}/delete" method="post" style="display: inline;">
                     <button type="submit" class="button button-small button-red" onclick="return confirm('Удалить категорию? Все бренды и модели будут удалены!')">🗑️</button>
                 </form>
             </td>
@@ -58,7 +58,7 @@
         <!-- Форма редактирования (скрыта) -->
         <tr id="edit-form-{{ category.id }}" style="display: none;">
             <td colspan="6">
-                <form action="/catalog/categories/{{ category.id }}/edit" method="post" style="background: #f5f5f5; padding: 15px;">
+                <form action="/admin/catalog/categories/{{ category.id }}/edit" method="post" style="background: #f5f5f5; padding: 15px;">
                     <h4>Редактирование: {{ category.name }}</h4>
                     <div style="margin-bottom: 10px;">
                         <label>Название:</label>

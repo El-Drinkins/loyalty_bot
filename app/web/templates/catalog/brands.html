@@ -4,13 +4,13 @@
 
 <div style="margin-bottom: 20px;">
     <button onclick="showAddForm()" class="button">➕ Добавить бренд</button>
-    <a href="/catalog" class="button">◀️ Назад</a>
+    <a href="/admin/catalog" class="button">◀️ Назад</a>
 </div>
 
 <!-- Форма добавления -->
 <div id="addForm" style="display: none; background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
     <h3>Новый бренд</h3>
-    <form action="/catalog/brands/add" method="post">
+    <form action="/admin/catalog/brands/add" method="post">
         <div style="margin-bottom: 10px;">
             <label>Название:</label>
             <input type="text" name="name" required style="width: 100%; padding: 8px;">
@@ -53,7 +53,7 @@
             <td>{% if brand.is_active %}✅ Активен{% else %}❌ Неактивен{% endif %}</td>
             <td>
                 <button onclick="showEditForm({{ brand.id }})" class="button button-small">✏️</button>
-                <form action="/catalog/brands/{{ brand.id }}/delete" method="post" style="display: inline;">
+                <form action="/admin/catalog/brands/{{ brand.id }}/delete" method="post" style="display: inline;">
                     <button type="submit" class="button button-small button-red" onclick="return confirm('Удалить бренд? Все модели будут удалены!')">🗑️</button>
                 </form>
             </td>
@@ -62,7 +62,7 @@
         <!-- Форма редактирования -->
         <tr id="edit-form-{{ brand.id }}" style="display: none;">
             <td colspan="6">
-                <form action="/catalog/brands/{{ brand.id }}/edit" method="post" style="background: #f5f5f5; padding: 15px;">
+                <form action="/admin/catalog/brands/{{ brand.id }}/edit" method="post" style="background: #f5f5f5; padding: 15px;">
                     <h4>Редактирование: {{ brand.name }}</h4>
                     <div style="margin-bottom: 10px;">
                         <label>Название:</label>

@@ -3,8 +3,8 @@
 <h1>📷 Управление моделями</h1>
 
 <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
-    <a href="/catalog/models/add" class="button">➕ Добавить модель</a>
-    <a href="/catalog" class="button">◀️ Назад</a>
+    <a href="/admin/catalog/models/add" class="button">➕ Добавить модель</a>
+    <a href="/admin/catalog" class="button">◀️ Назад</a>
 </div>
 
 <!-- Фильтры -->
@@ -30,7 +30,7 @@
     <input type="text" name="search" placeholder="Поиск по названию" value="{{ search_query or '' }}" style="padding: 8px; flex: 1;">
     
     <button type="submit" class="button">🔍 Применить</button>
-    <a href="/catalog/models" class="button button-red">Сбросить</a>
+    <a href="/admin/catalog/models" class="button button-red">Сбросить</a>
 </form>
 
 <p>Всего моделей: {{ total_count }}</p>
@@ -59,9 +59,9 @@
             <td>{% if model.deposit %}{{ model.deposit }} ₽{% else %}—{% endif %}</td>
             <td>{% if model.is_active %}✅ Активна{% else %}❌ Неактивна{% endif %}</td>
             <td>
-                <a href="/catalog/models/{{ model.id }}/edit" class="button button-small">✏️</a>
-                <a href="/catalog/models/{{ model.id }}/stats" class="button button-small">📊</a>
-                <form action="/catalog/models/{{ model.id }}/delete" method="post" style="display: inline;">
+                <a href="/admin/catalog/models/{{ model.id }}/edit" class="button button-small">✏️</a>
+                <a href="/admin/catalog/models/{{ model.id }}/stats" class="button button-small">📊</a>
+                <form action="/admin/catalog/models/{{ model.id }}/delete" method="post" style="display: inline;">
                     <button type="submit" class="button button-small button-red" onclick="return confirm('Удалить модель? Это действие нельзя отменить.')">🗑️</button>
                 </form>
             </td>
