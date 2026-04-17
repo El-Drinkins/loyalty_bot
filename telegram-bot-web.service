@@ -1,0 +1,14 @@
+[Unit]
+Description=Loyalty Web Admin
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/loyalty_bot
+ExecStart=/root/loyalty_bot/venv/bin/uvicorn app.web.main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

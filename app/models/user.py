@@ -44,6 +44,9 @@ class User(Base):
     password_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     password_set_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     
+    # Командный бонус 100k (начислен ли бонус 5000⭐ за суммарные аренды всех друзей на 100000₽)
+    team_bonus_100k_awarded: Mapped[bool] = mapped_column(Boolean, default=False)
+    
     # Связи (будут заполнены после импорта всех моделей)
     invited_by: Mapped[Optional["User"]] = relationship(
         "User", 

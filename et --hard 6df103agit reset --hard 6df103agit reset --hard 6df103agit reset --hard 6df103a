@@ -1,0 +1,20 @@
+[33m509ecb1[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m Remove menu router from start.py (already in bot.py)
+[33m730664a[m Remove duplicate menu router from start.py
+[33m8c55e40[m Remove social_handler import from registration __init__
+[33mdc4bdcb[m Fix import: Registration from .states in phone_handler and captcha_handler
+[33mfe5590d[m Fix import: StormProtection from ..storm
+[33ma4ab9a1[m Fix circular import: move Registration and get_security_setting to states.py
+[33mc0837f6[m Split start.py into registration module
+[33m6df103a[m Keep welcome message after clicking start registration button
+[33m78c4e2b[m Fix captcha: remove contact_keyboard import
+[33m9f8784f[m Remove reply keyboard, use manual phone input with inline buttons
+[33ma0d9dcf[m Remove /admin from menu commands, keep access control in code
+[33mf6cc4ad[m Add delete all rejected requests button with confirmation
+[33m26ba25a[m Add mailing routes: send messages to users
+[33m749651f[m Add captcha toggle support: show captcha only when enabled in settings
+[33mc063781[m Fix delete request path in rejected requests page
+[33m54f3583[m Fix ban modal: remove undefined req variable
+[33mcd17541[m Fix admin approval: redirect after approve, send notification, remove collected data from final message
+[33m0bd82eb[m Remove captcha, add reply button for phone, enable storm protection
+[33mac4892f[m Remove captcha, enable storm protection, add welcome message with button
+[33m8e30368[m Add welcome message with start button, add /help command, add menu commands via BotFather
