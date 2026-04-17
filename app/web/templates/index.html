@@ -17,7 +17,7 @@
                 неизвестно
             {% endif %}
             <br>
-            <form action="/confirm_referral/{{ ref.id }}" method="post" style="display:inline">
+            <form action="/admin/confirm_referral/{{ ref.id }}" method="post" style="display:inline">
                 <!-- В реальном приложении admin_id должен браться из сессии, здесь временно -->
                 <input type="hidden" name="admin_id" value="0">
                 <button type="submit" class="button button-small">✅ Подтвердить первую аренду</button>
