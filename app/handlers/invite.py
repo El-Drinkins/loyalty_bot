@@ -266,17 +266,14 @@ async def my_friends_button(message: Message):
 
 @router.message(Command("friends"))
 async def cmd_friends(message: Message):
-    """Альтернативная команда /friends"""
     await send_friends_list(message, message.from_user.id)
 
 @router.message(Command("refresh_friends"))
 async def cmd_refresh_friends(message: Message):
-    """Обновляет список друзей"""
     await send_friends_list(message, message.from_user.id)
 
 @router.message(Command("back_to_main"))
 async def cmd_back_to_main(message: Message):
-    """Возврат в главное меню"""
     await message.answer(
         "Главное меню",
         reply_markup=main_menu_keyboard(message.from_user.id)
