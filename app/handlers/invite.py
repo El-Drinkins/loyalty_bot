@@ -184,6 +184,17 @@ async def send_friend_details(message: Message, friend_id: int, user_telegram_id
             await message.answer("Друг не найден")
             return
         
+        # Проверяем, что этот друг действительно приглашён пользователем
+        referral = await session.execute(
+            select(Referral).where(
+                Referral.old_user_id == user.id,
+                Referral.new_user_id == friend_id
+            )
+        )
+        if not referral.scalar_one_or_none():
+            await message.answer("❌ Этот пользователь не является вашим другом")
+            return
+        
         bonuses = await get_friend_bonuses_status(session, user.id, friend_id)
         total_amount = await get_friend_rentals_total(session, friend_id)
         
@@ -275,10 +286,13 @@ async def cmd_back_to_main(message: Message):
 async def friend_details_command(message: Message):
     """Обработчик команды /friend_{id}"""
     try:
+        # Извлекаем ID из команды /friend_123
         friend_id = int(message.text.split("_")[1])
         await send_friend_details(message, friend_id, message.from_user.id)
     except (IndexError, ValueError):
         await message.answer("❌ Неверный формат команды. Используйте: /friend_123")
+    except Exception as e:
+        await message.answer(f"❌ Ошибка: {e}")
 
 @router.message(F.text == "🎁 Пригласить друга в бот")
 async def invite_friend(message: Message):
