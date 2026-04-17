@@ -1,5 +1,6 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.filters import Command
 from sqlalchemy import select, func
 from datetime import datetime
 import random
@@ -20,6 +21,9 @@ from ..bonus_utils import (
 )
 
 router = Router()
+
+# Разделитель (10 символов, не переносится на мобильных)
+SEPARATOR = "➖➖➖➖➖➖➖➖➖➖"
 
 def generate_referral_code(owner_id: int) -> str:
     chars = string.ascii_letters + string.digits
@@ -111,6 +115,8 @@ async def send_friends_list(message: Message, user_id: int):
         await session.commit()
         
         lines = []
+        
+        # Заголовок и статистика
         lines.append("👥 **Мои друзья**\n")
         lines.append("📊 **Статистика:**")
         lines.append(f"• Приглашено: {total_invited}")
@@ -118,6 +124,7 @@ async def send_friends_list(message: Message, user_id: int):
         lines.append(f"• Заработано баллов: {format_number(earned)} ⭐")
         lines.append(f"• 💰 Сумма аренд друзей: {format_number(total_friends_rentals)} ₽\n")
         
+        # Командный прогресс
         team_bonus_awarded = await is_team_bonus_awarded(session, user.id)
         
         if total_friends_rentals >= 100000 and team_bonus_awarded:
@@ -130,18 +137,26 @@ async def send_friends_list(message: Message, user_id: int):
             remaining = 100000 - total_friends_rentals
             lines.append(f"   🎯 Осталось {format_number(remaining)} ₽ до бонуса 5 000 ⭐\n")
         
-        lines.append("━━━━━━━━━━━━━━━━━━━━━")
+        # Разделитель перед списком друзей
+        lines.append(SEPARATOR)
+        lines.append("")
         
+        # Список друзей
         if friends:
             for friend in friends:
                 status_emoji = friend["status_emoji"]
                 total = format_number(friend["total_rentals"])
                 lines.append(f"{status_emoji} {friend['full_name']} — {friend['registration_date']} — {total} ₽")
-                lines.append("")
+                lines.append(f"   📊 Детали аренд: /friend_{friend['id']}")
+                lines.append("")  # пустая строка между друзьями
         else:
             lines.append("📭 У вас пока нет приглашённых друзей.\n")
         
-        lines.append("━━━━━━━━━━━━━━━━━━━━━")
+        # Разделитель после списка друзей
+        lines.append(SEPARATOR)
+        lines.append("")
+        
+        # Легенда бонусов
         lines.append("💡 **Бонусы за друзей (суммируются):**")
         lines.append("   📌 Первая аренда друга → 300 ⭐")
         lines.append("   📌 Вторая аренда друга → 700 ⭐")
@@ -149,42 +164,24 @@ async def send_friends_list(message: Message, user_id: int):
         lines.append("   📌 Аренды на 30 000 ₽ → +1 000 ⭐")
         lines.append("   🏆 Общие аренды ВСЕХ друзей на 100 000 ₽ → +5 000 ⭐")
         
-        keyboard_buttons = []
-        for friend in friends:
-            keyboard_buttons.append([
-                InlineKeyboardButton(
-                    text=f"📊 {friend['full_name']} — детали",
-                    callback_data=f"friend_details_{friend['id']}"
-                )
-            ])
-        
-        keyboard_buttons.append([
-            InlineKeyboardButton(text="🔄 Обновить", callback_data="refresh_friends")
-        ])
-        keyboard_buttons.append([
-            InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_main")
-        ])
-        
-        keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
-        
         await message.answer(
             "\n".join(lines),
-            reply_markup=keyboard,
             parse_mode="Markdown"
         )
 
-async def send_friend_details(callback: CallbackQuery, friend_id: int):
+async def send_friend_details(message: Message, friend_id: int, user_telegram_id: int):
+    """Отправляет детальную информацию о бонусах по другу"""
     async with AsyncSessionLocal() as session:
-        user = await session.execute(select(User).where(User.telegram_id == callback.from_user.id))
+        user = await session.execute(select(User).where(User.telegram_id == user_telegram_id))
         user = user.scalar_one_or_none()
         
         if not user:
-            await callback.answer("Ошибка: пользователь не найден")
+            await message.answer("Ошибка: пользователь не найден")
             return
         
         friend = await session.get(User, friend_id)
         if not friend:
-            await callback.answer("Друг не найден")
+            await message.answer("Друг не найден")
             return
         
         bonuses = await get_friend_bonuses_status(session, user.id, friend_id)
@@ -243,18 +240,45 @@ async def send_friend_details(callback: CallbackQuery, friend_id: int):
         total_friends_rentals = await get_all_friends_total_rentals(session, user.id)
         await award_team_bonus(session, user.id, total_friends_rentals)
         
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="✖️ Закрыть", callback_data="close_details")]
-            ]
-        )
+        lines.append(f"\n🔙 /friends — вернуться к списку друзей")
         
-        await callback.message.answer(
+        await message.answer(
             "\n".join(lines),
-            reply_markup=keyboard,
             parse_mode="Markdown"
         )
-        await callback.answer()
+
+# ========== ОБРАБОТЧИКИ КОМАНД ==========
+
+@router.message(F.text == "👥 Мои друзья")
+async def my_friends_button(message: Message):
+    await send_friends_list(message, message.from_user.id)
+
+@router.message(Command("friends"))
+async def cmd_friends(message: Message):
+    """Альтернативная команда /friends"""
+    await send_friends_list(message, message.from_user.id)
+
+@router.message(Command("refresh_friends"))
+async def cmd_refresh_friends(message: Message):
+    """Обновляет список друзей"""
+    await send_friends_list(message, message.from_user.id)
+
+@router.message(Command("back_to_main"))
+async def cmd_back_to_main(message: Message):
+    """Возврат в главное меню"""
+    await message.answer(
+        "Главное меню",
+        reply_markup=main_menu_keyboard(message.from_user.id)
+    )
+
+@router.message(lambda message: message.text and message.text.startswith("/friend_"))
+async def friend_details_command(message: Message):
+    """Обработчик команды /friend_{id}"""
+    try:
+        friend_id = int(message.text.split("_")[1])
+        await send_friend_details(message, friend_id, message.from_user.id)
+    except (IndexError, ValueError):
+        await message.answer("❌ Неверный формат команды. Используйте: /friend_123")
 
 @router.message(F.text == "🎁 Пригласить друга в бот")
 async def invite_friend(message: Message):
@@ -314,39 +338,19 @@ async def invite_friend(message: Message):
         parse_mode="Markdown"
     )
 
-@router.message(F.text == "👥 Мои друзья")
-async def my_friends_button(message: Message):
-    await send_friends_list(message, message.from_user.id)
-
-@router.callback_query(F.data == "refresh_friends")
-async def refresh_friends(callback: CallbackQuery):
+@router.callback_query(F.data == "my_friends_list")
+async def my_friends_list_callback(callback: CallbackQuery):
     await callback.message.delete()
     await send_friends_list(callback.message, callback.from_user.id)
     await callback.answer()
 
-@router.callback_query(F.data.startswith("friend_details_"))
-async def friend_details_callback(callback: CallbackQuery):
-    friend_id = int(callback.data.split("_")[2])
-    await send_friend_details(callback, friend_id)
-
-@router.callback_query(F.data == "close_details")
-async def close_details(callback: CallbackQuery):
-    await callback.message.delete()
-    await callback.answer()
-
 @router.callback_query(F.data == "back_to_main")
-async def back_to_main(callback: CallbackQuery):
+async def back_to_main_callback(callback: CallbackQuery):
     await callback.message.delete()
     await callback.message.answer(
         "Главное меню",
         reply_markup=main_menu_keyboard(callback.from_user.id)
     )
-    await callback.answer()
-
-@router.callback_query(F.data == "my_friends_list")
-async def my_friends_list_callback(callback: CallbackQuery):
-    await callback.message.delete()
-    await send_friends_list(callback.message, callback.from_user.id)
     await callback.answer()
 
 async def show_friends_directly(message: Message):
