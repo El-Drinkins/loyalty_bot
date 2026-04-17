@@ -3,6 +3,7 @@ import logging
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.types import Message
 
 from .config import settings
 from .handlers import start, menu, referral, admin_commands, referral_codes, invite, captcha, social_verification, admin_review
@@ -15,8 +16,6 @@ async def main():
     await init_db()
     logging.info("✅ База данных инициализирована")
 
-    # Максимально простой бот — без прокси, без сложных настроек
-    # Системный прокси уже настроен Happ, Python его подхватит
     bot = Bot(token=settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher()
 
@@ -34,6 +33,16 @@ async def main():
     dp.include_router(social_verification.router)
     dp.include_router(admin_review.router)
     dp.include_router(admin_commands.router)
+
+    # ПРИНУДИТЕЛЬНЫЙ ОБРАБОТЧИК ДЛЯ /friend_
+    @dp.message(lambda message: message.text and message.text.startswith('/friend_'))
+    async def force_friend_handler(message: Message):
+        from app.handlers.invite import send_friend_details
+        try:
+            friend_id = int(message.text.split("_")[1])
+            await send_friend_details(message, friend_id, message.from_user.id)
+        except Exception as e:
+            await message.answer(f"❌ Ошибка: {e}")
 
     logging.info("🚀 Бот запущен и готов к работе!")
     
