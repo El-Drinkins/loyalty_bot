@@ -166,8 +166,8 @@ async def help_message(message: Message):
 
 @router.message(F.text == "👥 Мои друзья")
 async def my_friends_button(message: Message):
-    from .invite import show_friends_directly
-    await show_friends_directly(message)
+    from .invite import send_friends_list
+    await send_friends_list(message, message.from_user.id)
 
 @router.message(F.text == "🎁 Пригласить друга в бот")
 async def invite_button(message: Message):
@@ -191,10 +191,6 @@ async def back_to_main(callback: CallbackQuery):
     )
     await callback.answer()
 
-
-# ==========================================
-# НОВЫЙ ОБРАБОТЧИК ДЛЯ /regulations
-# ==========================================
 
 @router.message(F.text == "/regulations")
 async def regulations_command(message: Message):
@@ -263,7 +259,6 @@ async def regulations_command(message: Message):
         "<b>Арендуйте чаще, приглашайте друзей и копите баллы!</b>"
     )
     
-    # Разбиваем длинное сообщение на части (если нужно)
     if len(regulations_text) <= 4096:
         await message.answer(regulations_text, parse_mode="HTML")
     else:
