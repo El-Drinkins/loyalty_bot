@@ -24,7 +24,6 @@ async def get_admin_id(session, telegram_id: int) -> int:
 
 @router.message(Command("review"))
 async def cmd_review(message: Message):
-    """Показывает список заявок на регистрацию (только для админа)"""
     if not is_admin(message.from_user.id):
         await message.answer("❌ Эта команда только для администраторов.")
         return
@@ -82,7 +81,6 @@ async def cmd_review(message: Message):
 
 @router.callback_query(F.data.startswith("approve_"))
 async def approve_request(callback: CallbackQuery):
-    """Одобряет заявку на регистрацию"""
     if not is_admin(callback.from_user.id):
         await callback.answer("❌ Доступ запрещен", show_alert=True)
         return
@@ -95,7 +93,6 @@ async def approve_request(callback: CallbackQuery):
             await callback.answer("❌ Заявка не найдена", show_alert=True)
             return
         
-        # Создаем пользователя с установленным сроком действия баллов
         user = User(
             telegram_id=req.telegram_id,
             full_name=req.full_name or "Имя не указано",
@@ -112,15 +109,23 @@ async def approve_request(callback: CallbackQuery):
         session.add(user)
         await session.flush()
         
-        # Создаём реферальную запись, если есть пригласивший
+        # СОЗДАЁМ РЕФЕРАЛЬНУЮ ЗАПИСЬ (ИСПРАВЛЕНО)
         if req.invited_by_id:
-            referral = Referral(
-                new_user_id=user.id,
-                old_user_id=req.invited_by_id,
-                status="pending",
-                registration_date=datetime.utcnow()
+            # Проверяем, нет ли уже такой записи
+            existing = await session.execute(
+                select(Referral).where(
+                    Referral.new_user_id == user.id,
+                    Referral.old_user_id == req.invited_by_id
+                )
             )
-            session.add(referral)
+            if not existing.scalar_one_or_none():
+                referral = Referral(
+                    new_user_id=user.id,
+                    old_user_id=req.invited_by_id,
+                    status="pending",
+                    registration_date=datetime.utcnow()
+                )
+                session.add(referral)
         
         req.status = "approved"
         req.user_id = user.id
@@ -157,7 +162,6 @@ async def approve_request(callback: CallbackQuery):
 
 @router.callback_query(F.data.startswith("reject_"))
 async def reject_request(callback: CallbackQuery):
-    """Отклоняет заявку на регистрацию"""
     if not is_admin(callback.from_user.id):
         await callback.answer("❌ Доступ запрещен", show_alert=True)
         return
@@ -192,7 +196,6 @@ async def reject_request(callback: CallbackQuery):
 
 @router.callback_query(F.data.startswith("ban_"))
 async def ban_request(callback: CallbackQuery):
-    """Блокирует пользователя и отклоняет заявку"""
     if not is_admin(callback.from_user.id):
         await callback.answer("❌ Доступ запрещен", show_alert=True)
         return
@@ -205,7 +208,6 @@ async def ban_request(callback: CallbackQuery):
             await callback.answer("❌ Заявка не найдена", show_alert=True)
             return
         
-        # Добавляем IP в черный список через storm protection
         storm = StormProtection(session)
         await storm.add_to_whitelist(
             type='ip',

@@ -28,7 +28,6 @@ class Registration(StatesGroup):
     waiting_for_social = State()
     waiting_for_manual_code = State()
 
-# Приветственное сообщение с кнопкой "Начать регистрацию"
 WELCOME_MESSAGE = (
     "📸 Добро пожаловать в программу лояльности!\n\n"
     "Это бот для фотографов и видеографов. Здесь вы можете:\n"
@@ -40,7 +39,6 @@ WELCOME_MESSAGE = (
 )
 
 def clean_phone_number(phone: str) -> str:
-    """Очищает номер телефона от лишних символов"""
     digits = re.sub(r'\D', '', phone)
     
     if len(digits) == 11 and digits.startswith('8'):
@@ -66,11 +64,9 @@ async def cmd_start(message: Message, state: FSMContext):
     start_total = time.time()
     logger.info(f"▶️ Начало обработки /start от пользователя {message.from_user.id}")
     
-    # Получаем ref_code из аргументов команды
     args = message.text.split()
     ref_code = args[1] if len(args) > 1 else None
     
-    # Проверяем, есть ли пользователь в базе
     start_db = time.time()
     async with AsyncSessionLocal() as session:
         result = await session.execute(select(User).where(User.telegram_id == message.from_user.id))
@@ -89,10 +85,7 @@ async def cmd_start(message: Message, state: FSMContext):
             )
             return
 
-    # Новый пользователь
-    # Сохраняем ref_code в состояние, если он есть
     if ref_code:
-        # Проверяем, существует ли такой код
         async with AsyncSessionLocal() as session:
             code_record = await session.execute(
                 select(ReferralCode).where(ReferralCode.code == ref_code)
@@ -115,10 +108,8 @@ async def cmd_start(message: Message, state: FSMContext):
                 await message.answer("❌ Недействительная ссылка. Регистрация без кода.")
                 ref_code = None
         
-        # Сохраняем ref_code в состояние для использования при нажатии кнопки
         await state.update_data(ref_code=ref_code)
     
-    # Показываем приветствие с кнопкой
     start_keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="🚀 Начать регистрацию", callback_data="start_registration")]
@@ -132,17 +123,11 @@ async def cmd_start(message: Message, state: FSMContext):
 
 @router.callback_query(F.data == "start_registration")
 async def start_registration(callback: CallbackQuery, state: FSMContext):
-    """Обработчик кнопки 'Начать регистрацию'"""
-    
-    # Получаем ref_code из состояния
     data = await state.get_data()
     ref_code = data.get("ref_code")
     
     print(f"🔍 start_registration вызван, ref_code = {ref_code}")
     
-    # =========================================================
-    # ВКЛЮЧЕНО: регистрация только по реферальному коду
-    # =========================================================
     if not ref_code:
         await callback.message.answer(
             "🔒 Регистрация только по приглашениям\n\n"
@@ -152,10 +137,8 @@ async def start_registration(callback: CallbackQuery, state: FSMContext):
         )
         await callback.answer()
         return
-    # =========================================================
     
     async with AsyncSessionLocal() as session:
-        # Получаем referrer_id из состояния
         referrer_id = data.get("referrer_id")
         
         await state.update_data(ip_address=str(callback.from_user.id))
@@ -254,7 +237,6 @@ async def process_captcha(callback: CallbackQuery, state: FSMContext):
 
 @router.message(Registration.waiting_for_phone)
 async def process_phone(message: Message, state: FSMContext):
-    """Обрабатывает введённый номер телефона"""
     raw_phone = message.text.strip()
     phone = clean_phone_number(raw_phone)
     
@@ -394,7 +376,6 @@ async def process_manual_code(message: Message, state: FSMContext):
         
         await state.update_data(ref_code=code, referrer_id=code_record.owner_id)
         
-        # Показываем приветствие с кнопкой
         start_keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text="🚀 Начать регистрацию", callback_data="start_registration")]
