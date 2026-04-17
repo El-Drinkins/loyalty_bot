@@ -148,4 +148,4 @@ async def confirm_referral(
         )
 
     await db.commit()
-    return RedirectResponse(url="/", status_code=303)
+    return RedirectResponse(url="/admin/", status_code=303)
