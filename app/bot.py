@@ -28,30 +28,22 @@ async def main():
     dp.include_router(admin_review.router)
     dp.include_router(admin_commands.router)
 
-    # ОБРАБОТЧИК ДЛЯ КОМАНД /friend_ И /friend
-    @dp.message()
-    async def catch_all(message: Message):
+    # ОБРАБОТЧИК ТОЛЬКО ДЛЯ /friend_ И /friend (НЕ ТРОГАЕТ КНОПКИ)
+    @dp.message(lambda message: message.text and (message.text.startswith('/friend_') or message.text.startswith('/friend')))
+    async def friend_handler(message: Message):
         text = message.text
-        if not text:
-            return
-        
-        logging.info(f"📩 Получено: {text}")
-        
-        # Поддерживаем /friend_6 и /friend6
-        if text.startswith('/friend_') or text.startswith('/friend'):
-            from app.handlers.invite import send_friend_details
-            try:
-                # Извлекаем ID: /friend_6 -> 6, /friend6 -> 6
-                parts = text.replace('/friend_', '/friend').split('/friend')
-                if len(parts) > 1 and parts[1].isdigit():
-                    friend_id = int(parts[1])
-                    await send_friend_details(message, friend_id, message.from_user.id)
-                else:
-                    await message.answer("❌ Неверный формат. Используйте: /friend_6")
-            except Exception as e:
-                await message.answer(f"❌ Ошибка: {e}")
-        else:
-            await message.answer(f"✅ Бот получил: {text}")
+        logging.info(f"📩 Обработка друга: {text}")
+        from app.handlers.invite import send_friend_details
+        try:
+            # Извлекаем ID: /friend_6 -> 6, /friend6 -> 6
+            parts = text.replace('/friend_', '/friend').split('/friend')
+            if len(parts) > 1 and parts[1].isdigit():
+                friend_id = int(parts[1])
+                await send_friend_details(message, friend_id, message.from_user.id)
+            else:
+                await message.answer("❌ Неверный формат. Используйте: /friend_6")
+        except Exception as e:
+            await message.answer(f"❌ Ошибка: {e}")
 
     logging.info("🚀 Бот запущен и готов к работе!")
     
