@@ -220,6 +220,7 @@ async def rental_edit(
     # Если статус изменился на "completed" (завершена), обновляем реферала
     if old_status != "completed" and new_status == "completed":
         await update_referral_for_user(db, user_id)
+    # Если статус был "completed" и стал другим, возможно нужно пересчитать (но обычно не нужно)
     
     return RedirectResponse(url="/admin/catalog/rentals", status_code=303)
 
