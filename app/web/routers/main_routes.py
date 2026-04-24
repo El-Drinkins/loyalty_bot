@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 from itertools import groupby
 
 from ..deps import get_db, templates, require_auth
-from ...models import User, Referral, Transaction, ReferralStatus, ReferralBonus
+from ...models import User, Referral, Transaction, ReferralStatus
 
 router = APIRouter()
 
@@ -52,8 +52,7 @@ async def client_card(
         user_id,
         options=[
             selectinload(User.invited_by),
-            selectinload(User.referred_users).selectinload(Referral.new_user),
-            selectinload(User.referred_users).selectinload(Referral.bonuses)
+            selectinload(User.referred_users).selectinload(Referral.new_user)
         ]
     )
     if not user:
