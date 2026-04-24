@@ -12,6 +12,16 @@ from ....bonus_utils import update_referral_total_rentals, check_and_create_pend
 
 router = APIRouter(prefix="/rentals", tags=["catalog"])
 
+async def update_referral_for_user(db: AsyncSession, user_id: int):
+    """Обновляет сумму аренд и создаёт ожидающие бонусы для реферала"""
+    referral = await db.execute(
+        select(Referral).where(Referral.new_user_id == user_id)
+    )
+    referral = referral.scalar_one_or_none()
+    if referral:
+        await update_referral_total_rentals(db, referral.id)
+        await check_and_create_pending_bonuses(db, referral.id)
+
 @router.get("/", response_class=HTMLResponse)
 async def rentals_list(
     request: Request,
@@ -124,12 +134,15 @@ async def rental_add(
     db.add(rental)
     
     # Обновляем срок действия баллов пользователя
-    if user_id:
-        user = await db.get(User, user_id)
-        if user:
-            user.points_expiry_date = datetime.utcnow() + timedelta(days=90)
+    user = await db.get(User, user_id)
+    if user:
+        user.points_expiry_date = datetime.utcnow() + timedelta(days=90)
     
     await db.commit()
+    
+    # Если аренда сразу со статусом completed, обновляем реферала
+    if status == "completed":
+        await update_referral_for_user(db, user_id)
     
     return RedirectResponse(url="/admin/catalog/rentals", status_code=303)
 
@@ -204,16 +217,9 @@ async def rental_edit(
     
     await db.commit()
     
-    # Если статус изменился на "completed" (завершена), обновляем сумму аренд в реферале
+    # Если статус изменился на "completed" (завершена), обновляем реферала
     if old_status != "completed" and new_status == "completed":
-        # Находим, является ли этот пользователь чьим-то рефералом
-        referral = await db.execute(
-            select(Referral).where(Referral.new_user_id == user_id)
-        )
-        referral = referral.scalar_one_or_none()
-        if referral:
-            await update_referral_total_rentals(db, referral.id)
-            await check_and_create_pending_bonuses(db, referral.id)
+        await update_referral_for_user(db, user_id)
     
     return RedirectResponse(url="/admin/catalog/rentals", status_code=303)
 
@@ -279,14 +285,8 @@ async def update_rental_status(
     rental.updated_at = datetime.utcnow()
     await db.commit()
     
-    # Если статус изменился на "completed" (завершена), обновляем сумму аренд в реферале
+    # Если статус изменился на "completed" (завершена), обновляем реферала
     if old_status != "completed" and new_status == "completed":
-        referral = await db.execute(
-            select(Referral).where(Referral.new_user_id == rental.user_id)
-        )
-        referral = referral.scalar_one_or_none()
-        if referral:
-            await update_referral_total_rentals(db, referral.id)
-            await check_and_create_pending_bonuses(db, referral.id)
+        await update_referral_for_user(db, rental.user_id)
     
     return {"success": True}
