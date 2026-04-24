@@ -6,8 +6,9 @@ from sqlalchemy.orm import selectinload
 from datetime import datetime, timedelta
 
 from ...deps import get_db, templates, require_auth
-from ....models import User, Model, Brand, Category, Rental
+from ....models import User, Model, Brand, Category, Rental, Referral
 from .base_routes import generate_rental_number
+from ....bonus_utils import update_referral_total_rentals, check_and_create_pending_bonuses
 
 router = APIRouter(prefix="/rentals", tags=["catalog"])
 
@@ -182,6 +183,9 @@ async def rental_edit(
     if not rental:
         raise HTTPException(404, "Аренда не найдена")
     
+    old_status = rental.status
+    new_status = status
+    
     rental.user_id = user_id
     rental.model_id = model_id
     rental.start_date = datetime.strptime(start_date, "%Y-%m-%d")
@@ -190,7 +194,7 @@ async def rental_edit(
     rental.total_price = total_price
     rental.deposit = deposit if deposit else None
     rental.notes = notes
-    rental.status = status
+    rental.status = new_status
     rental.updated_at = datetime.utcnow()
     
     # Обновляем срок действия баллов у пользователя
@@ -199,6 +203,18 @@ async def rental_edit(
         user.points_expiry_date = datetime.utcnow() + timedelta(days=90)
     
     await db.commit()
+    
+    # Если статус изменился на "completed" (завершена), обновляем сумму аренд в реферале
+    if old_status != "completed" and new_status == "completed":
+        # Находим, является ли этот пользователь чьим-то рефералом
+        referral = await db.execute(
+            select(Referral).where(Referral.new_user_id == user_id)
+        )
+        referral = referral.scalar_one_or_none()
+        if referral:
+            await update_referral_total_rentals(db, referral.id)
+            await check_and_create_pending_bonuses(db, referral.id)
+    
     return RedirectResponse(url="/admin/catalog/rentals", status_code=303)
 
 @router.post("/{rental_id}/delete")
@@ -238,3 +254,39 @@ async def rental_detail(
         "request": request,
         "rental": rental
     })
+
+
+# API для обновления статуса аренды (для выпадающего списка)
+@router.put("/{rental_id}/status")
+async def update_rental_status(
+    request: Request,
+    rental_id: int,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
+):
+    data = await request.json()
+    new_status = data.get("status")
+    
+    if new_status not in ["active", "completed", "cancelled"]:
+        raise HTTPException(400, "Неверный статус")
+    
+    rental = await db.get(Rental, rental_id)
+    if not rental:
+        raise HTTPException(404, "Аренда не найдена")
+    
+    old_status = rental.status
+    rental.status = new_status
+    rental.updated_at = datetime.utcnow()
+    await db.commit()
+    
+    # Если статус изменился на "completed" (завершена), обновляем сумму аренд в реферале
+    if old_status != "completed" and new_status == "completed":
+        referral = await db.execute(
+            select(Referral).where(Referral.new_user_id == rental.user_id)
+        )
+        referral = referral.scalar_one_or_none()
+        if referral:
+            await update_referral_total_rentals(db, referral.id)
+            await check_and_create_pending_bonuses(db, referral.id)
+    
+    return {"success": True}
