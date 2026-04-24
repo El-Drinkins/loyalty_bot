@@ -191,11 +191,8 @@ async def back_to_main(callback: CallbackQuery):
     )
     await callback.answer()
 
-
 @router.message(F.text == "/regulations")
 async def regulations_command(message: Message):
-    """Отправляет полные правила программы лояльности"""
-    
     regulations_text = (
         "📋 <b>Программа лояльности</b>\n\n"
         "<b>Что такое баллы?</b>\n"

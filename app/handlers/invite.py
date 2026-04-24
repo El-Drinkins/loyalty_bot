@@ -56,6 +56,7 @@ async def get_or_create_permanent_link(user_id: int, bot_username: str, session)
     return code
 
 async def get_friends_list_with_details(session, user_id: int) -> list:
+    """Получает список друзей с суммой аренд"""
     result = await session.execute(
         select(Referral, User)
         .join(User, User.id == Referral.new_user_id)
@@ -67,7 +68,6 @@ async def get_friends_list_with_details(session, user_id: int) -> list:
     friends = []
     for ref, friend in referrals:
         total_rentals = await get_friend_rentals_total(session, friend.id)
-        rentals_count = await get_friend_rentals_count(session, friend.id)
         
         friends.append({
             "id": friend.id,
@@ -75,13 +75,13 @@ async def get_friends_list_with_details(session, user_id: int) -> list:
             "registration_date": ref.registration_date.strftime("%d.%m.%Y"),
             "status": ref.status,
             "total_rentals": total_rentals,
-            "rentals_count": rentals_count,
             "status_emoji": "✅" if ref.status == "completed" else "⏳"
         })
     
     return friends
 
 async def send_friends_list(message: Message, user_id: int):
+    """Отправляет основное сообщение со списком друзей и статистикой"""
     async with AsyncSessionLocal() as session:
         user = await session.execute(select(User).where(User.telegram_id == user_id))
         user = user.scalar_one_or_none()
@@ -122,66 +122,110 @@ async def send_friends_list(message: Message, user_id: int):
         lines.append(f"• Приглашено: {total_invited}")
         lines.append(f"• Подтвердили аренду: {completed}")
         lines.append(f"• Заработано баллов: {format_number(earned)} ⭐")
-        lines.append(f"• 💰 Сумма аренд друзей: {format_number(total_friends_rentals)} ₽\n")
-        
-        # Командный прогресс
-        team_bonus_awarded = await is_team_bonus_awarded(session, user.id)
-        
-        if total_friends_rentals >= 100000 and team_bonus_awarded:
-            lines.append("🏆 **Командный бонус:**")
-            lines.append(f"   ✅ Бонус 5 000 ⭐ получен за 100 000 ₽!\n")
-        else:
-            lines.append("🏆 **Общий прогресс друзей:**")
-            progress_bar = format_progress_bar(total_friends_rentals, 100000)
-            lines.append(f"   {progress_bar} {format_number(total_friends_rentals)} / 100 000 ₽")
-            remaining = 100000 - total_friends_rentals
-            lines.append(f"   🎯 Осталось {format_number(remaining)} ₽ до бонуса 5 000 ⭐\n")
-        
-        # Разделитель перед списком друзей
+        lines.append("")
         lines.append(SEPARATOR)
         lines.append("")
         
-        # Список друзей
-        if friends:
-            for friend in friends:
-                status_emoji = friend["status_emoji"]
-                total = format_number(friend["total_rentals"])
-                lines.append(f"{status_emoji} {friend['full_name']} — {friend['registration_date']} — {total} ₽")
-                lines.append(f"   📊 Детали аренд: /friend_{friend['id']}")
-                lines.append("")  # пустая строка между друзьями
-        else:
-            lines.append("📭 У вас пока нет приглашённых друзей.\n")
-        
-        # Разделитель после списка друзей
-        lines.append(SEPARATOR)
-        lines.append("")
-        
-        # Легенда бонусов
+        # Бонусы за друзей (легенда)
         lines.append("💡 **Бонусы за друзей (суммируются):**")
         lines.append("   📌 Первая аренда друга → 300 ⭐")
         lines.append("   📌 Вторая аренда друга → 700 ⭐")
-        lines.append("   📌 Аренды на 10 000 ₽ → +1 000 ⭐")
-        lines.append("   📌 Аренды на 30 000 ₽ → +1 000 ⭐")
+        lines.append("   📌 Аренды друга на 10 000 ₽ → +1 000 ⭐")
+        lines.append("   📌 Аренды друга на 30 000 ₽ → +1 000 ⭐")
         lines.append("   🏆 Общие аренды ВСЕХ друзей на 100 000 ₽ → +5 000 ⭐")
+        lines.append("")
+        lines.append(SEPARATOR)
+        lines.append("")
+        
+        # Общий прогресс друзей
+        lines.append("🏆 **Общий прогресс друзей**\n")
+        lines.append(f"• Сумма аренд всех ваших друзей: {format_number(total_friends_rentals)} ₽")
+        lines.append(f"• Цель: 100 000 ₽")
+        lines.append("")
+        lines.append("🎁 Когда друзья суммарно арендуют на 100 000 ₽,")
+        lines.append("   вы получите +5 000 ⭐")
+        lines.append("")
+        lines.append(SEPARATOR)
+        
+        # Кнопка статистики по друзьям
+        keyboard_buttons = []
+        
+        if total_invited > 0:
+            keyboard_buttons.append([
+                InlineKeyboardButton(
+                    text=f"📊 Статистика по друзьям ({total_invited})",
+                    callback_data="show_friends_list"
+                )
+            ])
+        else:
+            keyboard_buttons.append([
+                InlineKeyboardButton(text="🎁 Пригласить друга", callback_data="back_to_invite")
+            ])
+        
+        keyboard_buttons.append([
+            InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_main")
+        ])
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
         
         await message.answer(
             "\n".join(lines),
+            reply_markup=keyboard,
             parse_mode="Markdown"
         )
 
-async def send_friend_details(message: Message, friend_id: int, user_telegram_id: int):
-    """Отправляет детальную информацию о бонусах по другу"""
+async def send_friends_choice(message: Message, user_id: int):
+    """Отправляет сообщение с выбором друга"""
+    async with AsyncSessionLocal() as session:
+        user = await session.execute(select(User).where(User.telegram_id == user_id))
+        user = user.scalar_one_or_none()
+        
+        if not user:
+            await message.answer("❌ Пользователь не найден")
+            return
+        
+        friends = await get_friends_list_with_details(session, user.id)
+        
+        if not friends:
+            await message.answer("👥 У вас пока нет приглашённых друзей.")
+            return
+        
+        # Сортируем: новые пользователи сверху (уже отсортировано в get_friends_list_with_details)
+        buttons = []
+        for friend in friends:
+            total = format_number(friend["total_rentals"])
+            buttons.append([
+                InlineKeyboardButton(
+                    text=f"👤 {friend['full_name']} — {total} ₽",
+                    callback_data=f"friend_detail_{friend['id']}"
+                )
+            ])
+        
+        buttons.append([
+            InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_friends_main")
+        ])
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
+        
+        await message.answer(
+            "🔍 **Выберите друга**\n\nЧтобы посмотреть подробную статистику по бонусам:",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+
+async def send_friend_detail(message: Message, friend_id: int, user_telegram_id: int):
+    """Отправляет детальную статистику по конкретному другу"""
     async with AsyncSessionLocal() as session:
         user = await session.execute(select(User).where(User.telegram_id == user_telegram_id))
         user = user.scalar_one_or_none()
         
         if not user:
-            await message.answer("Ошибка: пользователь не найден")
+            await message.answer("❌ Пользователь не найден")
             return
         
         friend = await session.get(User, friend_id)
         if not friend:
-            await message.answer("Друг не найден")
+            await message.answer("❌ Друг не найден")
             return
         
         # Проверяем, что этот друг действительно приглашён пользователем
@@ -202,59 +246,80 @@ async def send_friend_details(message: Message, friend_id: int, user_telegram_id
         lines.append(f"📊 **Бонусы по другу: {friend.full_name}**\n")
         lines.append(f"💰 Аренды друга на: {format_number(total_amount)} ₽\n")
         
+        # Бонус за первую аренду
         first = bonuses['first_rental']
+        lines.append("🏆 **За первую аренду:**")
         if first['achieved'] and first['awarded']:
-            lines.append("🏆 **За первую аренду:**")
-            lines.append(f"   ✅ Получен: {first['bonus']} ⭐\n")
+            lines.append(f"   ✅ Получен: {first['bonus']} ⭐")
         elif first['achieved'] and not first['awarded']:
-            lines.append("🏆 **За первую аренду:**")
-            lines.append(f"   ⏳ Ожидает подтверждения администратора\n")
+            lines.append(f"   ⏳ Ожидает подтверждения администратора")
         else:
-            lines.append("🏆 **За первую аренду:**")
-            lines.append(f"   ⏳ Ожидается первая аренда\n")
+            lines.append(f"   ⏳ Ожидается первая аренда")
+        lines.append("")
         
+        # Бонус за вторую аренду
         second = bonuses['second_rental']
+        lines.append("🏆 **За вторую аренду:**")
         if second['achieved'] and second['awarded']:
-            lines.append("🏆 **За вторую аренду:**")
-            lines.append(f"   ✅ Получен: {second['bonus']} ⭐\n")
+            lines.append(f"   ✅ Получен: {second['bonus']} ⭐")
         elif second['achieved'] and not second['awarded']:
-            lines.append("🏆 **За вторую аренду:**")
-            lines.append(f"   ⏳ Ожидает подтверждения администратора\n")
+            lines.append(f"   ⏳ Ожидает подтверждения администратора")
         else:
-            lines.append("🏆 **За вторую аренду:**")
-            lines.append(f"   ⏳ Нужна вторая аренда\n")
+            lines.append(f"   ⏳ Нужна вторая аренда")
+        lines.append("")
         
+        # Бонус за 10 000 ₽
         threshold_10k = bonuses['threshold_10k']
+        lines.append("🏆 **За аренды на 10 000 ₽**")
+        lines.append("   (когда друг арендует на 10 000 ₽, вы получите +1 000 ⭐)")
+        lines.append("")
+        lines.append(f"   Цель: {format_number(threshold_10k['target'])} ₽")
+        lines.append(f"   Заработано: {format_number(threshold_10k['progress'])} ₽")
+        
         if threshold_10k['achieved'] and threshold_10k['awarded']:
-            lines.append(f"🎉 Бонус {threshold_10k['bonus']} ⭐ получен (за 10 000 ₽)\n")
+            lines.append(f"   ✅ Бонус {threshold_10k['bonus']} ⭐ получен")
         elif threshold_10k['achieved'] and not threshold_10k['awarded']:
-            lines.append(f"🎉 Бонус {threshold_10k['bonus']} ⭐ ожидает начисления (за 10 000 ₽)\n")
+            lines.append(f"   ⏳ Бонус {threshold_10k['bonus']} ⭐ ожидает подтверждения администратора")
         else:
-            progress_bar = format_progress_bar(threshold_10k['progress'], threshold_10k['target'])
-            lines.append(f"🎯 Бонус {threshold_10k['bonus']} ⭐ за 10 000 ₽:")
-            lines.append(f"   {progress_bar} {format_number(threshold_10k['progress'])} / {format_number(threshold_10k['target'])} ₽")
             remaining = threshold_10k['target'] - threshold_10k['progress']
-            lines.append(f"   🎯 Осталось {format_number(remaining)} ₽ → +{threshold_10k['bonus']} ⭐\n")
+            lines.append(f"   Осталось: {format_number(remaining)} ₽")
+            lines.append("")
+            lines.append(f"   🎯 Когда друг арендует ещё на {format_number(remaining)} ₽,")
+            lines.append(f"      вы получите +{threshold_10k['bonus']} ⭐")
+        lines.append("")
         
+        # Бонус за 30 000 ₽
         threshold_30k = bonuses['threshold_30k']
-        if threshold_30k['achieved'] and threshold_30k['awarded']:
-            lines.append(f"🎉 Бонус {threshold_30k['bonus']} ⭐ получен (за 30 000 ₽)\n")
-        elif threshold_30k['achieved'] and not threshold_30k['awarded']:
-            lines.append(f"🎉 Бонус {threshold_30k['bonus']} ⭐ ожидает начисления (за 30 000 ₽)\n")
-        else:
-            progress_bar = format_progress_bar(threshold_30k['progress'], threshold_30k['target'])
-            lines.append(f"🎯 Бонус {threshold_30k['bonus']} ⭐ за 30 000 ₽:")
-            lines.append(f"   {progress_bar} {format_number(threshold_30k['progress'])} / {format_number(threshold_30k['target'])} ₽")
-            remaining = threshold_30k['target'] - threshold_30k['progress']
-            lines.append(f"   🎯 Осталось {format_number(remaining)} ₽ → +{threshold_30k['bonus']} ⭐\n")
+        lines.append("🏆 **За аренды на 30 000 ₽**")
+        lines.append("   (когда друг арендует на 30 000 ₽, вы получите +1 000 ⭐)")
+        lines.append("")
+        lines.append(f"   Цель: {format_number(threshold_30k['target'])} ₽")
+        lines.append(f"   Заработано: {format_number(threshold_30k['progress'])} ₽")
         
+        if threshold_30k['achieved'] and threshold_30k['awarded']:
+            lines.append(f"   ✅ Бонус {threshold_30k['bonus']} ⭐ получен")
+        elif threshold_30k['achieved'] and not threshold_30k['awarded']:
+            lines.append(f"   ⏳ Бонус {threshold_30k['bonus']} ⭐ ожидает подтверждения администратора")
+        else:
+            remaining = threshold_30k['target'] - threshold_30k['progress']
+            lines.append(f"   Осталось: {format_number(remaining)} ₽")
+            lines.append("")
+            lines.append(f"   🎯 Когда друг арендует ещё на {format_number(remaining)} ₽,")
+            lines.append(f"      вы получите +{threshold_30k['bonus']} ⭐")
+        
+        # Проверяем командный бонус
         total_friends_rentals = await get_all_friends_total_rentals(session, user.id)
         await award_team_bonus(session, user.id, total_friends_rentals)
         
-        lines.append(f"\n🔙 /friends — вернуться к списку друзей")
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="◀️ Назад к списку друзей", callback_data="back_to_friends_choice")]
+            ]
+        )
         
         await message.answer(
             "\n".join(lines),
+            reply_markup=keyboard,
             parse_mode="Markdown"
         )
 
@@ -268,28 +333,50 @@ async def my_friends_button(message: Message):
 async def cmd_friends(message: Message):
     await send_friends_list(message, message.from_user.id)
 
-@router.message(Command("refresh_friends"))
-async def cmd_refresh_friends(message: Message):
-    await send_friends_list(message, message.from_user.id)
+@router.callback_query(F.data == "show_friends_list")
+async def show_friends_list_callback(callback: CallbackQuery):
+    """Показывает список друзей для выбора"""
+    await callback.message.delete()
+    await send_friends_choice(callback.message, callback.from_user.id)
+    await callback.answer()
 
-@router.message(Command("back_to_main"))
-async def cmd_back_to_main(message: Message):
-    await message.answer(
+@router.callback_query(F.data == "back_to_friends_main")
+async def back_to_friends_main_callback(callback: CallbackQuery):
+    """Возврат к основному сообщению со списком друзей"""
+    await callback.message.delete()
+    await send_friends_list(callback.message, callback.from_user.id)
+    await callback.answer()
+
+@router.callback_query(F.data == "back_to_friends_choice")
+async def back_to_friends_choice_callback(callback: CallbackQuery):
+    """Возврат к выбору друга"""
+    await callback.message.delete()
+    await send_friends_choice(callback.message, callback.from_user.id)
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("friend_detail_"))
+async def friend_detail_callback(callback: CallbackQuery):
+    """Показывает детальную статистику друга"""
+    friend_id = int(callback.data.split("_")[2])
+    await callback.message.delete()
+    await send_friend_detail(callback.message, friend_id, callback.from_user.id)
+    await callback.answer()
+
+@router.callback_query(F.data == "back_to_main")
+async def back_to_main_callback(callback: CallbackQuery):
+    await callback.message.delete()
+    await callback.message.answer(
         "Главное меню",
-        reply_markup=main_menu_keyboard(message.from_user.id)
+        reply_markup=main_menu_keyboard(callback.from_user.id)
     )
+    await callback.answer()
 
-@router.message(lambda message: message.text and message.text.startswith("/friend_"))
-async def friend_details_command(message: Message):
-    """Обработчик команды /friend_{id}"""
-    try:
-        # Извлекаем ID из команды /friend_123
-        friend_id = int(message.text.split("_")[1])
-        await send_friend_details(message, friend_id, message.from_user.id)
-    except (IndexError, ValueError):
-        await message.answer("❌ Неверный формат команды. Используйте: /friend_123")
-    except Exception as e:
-        await message.answer(f"❌ Ошибка: {e}")
+@router.callback_query(F.data == "back_to_invite")
+async def back_to_invite_callback(callback: CallbackQuery):
+    await callback.message.delete()
+    from .invite import invite_friend
+    await invite_friend(callback.message)
+    await callback.answer()
 
 @router.message(F.text == "🎁 Пригласить друга в бот")
 async def invite_friend(message: Message):
@@ -333,7 +420,7 @@ async def invite_friend(message: Message):
                 text="👥 Отправить другу в Telegram", 
                 url=f"https://t.me/share/url?url={link}&text=🎁 Присоединяйся к программе лояльности! Переходи по ссылке и получи бонусы!"
             )],
-            [InlineKeyboardButton(text="👥 Мои друзья", callback_data="my_friends_list")],
+            [InlineKeyboardButton(text="👥 Мои друзья", callback_data="show_friends_list")],
             [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_main")]
         ]
     )
@@ -348,21 +435,6 @@ async def invite_friend(message: Message):
         reply_markup=share_keyboard,
         parse_mode="Markdown"
     )
-
-@router.callback_query(F.data == "my_friends_list")
-async def my_friends_list_callback(callback: CallbackQuery):
-    await callback.message.delete()
-    await send_friends_list(callback.message, callback.from_user.id)
-    await callback.answer()
-
-@router.callback_query(F.data == "back_to_main")
-async def back_to_main_callback(callback: CallbackQuery):
-    await callback.message.delete()
-    await callback.message.answer(
-        "Главное меню",
-        reply_markup=main_menu_keyboard(callback.from_user.id)
-    )
-    await callback.answer()
 
 async def show_friends_directly(message: Message):
     """Для обратной совместимости с menu.py"""
