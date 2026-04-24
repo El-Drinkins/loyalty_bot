@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 
 from ..deps import get_db, require_auth, templates
-from ...models import User, Transaction, AdminLog, Referral, ReferralStatus, ReferralBonus
+from ...models import User, Transaction, AdminLog, Referral, ReferralStatus, ReferralBonus, Rental
 from ...utils import calculate_expiry_date
 from ...config import settings
 from ...notifications import send_telegram_notification
@@ -178,8 +178,11 @@ async def referrals_page(
     
     friends_data = []
     for ref, friend in referrals:
-        # Получаем сумму аренд
-        total_rentals = ref.total_rentals_amount
+        # СЧИТАЕМ СУММУ АРЕНД НАПРЯМУЮ ИЗ ТАБЛИЦЫ rentals (как в финансовой статистике)
+        total_rentals = await db.scalar(
+            select(func.coalesce(func.sum(Rental.total_price), 0))
+            .where(Rental.user_id == friend.id, Rental.status == "completed")
+        ) or 0
         
         # Получаем сумму полученных бонусов
         bonuses_result = await db.execute(
@@ -225,6 +228,12 @@ async def referral_detail_page(
     friend = await db.get(User, referral.new_user_id)
     user = await db.get(User, referral.old_user_id)
     
+    # СЧИТАЕМ СУММУ АРЕНД НАПРЯМУЮ ИЗ ТАБЛИЦЫ rentals
+    total_rentals = await db.scalar(
+        select(func.coalesce(func.sum(Rental.total_price), 0))
+        .where(Rental.user_id == friend.id, Rental.status == "completed")
+    ) or 0
+    
     # Получаем все бонусы
     bonuses_result = await db.execute(
         select(ReferralBonus).where(ReferralBonus.referral_id == referral_id)
@@ -233,9 +242,6 @@ async def referral_detail_page(
     
     awarded_bonuses = [b for b in bonuses if b.status == "awarded"]
     pending_bonuses = [b for b in bonuses if b.status == "pending"]
-    
-    # Сумма аренд
-    total_rentals = referral.total_rentals_amount
     
     return templates.TemplateResponse("client/referral_detail.html", {
         "request": request,
@@ -261,7 +267,6 @@ async def confirm_bonus_api(
     if not success:
         raise HTTPException(400, "Не удалось подтвердить бонус")
     
-    # Получаем информацию для редиректа
     bonus = await db.get(ReferralBonus, bonus_id)
     if bonus:
         referral = await db.get(Referral, bonus.referral_id)
