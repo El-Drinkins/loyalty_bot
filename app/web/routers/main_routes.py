@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 from itertools import groupby
 
 from ..deps import get_db, templates, require_auth
-from ...models import User, Referral, Transaction, ReferralStatus
+from ...models import User, Referral, Transaction, ReferralStatus, ReferralBonus
 
 router = APIRouter()
 
@@ -46,24 +46,28 @@ async def client_card(
     db: AsyncSession = Depends(get_db),
     _=Depends(require_auth)
 ):
-    user = await db.get(User, user_id)
+    # Загружаем пользователя с его рефералами (жадная загрузка)
+    user = await db.get(
+        User, 
+        user_id,
+        options=[
+            selectinload(User.invited_by),
+            selectinload(User.referred_users).selectinload(Referral.new_user),
+            selectinload(User.referred_users).selectinload(Referral.bonuses)
+        ]
+    )
     if not user:
         raise HTTPException(404, "Клиент не найден")
 
-    inviter = None
-    if user.invited_by_id:
-        inviter = await db.get(User, user.invited_by_id)
+    inviter = user.invited_by
 
-    total_invited = await db.execute(
-        select(func.count()).where(Referral.old_user_id == user_id)
-    )
-    total_invited = total_invited.scalar()
-    
-    completed_invited = await db.execute(
-        select(func.count()).where(Referral.old_user_id == user_id, Referral.status == ReferralStatus.completed)
-    )
-    completed_invited = completed_invited.scalar()
+    # Статистика по рефералам
+    total_invited = len(user.referred_users) if user.referred_users else 0
+    completed_invited = 0
+    if user.referred_users:
+        completed_invited = sum(1 for ref in user.referred_users if ref.status == ReferralStatus.completed)
 
+    # Загружаем транзакции
     transactions = await db.execute(
         select(Transaction).where(Transaction.user_id == user.id).order_by(Transaction.timestamp.desc())
     )
