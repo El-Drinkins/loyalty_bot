@@ -42,12 +42,30 @@
         padding: 4px 8px;
         border-radius: 4px;
         border: 1px solid #ddd;
-        font-weight: bold;
         cursor: pointer;
     }
     .status-active { background-color: #fff3e0; color: #ff9800; border-color: #ff9800; }
     .status-completed { background-color: #e8f5e8; color: #4CAF50; border-color: #4CAF50; }
     .status-cancelled { background-color: #ffe8e8; color: #f44336; border-color: #f44336; }
+    .confirm-btn {
+        padding: 4px 12px;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
+        font-size: 12px;
+        background-color: #4CAF50;
+        color: white;
+        margin-left: 10px;
+    }
+    .confirm-btn:hover {
+        background-color: #45a049;
+    }
+    .rental-row {
+        border-bottom: 1px solid #eee;
+    }
+    .rental-row td {
+        vertical-align: middle;
+    }
 </style>
 
 <table>
@@ -64,21 +82,23 @@
     </thead>
     <tbody>
         {% for rental in rentals %}
-        <tr id="rental-{{ rental.id }}">
+        <tr id="rental-{{ rental.id }}" class="rental-row">
             <td>{{ rental.rental_number }}</td>
             <td><a href="/admin/client/{{ rental.user.id }}">{{ rental.user.full_name }}</a></td>
             <td>{{ rental.model.brand.name }} {{ rental.model.name }}</td>
             <td>{{ rental.start_date.strftime('%d.%m.%Y') }}<br><small>{{ rental.end_date.strftime('%d.%m.%Y') }}</small></td>
             <td>{{ rental.total_price }} ₽</td>
-            <td>
-                <select class="status-select" data-rental-id="{{ rental.id }}" 
-                        onchange="updateStatus(this, {{ rental.id }})"
+            <td class="status-cell">
+                <select id="status-select-{{ rental.id }}" class="status-select"
                         style="background-color: {% if rental.status == 'active' %}#fff3e0{% elif rental.status == 'completed' %}#e8f5e8{% else %}#ffe8e8{% endif %}; 
                                color: {% if rental.status == 'active' %}#ff9800{% elif rental.status == 'completed' %}#4CAF50{% else %}#f44336{% endif %};">
                     <option value="active" {% if rental.status == 'active' %}selected{% endif %} style="color: #ff9800;">🟡 Активна</option>
                     <option value="completed" {% if rental.status == 'completed' %}selected{% endif %} style="color: #4CAF50;">🟢 Завершена</option>
                     <option value="cancelled" {% if rental.status == 'cancelled' %}selected{% endif %} style="color: #f44336;">🔴 Отменена</option>
                 </select>
+                <button onclick="confirmStatus({{ rental.id }})" class="confirm-btn" id="confirm-btn-{{ rental.id }}">
+                    ✅ Подтвердить
+                </button>
             </td>
             <td>
                 <a href="/admin/catalog/rentals/{{ rental.id }}" class="button button-small">👁️</a>
@@ -93,32 +113,63 @@
 </table>
 
 <script>
-async function updateStatus(selectElement, rentalId) {
-    const newStatus = selectElement.value;
+async function confirmStatus(rentalId) {
+    const select = document.getElementById(`status-select-${rentalId}`);
+    const newStatus = select.value;
+    const button = document.getElementById(`confirm-btn-${rentalId}`);
     
-    const response = await fetch(`/admin/api/rentals/${rentalId}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
-    });
+    // Отключаем кнопку на время запроса
+    button.disabled = true;
+    button.textContent = '⏳ Сохранение...';
     
-    if (response.ok) {
-        // Обновляем стиль select
-        if (newStatus === 'active') {
-            selectElement.style.backgroundColor = '#fff3e0';
-            selectElement.style.color = '#ff9800';
-        } else if (newStatus === 'completed') {
-            selectElement.style.backgroundColor = '#e8f5e8';
-            selectElement.style.color = '#4CAF50';
+    try {
+        const response = await fetch(`/admin/api/rentals/${rentalId}/confirm_status`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            // Обновляем стиль select
+            if (newStatus === 'active') {
+                select.style.backgroundColor = '#fff3e0';
+                select.style.color = '#ff9800';
+            } else if (newStatus === 'completed') {
+                select.style.backgroundColor = '#e8f5e8';
+                select.style.color = '#4CAF50';
+            } else {
+                select.style.backgroundColor = '#ffe8e8';
+                select.style.color = '#f44336';
+            }
+            
+            button.textContent = '✅ Подтверждено';
+            setTimeout(() => {
+                button.textContent = '✅ Подтвердить';
+                button.disabled = false;
+            }, 2000);
+            
+            // Если статус "Завершена", обновляем страницу через 1 секунду
+            if (newStatus === 'completed') {
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            }
         } else {
-            selectElement.style.backgroundColor = '#ffe8e8';
-            selectElement.style.color = '#f44336';
+            button.textContent = '❌ Ошибка';
+            setTimeout(() => {
+                button.textContent = '✅ Подтвердить';
+                button.disabled = false;
+            }, 2000);
         }
-    } else {
-        alert('Ошибка при обновлении статуса');
-        // Возвращаем предыдущее значение
-        const currentStatus = selectElement.querySelector('option[selected]')?.value;
-        if (currentStatus) selectElement.value = currentStatus;
+    } catch (error) {
+        console.error('Error:', error);
+        button.textContent = '❌ Ошибка';
+        setTimeout(() => {
+            button.textContent = '✅ Подтвердить';
+            button.disabled = false;
+        }, 2000);
     }
 }
 </script>

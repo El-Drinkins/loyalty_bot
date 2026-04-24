@@ -19,8 +19,11 @@ async def update_referral_for_user(db: AsyncSession, user_id: int):
     )
     referral = referral.scalar_one_or_none()
     if referral:
+        print(f"🔄 Updating referral {referral.id} for user {user_id}")
         await update_referral_total_rentals(db, referral.id)
         await check_and_create_pending_bonuses(db, referral.id)
+    else:
+        print(f"⚠️ No referral found for user {user_id}")
 
 @router.get("/", response_class=HTMLResponse)
 async def rentals_list(
@@ -139,7 +142,6 @@ async def rental_add(
     
     await db.commit()
     
-    # Если аренда завершена, обновляем реферала
     if status == "completed":
         await update_referral_for_user(db, user_id)
     
@@ -215,7 +217,6 @@ async def rental_edit(
     
     await db.commit()
     
-    # Если статус изменился на "completed", обновляем реферала
     if old_status != "completed" and new_status == "completed":
         await update_referral_for_user(db, user_id)
     
@@ -233,7 +234,6 @@ async def rental_delete(
         user_id = rental.user_id
         await db.delete(rental)
         await db.commit()
-        # Пересчитываем бонусы после удаления
         await update_referral_for_user(db, user_id)
     return RedirectResponse(url="/admin/catalog/rentals", status_code=303)
 
@@ -285,8 +285,40 @@ async def update_rental_status(
     rental.updated_at = datetime.utcnow()
     await db.commit()
     
-    # Если статус изменился на "completed", обновляем реферала
     if old_status != "completed" and new_status == "completed":
         await update_referral_for_user(db, rental.user_id)
     
     return {"success": True}
+
+
+@router.post("/{rental_id}/confirm_status")
+async def confirm_rental_status(
+    request: Request,
+    rental_id: int,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
+):
+    """Подтверждает статус аренды и обновляет бонусы"""
+    data = await request.json()
+    new_status = data.get("status")
+    
+    if new_status not in ["active", "completed", "cancelled"]:
+        raise HTTPException(400, "Неверный статус")
+    
+    rental = await db.get(Rental, rental_id)
+    if not rental:
+        raise HTTPException(404, "Аренда не найдена")
+    
+    old_status = rental.status
+    
+    # Меняем статус
+    rental.status = new_status
+    rental.updated_at = datetime.utcnow()
+    await db.commit()
+    
+    # Если статус изменился на "completed", обновляем реферала
+    if old_status != "completed" and new_status == "completed":
+        await update_referral_for_user(db, rental.user_id)
+        print(f"✅ Аренда {rental_id} завершена, бонусы обновлены")
+    
+    return {"success": True, "old_status": old_status, "new_status": new_status}
