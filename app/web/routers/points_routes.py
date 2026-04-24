@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Request, Form, Depends, HTTPException
 from fastapi.responses import RedirectResponse
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 
-from ..deps import get_db, require_auth
+from ..deps import get_db, require_auth, templates
 from ...models import User, Transaction, AdminLog, Referral, ReferralStatus, ReferralBonus
 from ...utils import calculate_expiry_date
 from ...config import settings
@@ -162,9 +163,6 @@ async def referrals_page(
     _=Depends(require_auth)
 ):
     """Страница со списком рефералов пользователя"""
-    from fastapi.templating import Jinja2Templates
-    from ..deps import templates
-    
     user = await db.get(User, user_id)
     if not user:
         raise HTTPException(404, "Пользователь не найден")
@@ -220,9 +218,6 @@ async def referral_detail_page(
     _=Depends(require_auth)
 ):
     """Детальная страница реферала"""
-    from fastapi.templating import Jinja2Templates
-    from ..deps import templates
-    
     referral = await db.get(Referral, referral_id)
     if not referral:
         raise HTTPException(404, "Реферал не найден")
