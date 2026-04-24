@@ -22,6 +22,9 @@ class Referral(Base):
     status: Mapped[ReferralStatus] = mapped_column(Enum(ReferralStatus), default=ReferralStatus.pending)
     registration_date: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     completion_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    
+    # НОВОЕ ПОЛЕ: сумма всех аренд друга
+    total_rentals_amount: Mapped[int] = mapped_column(Integer, default=0)
 
     # Связи
     new_user: Mapped["User"] = relationship("User", foreign_keys=[new_user_id])
@@ -45,3 +48,21 @@ class ReferralCode(Base):
         foreign_keys=[owner_id],
         back_populates="referral_codes"
     )
+
+
+class ReferralBonus(Base):
+    """Новая таблица для отслеживания бонусов за рефералов"""
+    __tablename__ = "referral_bonuses"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    referral_id: Mapped[int] = mapped_column(ForeignKey("referrals.id", ondelete="CASCADE"))
+    bonus_type: Mapped[str] = mapped_column(String(50))  # first_rental, second_rental, threshold_10k, threshold_30k
+    amount: Mapped[int] = mapped_column(Integer)  # 300, 700, 1000, 1000
+    status: Mapped[str] = mapped_column(String(20), default="pending")  # pending, awarded
+    awarded_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    awarded_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Связи
+    referral: Mapped["Referral"] = relationship("Referral")
+    awarder: Mapped[Optional["User"]] = relationship("User", foreign_keys=[awarded_by])

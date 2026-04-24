@@ -39,8 +39,8 @@
     <!-- Блок с пригласившим и кнопкой назначения -->
     <p>
         <strong>👤 Пригласивший:</strong>
-        {% if inviter %}
-            <a href="/admin/client/{{ inviter.id }}">{{ inviter.full_name }}</a>
+        {% if user.invited_by %}
+            <a href="/admin/client/{{ user.invited_by.id }}">{{ user.invited_by.full_name }}</a>
             <button onclick="showAssignReferralModal()" class="button button-small" style="margin-left: 10px;">✏️ Изменить</button>
         {% else %}
             <span style="color: #999;">не указан</span>
@@ -48,7 +48,15 @@
         {% endif %}
     </p>
 
-    <p><strong>👥 Приглашено друзей:</strong> {{ total_invited }} (подтверждено: {{ completed_invited }})</p>
+    <p><strong>👥 Приглашено друзей:</strong> {{ user.referred_users|length if user.referred_users else 0 }} (подтверждено: 
+        {% set completed_count = namespace(value=0) %}
+        {% for ref in user.referred_users %}
+            {% if ref.status.value == 'completed' %}
+                {% set completed_count.value = completed_count.value + 1 %}
+            {% endif %}
+        {% endfor %}
+        {{ completed_count.value }}
+    )</p>
 
     <!-- Кнопки действий -->
     <div style="margin: 20px 0; display: flex; gap: 10px; flex-wrap: wrap;">
@@ -60,6 +68,9 @@
         </a>
         <a href="/admin/client/{{ user.id }}/finance" class="button" style="background-color: #9C27B0;">
             📊 Финансовая статистика
+        </a>
+        <a href="/admin/referrals/{{ user.id }}" class="button" style="background-color: #4CAF50;">
+            👥 Рефералы
         </a>
     </div>
 
@@ -108,12 +119,12 @@
     <!-- Модальное окно для назначения пригласившего -->
     <div id="assignModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000;">
         <div style="background-color: white; margin: 10% auto; padding: 25px; border-radius: 8px; width: 500px; max-width: 90%;">
-            <h3 style="margin-top: 0;">{% if inviter %}Изменить{% else %}Назначить{% endif %} пригласившего</h3>
+            <h3 style="margin-top: 0;">{% if user.invited_by %}Изменить{% else %}Назначить{% endif %} пригласившего</h3>
             
             <p><strong>Пользователь:</strong> {{ user.full_name }} (ID: {{ user.id }})</p>
             
-            {% if inviter %}
-            <p><strong>Текущий пригласивший:</strong> {{ inviter.full_name }} (ID: {{ inviter.id }})</p>
+            {% if user.invited_by %}
+            <p><strong>Текущий пригласивший:</strong> {{ user.invited_by.full_name }} (ID: {{ user.invited_by.id }})</p>
             {% endif %}
             
             <form action="/admin/client/{{ user.id }}/assign_referrer" method="post" onsubmit="return validateAssignForm()">
@@ -165,7 +176,6 @@
         document.getElementById('submitBtn').disabled = true;
     }
 
-    // Поиск пригласивших по мере ввода
     document.getElementById('referrerSearch').addEventListener('input', function(e) {
         clearTimeout(searchTimeout);
         const query = e.target.value.trim();
@@ -186,9 +196,8 @@
                         resultsDiv.innerHTML = '<div style="padding: 10px; color: #999;">Ничего не найдено</div>';
                     } else {
                         users.forEach(user => {
-                            // Проверяем, не является ли пользователь самим собой
                             if (user.id == {{ user.id }}) {
-                                return; // пропускаем
+                                return;
                             }
                             
                             const div = document.createElement('div');
@@ -233,7 +242,6 @@
         document.getElementById('deleteModal').style.display = 'none';
     }
 
-    // Закрытие модального окна при клике вне его
     window.onclick = function(event) {
         var assignModal = document.getElementById('assignModal');
         var deleteModal = document.getElementById('deleteModal');
@@ -249,12 +257,20 @@
 
     <!-- Операции -->
     <h2>Операции</h2>
-    {% if grouped_transactions %}
-        {% for date, transactions in grouped_transactions %}
+    {% set ns = namespace(transactions_list=[]) %}
+    {% for rental in user.rentals %}
+        {# Здесь могут быть транзакции #}
+    {% endfor %}
+    
+    {% set transactions_query = None %}
+    {# Транзакции выводятся отдельно #}
+    
+    {% if transactions %}
+        {% for date, day_transactions in grouped_transactions %}
             <div style="margin-bottom: 25px;">
                 <h3 style="color: #666; border-bottom: 2px solid #4CAF50; padding-bottom: 5px;">📅 {{ date }}</h3>
                 
-                {% for t in transactions %}
+                {% for t in day_transactions %}
                     <div style="border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 8px; background-color: {% if t.amount > 0 %}#e8f5e8{% else %}#ffe8e8{% endif %};">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <div>
@@ -266,19 +282,18 @@
                             <span style="color: #999; font-size: 14px;">{{ t.timestamp.strftime('%H:%M') }}</span>
                         </div>
                         
-                        <!-- ПРАВИЛЬНЫЙ РАСЧЕТ БАЛАНСА ПОСЛЕ ОПЕРАЦИИ -->
-                        {% set ns = namespace(balance_after=user.balance) %}
-                        {% for later_t in transactions %}
+                        {% set running_balance = user.balance %}
+                        {% for later_t in day_transactions %}
                             {% if later_t.timestamp > t.timestamp %}
-                                {% set ns.balance_after = ns.balance_after - later_t.amount %}
+                                {% set running_balance = running_balance - later_t.amount %}
                             {% endif %}
                         {% endfor %}
                         
                         <div style="margin-top: 5px; color: #333; font-weight: 500;">
                             {% if t.amount > 0 %}
-                                💰 Баланс после начисления: {{ ns.balance_after }} ⭐
+                                💰 Баланс после начисления: {{ running_balance }} ⭐
                             {% else %}
-                                💰 Баланс после списания: {{ ns.balance_after }} ⭐
+                                💰 Баланс после списания: {{ running_balance }} ⭐
                             {% endif %}
                         </div>
                         
@@ -299,7 +314,6 @@
 
     <!-- Кнопки управления -->
     <div style="margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-        <!-- Левая колонка: начисление/списание -->
         <div style="border: 1px solid #ddd; border-radius: 8px; padding: 20px;">
             <h3>💰 Начислить баллы</h3>
             <form action="/admin/client/{{ user.id }}/add_points" method="post" onsubmit="return confirm('Действие будет записано в журнал. Продолжить?')">
@@ -332,7 +346,6 @@
             </div>
         </div>
         
-        <!-- Правая колонка: управление черным списком -->
         <div style="border: 1px solid #ddd; border-radius: 8px; padding: 20px; {% if user.blacklisted %}background-color: #fff3f3;{% endif %}">
             <h3>⛔ Управление черным списком</h3>
             
@@ -387,7 +400,6 @@
             Будут удалены все данные: профиль, история транзакций, реферальные связи.
         </p>
         
-        <!-- Кнопка для открытия модального окна подтверждения -->
         <button onclick="showDeleteModal()" class="button" style="background-color: #ff4444; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 16px;">
             🗑️ Полностью удалить пользователя
         </button>
@@ -408,7 +420,7 @@
                 <li>📝 Профиль пользователя</li>
                 <li>💰 Все баллы ({{ user.balance }} ⭐)</li>
                 <li>📊 История транзакций ({{ transactions|length }} записей)</li>
-                <li>👥 Реферальные связи (пригласил {{ total_invited }} друзей)</li>
+                <li>👥 Реферальные связи</li>
             </ul>
             
             <form action="/admin/client/{{ user.id }}/delete" method="post">

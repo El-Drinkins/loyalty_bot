@@ -2,7 +2,7 @@ from sqlalchemy.orm import relationship
 
 from .base import Base, engine, AsyncSessionLocal, init_db
 from .user import User
-from .referral import Referral, ReferralStatus, ReferralCode
+from .referral import Referral, ReferralStatus, ReferralCode, ReferralBonus
 from .transaction import Transaction, AdminLog, UserLog
 from .catalog import Category, Brand, Model
 from .rental import Rental
@@ -35,6 +35,20 @@ User.referral_codes = relationship(
     overlaps="referrals"
 )
 
+# Добавляем связи рефералов в класс User
+User.referred_users = relationship(
+    "Referral",
+    foreign_keys="[Referral.old_user_id]",
+    back_populates="old_user",
+    overlaps="referrals"
+)
+User.referred_by = relationship(
+    "Referral",
+    foreign_keys="[Referral.new_user_id]",
+    back_populates="new_user",
+    overlaps="referrals"
+)
+
 # Добавляем связь в класс Model
 Model.rentals = relationship(
     "Rental", 
@@ -46,7 +60,7 @@ Model.rentals = relationship(
 __all__ = [
     "Base", "engine", "AsyncSessionLocal", "init_db",
     "User",
-    "Referral", "ReferralStatus", "ReferralCode",
+    "Referral", "ReferralStatus", "ReferralCode", "ReferralBonus",
     "Transaction", "AdminLog", "UserLog",
     "Category", "Brand", "Model",
     "Rental",

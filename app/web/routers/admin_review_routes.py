@@ -4,15 +4,36 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timedelta
+from itertools import groupby
+import httpx
 
 from ..deps import get_db, templates, require_auth
-from ...models import User, RegistrationRequest, SecuritySettings, Whitelist, StormLog, Transaction, Referral, ReferralStatus
+from ...models import User, RegistrationRequest, SecuritySettings, Whitelist, StormLog, Transaction, Referral, ReferralStatus, ReferralBonus
 from ...config import settings
 from ...notifications import send_telegram_notification
+from ...bonus_utils import get_pending_bonuses_for_referral
 
-router = APIRouter(tags=["admin"])
+router = APIRouter()
 
-@router.get("/", response_class=HTMLResponse)
+TIMEZONE_OFFSET_HOURS = 3
+
+async def send_admin_notification(bot_token: str, admin_ids: list, text: str):
+    """Отправляет уведомление администраторам в Telegram"""
+    for admin_id in admin_ids:
+        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+        payload = {
+            "chat_id": admin_id,
+            "text": text,
+            "parse_mode": "HTML"
+        }
+        try:
+            async with httpx.AsyncClient() as client:
+                await client.post(url, json=payload)
+        except Exception as e:
+            print(f"Failed to send notification to {admin_id}: {e}")
+
+
+@router.get("/review", response_class=HTMLResponse)
 async def review_dashboard(
     request: Request,
     db: AsyncSession = Depends(get_db),
@@ -45,7 +66,8 @@ async def review_dashboard(
         "requests": requests
     })
 
-@router.get("/rejected", response_class=HTMLResponse)
+
+@router.get("/review/rejected", response_class=HTMLResponse)
 async def review_rejected(
     request: Request,
     page: int = 1,
@@ -73,7 +95,8 @@ async def review_rejected(
         "per_page": per_page
     })
 
-@router.post("/api/approve/{request_id}")
+
+@router.post("/review/api/approve/{request_id}")
 async def api_approve_request(
     request_id: int,
     db: AsyncSession = Depends(get_db),
@@ -103,13 +126,21 @@ async def api_approve_request(
     await db.flush()
     
     if req.invited_by_id:
-        referral = Referral(
-            new_user_id=user.id,
-            old_user_id=req.invited_by_id,
-            status=ReferralStatus.pending,
-            registration_date=datetime.utcnow()
+        # Проверяем, нет ли уже такой записи
+        existing = await db.execute(
+            select(Referral).where(
+                Referral.new_user_id == user.id,
+                Referral.old_user_id == req.invited_by_id
+            )
         )
-        db.add(referral)
+        if not existing.scalar_one_or_none():
+            referral = Referral(
+                new_user_id=user.id,
+                old_user_id=req.invited_by_id,
+                status=ReferralStatus.pending,
+                registration_date=datetime.utcnow()
+            )
+            db.add(referral)
     
     req.status = "approved"
     req.user_id = user.id
@@ -137,7 +168,8 @@ async def api_approve_request(
     
     return RedirectResponse(url="/admin/review", status_code=303)
 
-@router.post("/api/reject/{request_id}")
+
+@router.post("/review/api/reject/{request_id}")
 async def api_reject_request(
     request_id: int,
     db: AsyncSession = Depends(get_db),
@@ -164,7 +196,8 @@ async def api_reject_request(
     
     return RedirectResponse(url="/admin/review", status_code=303)
 
-@router.post("/api/ban/{request_id}")
+
+@router.post("/review/api/ban/{request_id}")
 async def api_ban_request(
     request_id: int,
     reason: str = Form(...),
@@ -194,7 +227,8 @@ async def api_ban_request(
     
     return RedirectResponse(url="/admin/review", status_code=303)
 
-@router.post("/restore/{request_id}")
+
+@router.post("/review/restore/{request_id}")
 async def restore_request(
     request_id: int,
     db: AsyncSession = Depends(get_db),
@@ -214,7 +248,8 @@ async def restore_request(
     
     return RedirectResponse(url="/admin/review/rejected", status_code=303)
 
-@router.post("/api/delete_request/{request_id}")
+
+@router.post("/review/api/delete_request/{request_id}")
 async def delete_request(
     request_id: int,
     db: AsyncSession = Depends(get_db),
@@ -229,7 +264,8 @@ async def delete_request(
     
     return RedirectResponse(url="/admin/review/rejected", status_code=303)
 
-@router.post("/api/delete_all_rejected")
+
+@router.post("/review/api/delete_all_rejected")
 async def delete_all_rejected(
     request: Request,
     confirm_count: int = Form(...),
@@ -250,7 +286,8 @@ async def delete_all_rejected(
     
     return RedirectResponse(url="/admin/review/rejected?deleted_all=1", status_code=303)
 
-@router.get("/settings", response_class=HTMLResponse)
+
+@router.get("/review/settings", response_class=HTMLResponse)
 async def review_settings(
     request: Request,
     db: AsyncSession = Depends(get_db),
@@ -278,7 +315,8 @@ async def review_settings(
         "whitelist": whitelist
     })
 
-@router.post("/settings/update")
+
+@router.post("/review/settings/update")
 async def update_settings(
     request: Request,
     storm_threshold: int = Form(...),
@@ -309,7 +347,8 @@ async def update_settings(
     await db.commit()
     return RedirectResponse(url="/admin/review/settings?updated=1", status_code=303)
 
-@router.post("/whitelist/add")
+
+@router.post("/review/whitelist/add")
 async def add_to_whitelist(
     request: Request,
     type: str = Form(...),
@@ -337,7 +376,8 @@ async def add_to_whitelist(
     
     return RedirectResponse(url="/admin/review/settings?added=1", status_code=303)
 
-@router.post("/whitelist/{entry_id}/delete")
+
+@router.post("/review/whitelist/{entry_id}/delete")
 async def delete_from_whitelist(
     request: Request,
     entry_id: int,
@@ -350,3 +390,125 @@ async def delete_from_whitelist(
         await db.commit()
     
     return RedirectResponse(url="/admin/review/settings?deleted=1", status_code=303)
+
+
+# ========== НОВЫЙ МАРШРУТ ДЛЯ АДМИНСКИХ ЛОГОВ ==========
+
+@router.get("/admin_logs", response_class=HTMLResponse)
+async def admin_logs_page(
+    request: Request,
+    page: int = 1,
+    per_page: int = 50,
+    action: str = "",
+    user_id: str = "",
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
+):
+    query = select(AdminLog).order_by(AdminLog.created_at.desc())
+    
+    if action:
+        query = query.where(AdminLog.action_type == action)
+    
+    if user_id and user_id.isdigit():
+        query = query.where(AdminLog.user_id == int(user_id))
+    
+    total_count = await db.scalar(select(func.count()).select_from(query.subquery()))
+    
+    offset = (page - 1) * per_page
+    query = query.offset(offset).limit(per_page)
+    
+    result = await db.execute(query)
+    logs = result.scalars().all()
+    
+    logs_with_names = []
+    for log in logs:
+        user = await db.get(User, log.user_id) if log.user_id else None
+        local_time = log.created_at + timedelta(hours=TIMEZONE_OFFSET_HOURS)
+        
+        logs_with_names.append({
+            "id": log.id,
+            "admin_id": log.admin_id,
+            "action_type": log.action_type,
+            "user_id": log.user_id,
+            "user_name": user.full_name if user else f"ID: {log.user_id}",
+            "old_value": log.old_value,
+            "new_value": log.new_value,
+            "reason": log.reason,
+            "created_at": local_time
+        })
+    
+    grouped = []
+    for date, group in groupby(logs_with_names, key=lambda x: x["created_at"].strftime('%d.%m.%Y')):
+        grouped.append((date, list(group)))
+    
+    total_pages = (total_count + per_page - 1) // per_page
+    
+    return templates.TemplateResponse("admin_logs.html", {
+        "request": request,
+        "grouped_logs": grouped,
+        "page": page,
+        "total_pages": total_pages,
+        "action_filter": action,
+        "user_filter": user_id
+    })
+
+
+@router.get("/user_logs", response_class=HTMLResponse)
+async def user_logs_page(
+    request: Request,
+    page: int = 1,
+    per_page: int = 50,
+    action: str = "",
+    user_id: str = "",
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
+):
+    query = select(UserLog).order_by(UserLog.created_at.desc())
+    
+    if action:
+        query = query.where(UserLog.action_type == action)
+    
+    if user_id and user_id.isdigit():
+        query = query.where(UserLog.user_id == int(user_id))
+        current_user = await db.get(User, int(user_id))
+        user_name = current_user.full_name if current_user else f"ID {user_id}"
+    else:
+        user_name = None
+    
+    total_count = await db.scalar(select(func.count()).select_from(query.subquery()))
+    
+    offset = (page - 1) * per_page
+    query = query.offset(offset).limit(per_page)
+    
+    result = await db.execute(query.options(selectinload(UserLog.user)))
+    logs = result.scalars().all()
+    
+    logs_with_names = []
+    for log in logs:
+        local_time = log.created_at + timedelta(hours=TIMEZONE_OFFSET_HOURS)
+        
+        logs_with_names.append({
+            "id": log.id,
+            "user_id": log.user_id,
+            "user_name": log.user.full_name if log.user else f"ID: {log.user_id}",
+            "action_type": log.action_type,
+            "action_details": log.action_details,
+            "created_at": local_time
+        })
+    
+    grouped = []
+    for date, group in groupby(logs_with_names, key=lambda x: x["created_at"].strftime('%d.%m.%Y')):
+        grouped.append((date, list(group)))
+    
+    total_pages = (total_count + per_page - 1) // per_page
+    
+    return templates.TemplateResponse("user_logs.html", {
+        "request": request,
+        "grouped_logs": grouped,
+        "total_count": total_count,
+        "page": page,
+        "total_pages": total_pages,
+        "action_filter": action,
+        "user_filter": user_id,
+        "user_name": user_name
+    })
