@@ -133,14 +133,13 @@ async def rental_add(
     
     db.add(rental)
     
-    # Обновляем срок действия баллов пользователя
     user = await db.get(User, user_id)
     if user:
         user.points_expiry_date = datetime.utcnow() + timedelta(days=90)
     
     await db.commit()
     
-    # Если аренда со статусом completed (завершена), обновляем реферала и создаём бонусы
+    # Если аренда завершена, обновляем реферала
     if status == "completed":
         await update_referral_for_user(db, user_id)
     
@@ -210,14 +209,13 @@ async def rental_edit(
     rental.status = new_status
     rental.updated_at = datetime.utcnow()
     
-    # Обновляем срок действия баллов у пользователя
     user = await db.get(User, user_id)
     if user:
         user.points_expiry_date = datetime.utcnow() + timedelta(days=90)
     
     await db.commit()
     
-    # Если статус изменился на "completed", обновляем реферала и создаём бонусы
+    # Если статус изменился на "completed", обновляем реферала
     if old_status != "completed" and new_status == "completed":
         await update_referral_for_user(db, user_id)
     
@@ -232,8 +230,11 @@ async def rental_delete(
 ):
     rental = await db.get(Rental, rental_id)
     if rental:
+        user_id = rental.user_id
         await db.delete(rental)
         await db.commit()
+        # Пересчитываем бонусы после удаления
+        await update_referral_for_user(db, user_id)
     return RedirectResponse(url="/admin/catalog/rentals", status_code=303)
 
 @router.get("/{rental_id}", response_class=HTMLResponse)
@@ -262,7 +263,6 @@ async def rental_detail(
     })
 
 
-# API для обновления статуса аренды (для выпадающего списка)
 @router.put("/{rental_id}/status")
 async def update_rental_status(
     request: Request,
@@ -285,7 +285,7 @@ async def update_rental_status(
     rental.updated_at = datetime.utcnow()
     await db.commit()
     
-    # Если статус изменился на "completed", обновляем реферала и создаём бонусы
+    # Если статус изменился на "completed", обновляем реферала
     if old_status != "completed" and new_status == "completed":
         await update_referral_for_user(db, rental.user_id)
     
