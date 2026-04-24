@@ -140,7 +140,7 @@ async def rental_add(
     
     await db.commit()
     
-    # Если аренда сразу со статусом completed, обновляем реферала
+    # Если аренда со статусом completed (завершена), обновляем реферала и создаём бонусы
     if status == "completed":
         await update_referral_for_user(db, user_id)
     
@@ -217,10 +217,9 @@ async def rental_edit(
     
     await db.commit()
     
-    # Если статус изменился на "completed" (завершена), обновляем реферала
+    # Если статус изменился на "completed", обновляем реферала и создаём бонусы
     if old_status != "completed" and new_status == "completed":
         await update_referral_for_user(db, user_id)
-    # Если статус был "completed" и стал другим, возможно нужно пересчитать (но обычно не нужно)
     
     return RedirectResponse(url="/admin/catalog/rentals", status_code=303)
 
@@ -286,7 +285,7 @@ async def update_rental_status(
     rental.updated_at = datetime.utcnow()
     await db.commit()
     
-    # Если статус изменился на "completed" (завершена), обновляем реферала
+    # Если статус изменился на "completed", обновляем реферала и создаём бонусы
     if old_status != "completed" and new_status == "completed":
         await update_referral_for_user(db, rental.user_id)
     
