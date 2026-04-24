@@ -46,13 +46,14 @@ async def client_card(
     db: AsyncSession = Depends(get_db),
     _=Depends(require_auth)
 ):
-    # Загружаем пользователя с его рефералами (жадная загрузка)
+    # Загружаем пользователя со всеми необходимыми связями (жадная загрузка)
     user = await db.get(
         User, 
         user_id,
         options=[
             selectinload(User.invited_by),
-            selectinload(User.referred_users).selectinload(Referral.new_user)
+            selectinload(User.referred_users).selectinload(Referral.new_user),
+            selectinload(User.rentals)  # <--- ДОБАВЛЯЕМ ЗАГРУЗКУ АРЕНД
         ]
     )
     if not user:
@@ -66,7 +67,7 @@ async def client_card(
     if user.referred_users:
         completed_invited = sum(1 for ref in user.referred_users if ref.status == ReferralStatus.completed)
 
-    # Загружаем транзакции
+    # Загружаем транзакции (отдельно, так как они не связаны напрямую через selectinload)
     transactions = await db.execute(
         select(Transaction).where(Transaction.user_id == user.id).order_by(Transaction.timestamp.desc())
     )
