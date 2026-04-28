@@ -56,7 +56,6 @@ async def get_or_create_permanent_link(user_id: int, bot_username: str, session)
     return code
 
 async def get_friends_list_with_details(session, user_id: int) -> list:
-    """Получает список друзей с суммой аренд"""
     result = await session.execute(
         select(Referral, User)
         .join(User, User.id == Referral.new_user_id)
@@ -68,6 +67,7 @@ async def get_friends_list_with_details(session, user_id: int) -> list:
     friends = []
     for ref, friend in referrals:
         total_rentals = await get_friend_rentals_total(session, friend.id)
+        rentals_count = await get_friend_rentals_count(session, friend.id)
         
         friends.append({
             "id": friend.id,
@@ -75,13 +75,13 @@ async def get_friends_list_with_details(session, user_id: int) -> list:
             "registration_date": ref.registration_date.strftime("%d.%m.%Y"),
             "status": ref.status,
             "total_rentals": total_rentals,
+            "rentals_count": rentals_count,
             "status_emoji": "✅" if ref.status == "completed" else "⏳"
         })
     
     return friends
 
 async def send_friends_list(message: Message, user_id: int):
-    """Отправляет основное сообщение со списком друзей и статистикой"""
     async with AsyncSessionLocal() as session:
         user = await session.execute(select(User).where(User.telegram_id == user_id))
         user = user.scalar_one_or_none()
@@ -116,17 +116,14 @@ async def send_friends_list(message: Message, user_id: int):
         
         lines = []
         
-        # Заголовок и статистика
         lines.append("👥 **Мои друзья**\n")
         lines.append("📊 **Статистика:**")
         lines.append(f"• Приглашено: {total_invited}")
         lines.append(f"• Подтвердили аренду: {completed}")
-        lines.append(f"• Заработано баллов: {format_number(earned)} ⭐")
-        lines.append("")
+        lines.append(f"• Заработано баллов: {format_number(earned)} ⭐\n")
         lines.append(SEPARATOR)
         lines.append("")
         
-        # Бонусы за друзей (легенда)
         lines.append("💡 **Бонусы за друзей (суммируются):**")
         lines.append("   📌 Первая аренда друга → 300 ⭐")
         lines.append("   📌 Вторая аренда друга → 700 ⭐")
@@ -137,17 +134,14 @@ async def send_friends_list(message: Message, user_id: int):
         lines.append(SEPARATOR)
         lines.append("")
         
-        # Общий прогресс друзей
         lines.append("🏆 **Общий прогресс друзей**\n")
         lines.append(f"• Сумма аренд всех ваших друзей: {format_number(total_friends_rentals)} ₽")
-        lines.append(f"• Цель: 100 000 ₽")
-        lines.append("")
+        lines.append(f"• Цель: 100 000 ₽\n")
         lines.append("🎁 Когда друзья суммарно арендуют на 100 000 ₽,")
         lines.append("   вы получите +5 000 ⭐")
         lines.append("")
         lines.append(SEPARATOR)
         
-        # Кнопка статистики по друзьям
         keyboard_buttons = []
         
         if total_invited > 0:
@@ -175,7 +169,6 @@ async def send_friends_list(message: Message, user_id: int):
         )
 
 async def send_friends_choice(message: Message, user_id: int):
-    """Отправляет сообщение с выбором друга"""
     async with AsyncSessionLocal() as session:
         user = await session.execute(select(User).where(User.telegram_id == user_id))
         user = user.scalar_one_or_none()
@@ -190,7 +183,6 @@ async def send_friends_choice(message: Message, user_id: int):
             await message.answer("👥 У вас пока нет приглашённых друзей.")
             return
         
-        # Сортируем: новые пользователи сверху (уже отсортировано в get_friends_list_with_details)
         buttons = []
         for friend in friends:
             total = format_number(friend["total_rentals"])
@@ -214,7 +206,6 @@ async def send_friends_choice(message: Message, user_id: int):
         )
 
 async def send_friend_detail(message: Message, friend_id: int, user_telegram_id: int):
-    """Отправляет детальную статистику по конкретному другу"""
     async with AsyncSessionLocal() as session:
         user = await session.execute(select(User).where(User.telegram_id == user_telegram_id))
         user = user.scalar_one_or_none()
@@ -228,7 +219,6 @@ async def send_friend_detail(message: Message, friend_id: int, user_telegram_id:
             await message.answer("❌ Друг не найден")
             return
         
-        # Проверяем, что этот друг действительно приглашён пользователем
         referral = await session.execute(
             select(Referral).where(
                 Referral.old_user_id == user.id,
@@ -244,7 +234,8 @@ async def send_friend_detail(message: Message, friend_id: int, user_telegram_id:
         
         lines = []
         lines.append(f"📊 **Бонусы по другу: {friend.full_name}**\n")
-        lines.append(f"💰 Аренды друга на: {format_number(total_amount)} ₽\n")
+        lines.append(f"💰 Аренды друга на: {format_number(total_amount)} ₽")
+        lines.append(SEPARATOR)
         
         # Бонус за первую аренду
         first = bonuses['first_rental']
@@ -255,7 +246,7 @@ async def send_friend_detail(message: Message, friend_id: int, user_telegram_id:
             lines.append(f"   ⏳ Ожидает подтверждения администратора")
         else:
             lines.append(f"   ⏳ Ожидается первая аренда")
-        lines.append("")
+        lines.append(SEPARATOR)
         
         # Бонус за вторую аренду
         second = bonuses['second_rental']
@@ -266,7 +257,7 @@ async def send_friend_detail(message: Message, friend_id: int, user_telegram_id:
             lines.append(f"   ⏳ Ожидает подтверждения администратора")
         else:
             lines.append(f"   ⏳ Нужна вторая аренда")
-        lines.append("")
+        lines.append(SEPARATOR)
         
         # Бонус за 10 000 ₽
         threshold_10k = bonuses['threshold_10k']
@@ -283,10 +274,7 @@ async def send_friend_detail(message: Message, friend_id: int, user_telegram_id:
         else:
             remaining = threshold_10k['target'] - threshold_10k['progress']
             lines.append(f"   Осталось: {format_number(remaining)} ₽")
-            lines.append("")
-            lines.append(f"   🎯 Когда друг арендует ещё на {format_number(remaining)} ₽,")
-            lines.append(f"      вы получите +{threshold_10k['bonus']} ⭐")
-        lines.append("")
+        lines.append(SEPARATOR)
         
         # Бонус за 30 000 ₽
         threshold_30k = bonuses['threshold_30k']
@@ -303,11 +291,7 @@ async def send_friend_detail(message: Message, friend_id: int, user_telegram_id:
         else:
             remaining = threshold_30k['target'] - threshold_30k['progress']
             lines.append(f"   Осталось: {format_number(remaining)} ₽")
-            lines.append("")
-            lines.append(f"   🎯 Когда друг арендует ещё на {format_number(remaining)} ₽,")
-            lines.append(f"      вы получите +{threshold_30k['bonus']} ⭐")
         
-        # Проверяем командный бонус
         total_friends_rentals = await get_all_friends_total_rentals(session, user.id)
         await award_team_bonus(session, user.id, total_friends_rentals)
         
@@ -335,28 +319,24 @@ async def cmd_friends(message: Message):
 
 @router.callback_query(F.data == "show_friends_list")
 async def show_friends_list_callback(callback: CallbackQuery):
-    """Показывает список друзей для выбора"""
     await callback.message.delete()
     await send_friends_choice(callback.message, callback.from_user.id)
     await callback.answer()
 
 @router.callback_query(F.data == "back_to_friends_main")
 async def back_to_friends_main_callback(callback: CallbackQuery):
-    """Возврат к основному сообщению со списком друзей"""
     await callback.message.delete()
     await send_friends_list(callback.message, callback.from_user.id)
     await callback.answer()
 
 @router.callback_query(F.data == "back_to_friends_choice")
 async def back_to_friends_choice_callback(callback: CallbackQuery):
-    """Возврат к выбору друга"""
     await callback.message.delete()
     await send_friends_choice(callback.message, callback.from_user.id)
     await callback.answer()
 
 @router.callback_query(F.data.startswith("friend_detail_"))
 async def friend_detail_callback(callback: CallbackQuery):
-    """Показывает детальную статистику друга"""
     friend_id = int(callback.data.split("_")[2])
     await callback.message.delete()
     await send_friend_detail(callback.message, friend_id, callback.from_user.id)
@@ -437,5 +417,4 @@ async def invite_friend(message: Message):
     )
 
 async def show_friends_directly(message: Message):
-    """Для обратной совместимости с menu.py"""
     await send_friends_list(message, message.from_user.id)
