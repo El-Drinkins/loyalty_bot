@@ -93,6 +93,7 @@ async def model_add(
     image_url: str = Form(""),
     review_url: str = Form(""),
     default_equipment: str = Form(""),
+    mount_type: str = Form(""),
     is_active: bool = Form(True),
     db: AsyncSession = Depends(get_db),
     _=Depends(require_auth)
@@ -106,6 +107,7 @@ async def model_add(
         image_url=image_url,
         review_url=review_url,
         default_equipment=default_equipment,
+        mount_type=mount_type if mount_type else None,
         is_active=is_active
     )
     db.add(model)
@@ -150,6 +152,7 @@ async def model_edit(
     image_url: str = Form(""),
     review_url: str = Form(""),
     default_equipment: str = Form(""),
+    mount_type: str = Form(""),
     is_active: bool = Form(False),
     db: AsyncSession = Depends(get_db),
     _=Depends(require_auth)
@@ -166,6 +169,7 @@ async def model_edit(
     model.image_url = image_url
     model.review_url = review_url
     model.default_equipment = default_equipment
+    model.mount_type = mount_type if mount_type else None
     model.is_active = is_active
     model.updated_at = datetime.utcnow()
     
