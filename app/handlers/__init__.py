@@ -7,6 +7,7 @@ from . import admin_commands
 from . import captcha
 from . import social_verification
 from . import admin_review
+from . import catalog
 
 __all__ = [
     "start",
@@ -17,5 +18,6 @@ __all__ = [
     "admin_commands",
     "captcha",
     "social_verification",
-    "admin_review"
+    "admin_review",
+    "catalog"
 ]
