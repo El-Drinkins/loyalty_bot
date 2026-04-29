@@ -85,10 +85,11 @@ def format_transaction_message(transactions: list, current_page: int, total_page
             else:
                 lines.append(f"💰 Баланс после списания: {format_number(running_balance)} ⭐")
             
+            # Разделитель после КАЖДОЙ операции, кроме последней в дне
             if i < len(day_transactions) - 1:
                 lines.append("---------------------------------")
         
-        lines.append("")
+        lines.append("")  # Пустая строка между датами
     
     return "\n".join(lines)
 
