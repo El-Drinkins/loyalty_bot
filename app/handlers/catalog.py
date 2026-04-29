@@ -269,11 +269,9 @@ async def show_model_detail(callback: CallbackQuery, model_id: int):
         text += format_equipment(model.default_equipment) + "\n\n"
     
     buttons = [
-        [
-            InlineKeyboardButton(text="📸 Заказать в Instagram", url=INSTAGRAM_URL),
-            InlineKeyboardButton(text="📱 Заказать в Telegram", url=TELEGRAM_URL)
-        ],
-        [InlineKeyboardButton(text="◀️ Назад к моделям", callback_data=f"back_to_models_{model.brand_id}")]
+        [InlineKeyboardButton(text="📸 Заказать в Instagram", url=INSTAGRAM_URL)],
+    [InlineKeyboardButton(text="📱 Заказать в Telegram", url=TELEGRAM_URL)],
+    [InlineKeyboardButton(text="◀️ Назад к моделям", callback_data=f"back_to_models_{model.brand_id}")]
     ]
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
