@@ -63,7 +63,6 @@ async def get_mount_types_for_brand(brand_id: int):
             .group_by(Model.mount_type)
         )
         mounts = result.all()
-        
         return [(m[0], m[1]) for m in mounts if m[0] is not None]
 
 
@@ -153,6 +152,7 @@ async def show_brands(callback: CallbackQuery, category_id: int):
                 [InlineKeyboardButton(text="◀️ Назад к категориям", callback_data="back_to_categories")]
             ])
         )
+        await callback.answer()
         return
     
     category_name = brands_with_count[0][0].category.name
@@ -173,6 +173,7 @@ async def show_brands(callback: CallbackQuery, category_id: int):
         reply_markup=keyboard,
         parse_mode="Markdown"
     )
+    await callback.answer()
 
 
 async def show_mount_filter(callback: CallbackQuery, brand_id: int, brand_name: str):
@@ -204,6 +205,7 @@ async def show_mount_filter(callback: CallbackQuery, brand_id: int, brand_name: 
         reply_markup=keyboard,
         parse_mode="Markdown"
     )
+    await callback.answer()
 
 
 async def show_models(callback: CallbackQuery, brand_id: int, brand_name: str, mount_filter: str = None):
@@ -216,6 +218,7 @@ async def show_models(callback: CallbackQuery, brand_id: int, brand_name: str, m
                 [InlineKeyboardButton(text="◀️ Назад к выбору байонета", callback_data=f"back_to_mount_{brand_id}")]
             ])
         )
+        await callback.answer()
         return
     
     if mount_filter and mount_filter != "all":
@@ -244,6 +247,7 @@ async def show_models(callback: CallbackQuery, brand_id: int, brand_name: str, m
         reply_markup=keyboard,
         parse_mode="Markdown"
     )
+    await callback.answer()
 
 
 async def show_model_detail(callback: CallbackQuery, model_id: int):
@@ -296,6 +300,7 @@ async def show_model_detail(callback: CallbackQuery, model_id: int):
             reply_markup=keyboard,
             parse_mode="Markdown"
         )
+    await callback.answer()
 
 
 @router.callback_query(F.data == "back_to_categories")
