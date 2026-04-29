@@ -43,7 +43,7 @@ async def get_transactions_page(user_id: int, page: int) -> list:
 
 
 def format_transaction_message(transactions: list, current_page: int, total_pages: int, user_balance: int) -> str:
-    """Форматирует сообщение с транзакциями для страницы"""
+    """Форматирует сообщение с транзакциями для страницы (старый стиль)"""
     if not transactions:
         return "📭 У вас пока нет операций."
     
@@ -57,7 +57,7 @@ def format_transaction_message(transactions: list, current_page: int, total_page
     lines.append(f"Страница {current_page} из {total_pages}\n")
     
     for date_str in sorted(grouped.keys(), reverse=True):
-        lines.append(f"📅 **{date_str}**")
+        lines.append(f"📅 {date_str}")
         
         day_transactions = grouped[date_str]
         day_transactions.sort(key=lambda x: x.timestamp, reverse=True)
@@ -77,14 +77,16 @@ def format_transaction_message(transactions: list, current_page: int, total_page
             emoji = "🟢" if t.amount > 0 else "🔴"
             time_str = t.timestamp.strftime("%H:%M")
             
-            lines.append(f"┌─────────────────────────────────────────────────┐")
-            lines.append(f"│ {time_str}")
-            lines.append(f"│ {emoji} {amount_str} ⭐ {t.reason}")
+            lines.append(f"{emoji} {amount_str} баллов {t.reason}")
+            lines.append(time_str)
+            
             if t.amount > 0:
-                lines.append(f"│ 💰 Баланс после начисления: {format_number(running_balance)} ⭐")
+                lines.append(f"💰 Баланс после начисления: {format_number(running_balance)} ⭐")
             else:
-                lines.append(f"│ 💰 Баланс после списания: {format_number(running_balance)} ⭐")
-            lines.append(f"└─────────────────────────────────────────────────┘")
+                lines.append(f"💰 Баланс после списания: {format_number(running_balance)} ⭐")
+            
+            if i < len(day_transactions) - 1:
+                lines.append("---------------------------------")
         
         lines.append("")
     
