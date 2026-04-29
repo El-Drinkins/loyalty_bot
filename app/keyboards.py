@@ -8,13 +8,14 @@ def main_menu_keyboard(user_id: int = None):
     builder.button(text="🏠 Баланс")
     builder.button(text="👥 Мои друзья")
     builder.button(text="📜 История")
+    builder.button(text="📸 Каталог")
     builder.button(text="❓ Помощь")
-    builder.button(text="🎁 Пригласить друга в бот")
+    builder.button(text="🎁 Пригласить друга")
     
     if user_id and user_id in settings.ADMIN_IDS:
         builder.button(text="🔗 Управление ссылками")
     
-    builder.adjust(2, 2, 1, 1)
+    builder.adjust(2, 2, 2)
     return builder.as_markup(
         resize_keyboard=True,
         is_persistent=True,

@@ -43,7 +43,7 @@ async def get_transactions_page(user_id: int, page: int) -> list:
 
 
 def format_transaction_message(transactions: list, current_page: int, total_pages: int, user_balance: int) -> str:
-    """Форматирует сообщение с транзакциями для страницы (старый стиль)"""
+    """Форматирует сообщение с транзакциями для страницы"""
     if not transactions:
         return "📭 У вас пока нет операций."
     
@@ -320,6 +320,12 @@ async def manage_links_button(message: Message):
         await cmd_my_links(message)
     else:
         await message.answer("❌ Эта функция доступна только администраторам.")
+
+
+@router.message(F.text == "📸 Каталог")
+async def catalog_button(message: Message):
+    from .catalog import cmd_catalog
+    await cmd_catalog(message)
 
 
 @router.callback_query(F.data == "back_to_main")

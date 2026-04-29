@@ -304,7 +304,8 @@ async def cmd_help(message: Message):
         "❓ **Помощь по программе лояльности**\n\n"
         "📌 **Основные команды:**\n"
         "• /start — начать регистрацию / перезапустить бота\n"
-        "• /help — показать это сообщение\n\n"
+        "• /help — показать это сообщение\n"
+        "• /catalog — открыть каталог техники\n\n"
         "📌 **Как начисляются бонусы:**\n"
         "• 200 баллов — за регистрацию\n"
         "• 100 баллов — за каждого друга, который совершит первую аренду\n\n"
@@ -312,6 +313,7 @@ async def cmd_help(message: Message):
         "• 🏠 Баланс — проверить количество баллов\n"
         "• 👥 Мои друзья — список приглашённых\n"
         "• 📜 История — история операций\n"
+        "• 📸 Каталог — посмотреть технику\n"
         "• 🎁 Пригласить друга — получить ссылку для приглашения\n\n"
         "📌 **Требования к Instagram:**\n"
         "• Аккаунт должен быть открытым (публичным)\n"
@@ -335,7 +337,7 @@ async def cmd_admin(message: Message):
         "/users - список пользователей\n"
         "/blacklist - черный список\n\n"
         "Для управления пользователями используйте веб-интерфейс:\n"
-        f"http://194.67.102.115:8000",
+        f"http://85.137.251.207:8000/admin",
         parse_mode="Markdown"
     )
 
@@ -386,6 +388,13 @@ async def process_manual_code(message: Message, state: FSMContext):
             WELCOME_MESSAGE,
             reply_markup=start_keyboard
         )
+
+
+@router.message(Command("catalog"))
+async def cmd_catalog_command(message: Message):
+    from .catalog import cmd_catalog
+    await cmd_catalog(message)
+
 
 async def log_user_action(user_id: int, action_type: str, details: str = None):
     async with AsyncSessionLocal() as session:
