@@ -20,6 +20,7 @@ class Category(Base):
     
     brands: Mapped[List["Brand"]] = relationship("Brand", back_populates="category", cascade="all, delete-orphan")
 
+
 class Brand(Base):
     __tablename__ = "brands"
 
@@ -32,6 +33,7 @@ class Brand(Base):
     
     category: Mapped["Category"] = relationship("Category", back_populates="brands")
     models: Mapped[List["Model"]] = relationship("Model", back_populates="brand", cascade="all, delete-orphan")
+
 
 class Model(Base):
     __tablename__ = "models"
@@ -46,10 +48,11 @@ class Model(Base):
     review_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     default_equipment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    mount_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     brand: Mapped["Brand"] = relationship("Brand", back_populates="models")
     
-    # ВНИМАНИЕ: Связь с арендами будет добавлена в __init__.py
+    # Связь с арендами будет добавлена в __init__.py
     # rentals: Mapped[List["Rental"]] = relationship("Rental", back_populates="model")
