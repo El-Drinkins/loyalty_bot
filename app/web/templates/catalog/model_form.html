@@ -37,6 +37,12 @@
     </div>
     
     <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Тип байонета (для объективов):</label>
+        <input type="text" name="mount_type" value="{{ model.mount_type if model else '' }}" placeholder="rf, ef, fe, e, z, f, x, l" style="width: 100%; padding: 8px;">
+        <small style="color: #999;">Для объективов: rf (Canon RF), ef (Canon EF), fe (Sony FE), e (Sony E), z (Nikon Z), f (Nikon F), x (Fujifilm X), l (Panasonic L). Для остальной техники оставьте пустым.</small>
+    </div>
+    
+    <div style="margin-bottom: 15px;">
         <label style="display: block; margin-bottom: 5px; font-weight: bold;">Характеристики:</label>
         <textarea name="specs" rows="4" style="width: 100%; padding: 8px;">{{ model.specs if model else '' }}</textarea>
         <small style="color: #999;">Каждая характеристика с новой строки</small>
