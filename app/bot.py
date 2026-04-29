@@ -3,12 +3,13 @@ import logging
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.types import Message
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from .config import settings
 from .handlers import start, menu, referral, admin_commands, referral_codes, invite, captcha, social_verification, admin_review
 from .middleware import BlacklistMiddleware, UserLoggingMiddleware
 from .models import init_db
+from .expiry_checker import check_expiring_points
 
 logging.basicConfig(level=logging.INFO)
 
@@ -33,6 +34,13 @@ async def main():
     dp.include_router(social_verification.router)
     dp.include_router(admin_review.router)
     dp.include_router(admin_commands.router)
+
+    # Планировщик для проверки истекающих баллов
+    scheduler = AsyncIOScheduler()
+    # Запускать каждый день в 9:00 утра
+    scheduler.add_job(check_expiring_points, 'cron', hour=9, minute=0)
+    scheduler.start()
+    logging.info("⏰ Планировщик напоминаний о сгорании баллов запущен (каждый день в 9:00)")
 
     logging.info("🚀 Бот запущен и готов к работе!")
     
