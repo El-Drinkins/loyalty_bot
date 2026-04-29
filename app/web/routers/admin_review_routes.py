@@ -11,29 +11,12 @@ from ..deps import get_db, templates, require_auth
 from ...models import User, RegistrationRequest, SecuritySettings, Whitelist, StormLog, Transaction, Referral, ReferralStatus, ReferralBonus
 from ...config import settings
 from ...notifications import send_telegram_notification
-from ...bonus_utils import get_pending_bonuses_for_referral
 
 router = APIRouter()
 
 TIMEZONE_OFFSET_HOURS = 3
 
-async def send_admin_notification(bot_token: str, admin_ids: list, text: str):
-    """Отправляет уведомление администраторам в Telegram"""
-    for admin_id in admin_ids:
-        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-        payload = {
-            "chat_id": admin_id,
-            "text": text,
-            "parse_mode": "HTML"
-        }
-        try:
-            async with httpx.AsyncClient() as client:
-                await client.post(url, json=payload)
-        except Exception as e:
-            print(f"Failed to send notification to {admin_id}: {e}")
-
-
-@router.get("/review", response_class=HTMLResponse)
+@router.get("/", response_class=HTMLResponse)
 async def review_dashboard(
     request: Request,
     db: AsyncSession = Depends(get_db),
@@ -67,7 +50,7 @@ async def review_dashboard(
     })
 
 
-@router.get("/review/rejected", response_class=HTMLResponse)
+@router.get("/rejected", response_class=HTMLResponse)
 async def review_rejected(
     request: Request,
     page: int = 1,
@@ -96,7 +79,7 @@ async def review_rejected(
     })
 
 
-@router.post("/review/api/approve/{request_id}")
+@router.post("/api/approve/{request_id}")
 async def api_approve_request(
     request_id: int,
     db: AsyncSession = Depends(get_db),
@@ -126,7 +109,6 @@ async def api_approve_request(
     await db.flush()
     
     if req.invited_by_id:
-        # Проверяем, нет ли уже такой записи
         existing = await db.execute(
             select(Referral).where(
                 Referral.new_user_id == user.id,
@@ -169,7 +151,7 @@ async def api_approve_request(
     return RedirectResponse(url="/admin/review", status_code=303)
 
 
-@router.post("/review/api/reject/{request_id}")
+@router.post("/api/reject/{request_id}")
 async def api_reject_request(
     request_id: int,
     db: AsyncSession = Depends(get_db),
@@ -197,7 +179,7 @@ async def api_reject_request(
     return RedirectResponse(url="/admin/review", status_code=303)
 
 
-@router.post("/review/api/ban/{request_id}")
+@router.post("/api/ban/{request_id}")
 async def api_ban_request(
     request_id: int,
     reason: str = Form(...),
@@ -228,7 +210,7 @@ async def api_ban_request(
     return RedirectResponse(url="/admin/review", status_code=303)
 
 
-@router.post("/review/restore/{request_id}")
+@router.post("/restore/{request_id}")
 async def restore_request(
     request_id: int,
     db: AsyncSession = Depends(get_db),
@@ -249,7 +231,7 @@ async def restore_request(
     return RedirectResponse(url="/admin/review/rejected", status_code=303)
 
 
-@router.post("/review/api/delete_request/{request_id}")
+@router.post("/api/delete_request/{request_id}")
 async def delete_request(
     request_id: int,
     db: AsyncSession = Depends(get_db),
@@ -265,7 +247,7 @@ async def delete_request(
     return RedirectResponse(url="/admin/review/rejected", status_code=303)
 
 
-@router.post("/review/api/delete_all_rejected")
+@router.post("/api/delete_all_rejected")
 async def delete_all_rejected(
     request: Request,
     confirm_count: int = Form(...),
@@ -287,7 +269,7 @@ async def delete_all_rejected(
     return RedirectResponse(url="/admin/review/rejected?deleted_all=1", status_code=303)
 
 
-@router.get("/review/settings", response_class=HTMLResponse)
+@router.get("/settings", response_class=HTMLResponse)
 async def review_settings(
     request: Request,
     db: AsyncSession = Depends(get_db),
@@ -316,7 +298,7 @@ async def review_settings(
     })
 
 
-@router.post("/review/settings/update")
+@router.post("/settings/update")
 async def update_settings(
     request: Request,
     storm_threshold: int = Form(...),
@@ -348,7 +330,7 @@ async def update_settings(
     return RedirectResponse(url="/admin/review/settings?updated=1", status_code=303)
 
 
-@router.post("/review/whitelist/add")
+@router.post("/whitelist/add")
 async def add_to_whitelist(
     request: Request,
     type: str = Form(...),
@@ -377,7 +359,7 @@ async def add_to_whitelist(
     return RedirectResponse(url="/admin/review/settings?added=1", status_code=303)
 
 
-@router.post("/review/whitelist/{entry_id}/delete")
+@router.post("/whitelist/{entry_id}/delete")
 async def delete_from_whitelist(
     request: Request,
     entry_id: int,
@@ -391,8 +373,6 @@ async def delete_from_whitelist(
     
     return RedirectResponse(url="/admin/review/settings?deleted=1", status_code=303)
 
-
-# ========== НОВЫЙ МАРШРУТ ДЛЯ АДМИНСКИХ ЛОГОВ ==========
 
 @router.get("/admin_logs", response_class=HTMLResponse)
 async def admin_logs_page(
