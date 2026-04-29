@@ -5,7 +5,6 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
 from ..models import AsyncSessionLocal, Category, Brand, Model
-from ..config import settings
 
 router = Router()
 
@@ -26,16 +25,18 @@ async def get_categories():
 
 
 async def get_brands_by_category(category_id: int):
-    """Получает бренды для категории с количеством моделей"""
+    """Получает бренды для категории с количеством моделей и подгруженной категорией"""
     async with AsyncSessionLocal() as session:
         result = await session.execute(
             select(Brand, func.count(Model.id).label('count'))
+            .options(selectinload(Brand.category))
             .outerjoin(Model, Brand.id == Model.brand_id)
             .where(Brand.category_id == category_id, Brand.is_active == True)
             .group_by(Brand.id)
             .order_by(Brand.sort_order)
         )
-        return result.all()
+        brands_with_count = result.all()
+        return [(brand, count) for brand, count in brands_with_count]
 
 
 async def get_models_by_brand(brand_id: int, mount_filter: str = None):
@@ -63,7 +64,6 @@ async def get_mount_types_for_brand(brand_id: int):
         )
         mounts = result.all()
         
-        # Фильтруем None значения
         return [(m[0], m[1]) for m in mounts if m[0] is not None]
 
 
@@ -83,11 +83,9 @@ def format_specs(specs: str) -> str:
     if not specs:
         return "• Нет данных"
     
-    # Если specs уже с маркерами, возвращаем как есть
     if specs.strip().startswith('•'):
         return specs
     
-    # Если specs с новой строки, добавляем маркеры
     lines = specs.strip().split('\n')
     return '\n'.join([f"• {line.strip()}" for line in lines if line.strip()])
 
@@ -106,16 +104,17 @@ def format_price(price: int) -> str:
     return f"{price:,}".replace(",", " ")
 
 
-# ========== ОБРАБОТЧИКИ ==========
-
 @router.message(Command("catalog"))
 async def cmd_catalog(message: Message):
-    """Команда /catalog - показать каталог"""
     await show_categories(message)
 
 
+@router.message(F.text == "📸 Каталог")
+async def catalog_button(message: Message):
+    await cmd_catalog(message)
+
+
 async def show_categories(message: Message):
-    """Показывает список категорий"""
     categories = await get_categories()
     
     if not categories:
@@ -145,10 +144,9 @@ async def show_categories(message: Message):
 
 
 async def show_brands(callback: CallbackQuery, category_id: int):
-    """Показывает бренды для выбранной категории"""
-    brands = await get_brands_by_category(category_id)
+    brands_with_count = await get_brands_by_category(category_id)
     
-    if not brands:
+    if not brands_with_count:
         await callback.message.edit_text(
             "📭 В этой категории пока нет техники.",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
@@ -157,8 +155,10 @@ async def show_brands(callback: CallbackQuery, category_id: int):
         )
         return
     
+    category_name = brands_with_count[0][0].category.name
+    
     buttons = []
-    for brand, count in brands:
+    for brand, count in brands_with_count:
         buttons.append([InlineKeyboardButton(
             text=f"📷 {brand.name} ({count})",
             callback_data=f"brand_{brand.id}"
@@ -169,34 +169,29 @@ async def show_brands(callback: CallbackQuery, category_id: int):
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
     
     await callback.message.edit_text(
-        f"🎞️ **{brand.category.name}**\n\nВыберите бренд:",
+        f"🎞️ **{category_name}**\n\nВыберите бренд:",
         reply_markup=keyboard,
         parse_mode="Markdown"
     )
 
 
 async def show_mount_filter(callback: CallbackQuery, brand_id: int, brand_name: str):
-    """Показывает выбор байонета для объективов"""
     mount_types = await get_mount_types_for_brand(brand_id)
     
-    # Получаем общее количество моделей
     models = await get_models_by_brand(brand_id)
     total_count = len(models)
     
     buttons = []
     
-    # Кнопка "Все"
     buttons.append([InlineKeyboardButton(
         text=f"🔘 Все ({total_count})",
         callback_data=f"mount_all_{brand_id}"
     )])
     
-    # Кнопки для каждого типа байонета
     for mount_type, count in mount_types:
-        emoji = "🔘"
         display_name = mount_type.upper()
         buttons.append([InlineKeyboardButton(
-            text=f"{emoji} {display_name} ({count})",
+            text=f"🔘 {display_name} ({count})",
             callback_data=f"mount_{mount_type}_{brand_id}"
         )])
     
@@ -212,7 +207,6 @@ async def show_mount_filter(callback: CallbackQuery, brand_id: int, brand_name: 
 
 
 async def show_models(callback: CallbackQuery, brand_id: int, brand_name: str, mount_filter: str = None):
-    """Показывает модели для выбранного бренда с фильтром"""
     models = await get_models_by_brand(brand_id, mount_filter)
     
     if not models:
@@ -224,7 +218,6 @@ async def show_models(callback: CallbackQuery, brand_id: int, brand_name: str, m
         )
         return
     
-    # Формируем заголовок
     if mount_filter and mount_filter != "all":
         title = f"📷 **{brand_name} {mount_filter.upper()}** ({len(models)} объективов)"
     else:
@@ -237,7 +230,6 @@ async def show_models(callback: CallbackQuery, brand_id: int, brand_name: str, m
             callback_data=f"model_{model.id}"
         )])
     
-    # Кнопка для смены фильтра (только для объективов)
     mount_types = await get_mount_types_for_brand(brand_id)
     if mount_types:
         filter_text = f"🔍 Фильтр: {mount_filter.upper() if mount_filter else 'Все'}"
@@ -255,29 +247,23 @@ async def show_models(callback: CallbackQuery, brand_id: int, brand_name: str, m
 
 
 async def show_model_detail(callback: CallbackQuery, model_id: int):
-    """Показывает детали модели с фото"""
     model = await get_model_details(model_id)
     
     if not model:
         await callback.answer("Модель не найдена", show_alert=True)
         return
     
-    # Формируем текст
     text = f"📷 **{model.name}**\n\n"
     
-    # Характеристики
     text += "📸 **Характеристики:**\n"
     text += format_specs(model.specs) + "\n\n"
     
-    # Цена
     text += f"💰 **Цена:** {format_price(model.price_per_day)} ₽/сутки\n\n"
     
-    # Комплектация
     if model.default_equipment:
         text += "📦 **Комплектация:**\n"
         text += format_equipment(model.default_equipment) + "\n\n"
     
-    # Кнопки
     buttons = [
         [
             InlineKeyboardButton(text="📸 Заказать в Instagram", url=INSTAGRAM_URL),
@@ -312,8 +298,6 @@ async def show_model_detail(callback: CallbackQuery, model_id: int):
         )
 
 
-# ========== CALLBACK ОБРАБОТЧИКИ ==========
-
 @router.callback_query(F.data == "back_to_categories")
 async def back_to_categories(callback: CallbackQuery):
     await show_categories(callback.message)
@@ -331,19 +315,15 @@ async def category_callback(callback: CallbackQuery):
 async def brand_callback(callback: CallbackQuery):
     brand_id = int(callback.data.split("_")[1])
     
-    # Проверяем, есть ли у этого бренда разные байонеты
     mount_types = await get_mount_types_for_brand(brand_id)
     
-    # Получаем название бренда
     async with AsyncSessionLocal() as session:
         brand = await session.get(Brand, brand_id)
         brand_name = brand.name if brand else "Техника"
     
     if mount_types:
-        # Если есть разные байонеты, показываем фильтр
         await show_mount_filter(callback, brand_id, brand_name)
     else:
-        # Если нет байонетов (фотоаппараты и т.д.), показываем модели
         await show_models(callback, brand_id, brand_name)
     
     await callback.answer()
@@ -431,4 +411,10 @@ async def back_to_models_callback(callback: CallbackQuery):
 async def model_callback(callback: CallbackQuery):
     model_id = int(callback.data.split("_")[1])
     await show_model_detail(callback, model_id)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "back_to_main")
+async def back_to_main(callback: CallbackQuery):
+    await callback.message.delete()
     await callback.answer()
