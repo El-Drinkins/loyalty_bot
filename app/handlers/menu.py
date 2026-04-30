@@ -307,7 +307,7 @@ async def my_friends_button(message: Message):
     await send_friends_list(message, message.from_user.id)
 
 
-@router.message(F.text == "🎁 Пригласить друга в бот")
+@router.message(F.text == "🎁 Пригласить друга")
 async def invite_button(message: Message):
     from .invite import invite_friend
     await invite_friend(message)
