@@ -351,11 +351,16 @@ async def category_callback(callback: CallbackQuery):
 async def brand_callback(callback: CallbackQuery):
     brand_id = int(callback.data.split("_")[1])
     
-    # Получаем категорию бренда
+    # ЗАГРУЖАЕМ БРЕНД И ЕГО КАТЕГОРИЮ В ОДНОЙ СЕССИИ
     async with AsyncSessionLocal() as session:
-        brand = await session.get(Brand, brand_id)
-        category_id = brand.category_id if brand else None
-        brand_name = brand.name if brand else "Техника"
+        brand = await session.get(Brand, brand_id, options=[selectinload(Brand.category)])
+        if not brand:
+            await callback.answer("Бренд не найден", show_alert=True)
+            return
+        
+        brand_name = brand.name
+        category_id = brand.category_id
+        category_name = brand.category.name if brand.category else None
     
     # Проверяем, нужно ли показывать фильтр байонета (только для объективов)
     if category_id == 4:  # 4 - ID категории Объективы
@@ -363,10 +368,10 @@ async def brand_callback(callback: CallbackQuery):
         if mount_types:
             await show_mount_filter(callback, brand_id, brand_name)
         else:
-            await show_models(callback, brand_id, brand_name, category_name="Объективы")
+            await show_models(callback, brand_id, brand_name, category_name=category_name)
     else:
         # Для остальных категорий показываем модели без фильтра
-        await show_models(callback, brand_id, brand_name, category_name=brand.category.name if brand else None)
+        await show_models(callback, brand_id, brand_name, category_name=category_name)
     
     await callback.answer()
 
@@ -443,8 +448,9 @@ async def back_to_models_callback(callback: CallbackQuery):
     brand_id = int(callback.data.split("_")[3])
     
     async with AsyncSessionLocal() as session:
-        brand = await session.get(Brand, brand_id)
+        brand = await session.get(Brand, brand_id, options=[selectinload(Brand.category)])
         brand_name = brand.name if brand else "Техника"
+        category_name = brand.category.name if brand and brand.category else None
         category_id = brand.category_id if brand else None
     
     if category_id == 4:  # Объективы
@@ -452,9 +458,9 @@ async def back_to_models_callback(callback: CallbackQuery):
         if mount_types:
             await show_mount_filter(callback, brand_id, brand_name)
         else:
-            await show_models(callback, brand_id, brand_name, category_name="Объективы")
+            await show_models(callback, brand_id, brand_name, category_name=category_name)
     else:
-        await show_models(callback, brand_id, brand_name, category_name=brand.category.name if brand else None)
+        await show_models(callback, brand_id, brand_name, category_name=category_name)
     
     await callback.answer()
 
