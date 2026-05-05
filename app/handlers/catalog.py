@@ -21,9 +21,55 @@ def get_category_word(category_name: str) -> str:
         "Освещение": "единиц",
         "Звук": "единиц",
         "Аксессуары": "единиц",
-        "Экшен камеры": "камер"
+        "Экшен камеры": "камер",
+        "Свет": "единиц"
     }
     return category_words.get(category_name, "моделей")
+
+
+def get_category_icon(category_name: str) -> str:
+    """Возвращает иконку для категории"""
+    icons = {
+        "Фотоаппараты": "📷",
+        "Объективы": "🎞️",
+        "Свет": "💡",
+        "Освещение": "💡",
+        "Звук": "🎤",
+        "Аксессуары": "🔋",
+        "Экшен камеры": "🎥"
+    }
+    return icons.get(category_name, "📦")
+
+
+def get_prompt_text(category_name: str) -> str:
+    """Возвращает текст приглашения для категории"""
+    prompts = {
+        "Свет": "Выберите тип света:",
+        "Освещение": "Выберите тип освещения:",
+        "Звук": "Выберите тип:",
+        "Аксессуары": "Выберите тип:"
+    }
+    return prompts.get(category_name, "Выберите бренд:")
+
+
+def get_button_icon(category_name: str, brand_name: str = None) -> str:
+    """Возвращает иконку для кнопки"""
+    if category_name == "Свет" or category_name == "Освещение":
+        return "💡"
+    elif category_name == "Звук":
+        return "🎤"
+    elif category_name == "Аксессуары":
+        return "🔋"
+    elif category_name == "Экшен камеры":
+        return "🎥"
+    else:
+        return "📷"
+
+
+def should_show_count(category_name: str) -> bool:
+    """Показывать ли количество моделей в скобках"""
+    no_count_categories = ["Свет", "Освещение", "Звук", "Аксессуары"]
+    return category_name not in no_count_categories
 
 
 async def get_categories():
@@ -144,8 +190,9 @@ async def show_categories(message: Message):
     buttons = []
     row = []
     for i, category in enumerate(categories):
+        icon = get_category_icon(category.name)
         row.append(InlineKeyboardButton(
-            text=f"{category.icon} {category.name}",
+            text=f"{icon} {category.name}",
             callback_data=f"cat_{category.id}"
         ))
         if len(row) == 2 or i == len(categories) - 1:
@@ -178,21 +225,30 @@ async def show_brands(callback: CallbackQuery, category_id: int):
     
     # Получаем название категории
     category_name = brands_with_count[0][0].category.name
-    category_word = get_category_word(category_name)
+    icon = get_category_icon(category_name)
+    prompt = get_prompt_text(category_name)
+    show_count = should_show_count(category_name)
+    button_icon = get_button_icon(category_name)
     
     buttons = []
     for brand, count in brands_with_count:
-        buttons.append([InlineKeyboardButton(
-            text=f"📷 {brand.name} ({count})",
-            callback_data=f"brand_{brand.id}"
-        )])
+        if show_count:
+            buttons.append([InlineKeyboardButton(
+                text=f"{button_icon} {brand.name} ({count})",
+                callback_data=f"brand_{brand.id}"
+            )])
+        else:
+            buttons.append([InlineKeyboardButton(
+                text=f"{button_icon} {brand.name}",
+                callback_data=f"brand_{brand.id}"
+            )])
     
     buttons.append([InlineKeyboardButton(text="◀️ Назад к категориям", callback_data="back_to_categories")])
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
     
     await callback.message.edit_text(
-        f"📷 **{category_name}**\n\nВыберите бренд:",
+        f"{icon} **{category_name}**\n\n{prompt}",
         reply_markup=keyboard,
         parse_mode="Markdown"
     )
@@ -254,16 +310,17 @@ async def show_models(callback: CallbackQuery, brand_id: int, brand_name: str, m
                 category_name = brand.category.name
     
     category_word = get_category_word(category_name) if category_name else "моделей"
+    icon = get_button_icon(category_name) if category_name else "📷"
     
     if mount_filter and mount_filter != "all":
-        title = f"📷 **{brand_name} {mount_filter.upper()}** ({len(models)} {category_word})"
+        title = f"{icon} **{brand_name} {mount_filter.upper()}** ({len(models)} {category_word})"
     else:
-        title = f"📷 **{brand_name}** ({len(models)} {category_word})"
+        title = f"{icon} **{brand_name}** ({len(models)} {category_word})"
     
     buttons = []
     for model in models:
         buttons.append([InlineKeyboardButton(
-            text=f"📷 {model.name}",
+            text=f"{icon} {model.name}",
             callback_data=f"model_{model.id}"
         )])
     
