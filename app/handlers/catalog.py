@@ -246,13 +246,14 @@ async def show_models(callback: CallbackQuery, brand_id: int, brand_name: str, m
         await callback.answer()
         return
     
-    # Получаем категорию для правильного слова
+    # Получаем категорию для правильного слова, если не передана
     if not category_name:
         async with AsyncSessionLocal() as session:
-            brand = await session.get(Brand, brand_id)
-            if brand:
+            brand = await session.get(Brand, brand_id, options=[selectinload(Brand.category)])
+            if brand and brand.category:
                 category_name = brand.category.name
-    category_word = get_category_word(category_name)
+    
+    category_word = get_category_word(category_name) if category_name else "моделей"
     
     if mount_filter and mount_filter != "all":
         title = f"📷 **{brand_name} {mount_filter.upper()}** ({len(models)} {category_word})"
@@ -351,7 +352,6 @@ async def category_callback(callback: CallbackQuery):
 async def brand_callback(callback: CallbackQuery):
     brand_id = int(callback.data.split("_")[1])
     
-    # ЗАГРУЖАЕМ БРЕНД И ЕГО КАТЕГОРИЮ В ОДНОЙ СЕССИИ
     async with AsyncSessionLocal() as session:
         brand = await session.get(Brand, brand_id, options=[selectinload(Brand.category)])
         if not brand:
@@ -362,7 +362,6 @@ async def brand_callback(callback: CallbackQuery):
         category_id = brand.category_id
         category_name = brand.category.name if brand.category else None
     
-    # Проверяем, нужно ли показывать фильтр байонета (только для объективов)
     if category_id == 4:  # 4 - ID категории Объективы
         mount_types = await get_mount_types_for_brand(brand_id, category_id)
         if mount_types:
@@ -370,7 +369,6 @@ async def brand_callback(callback: CallbackQuery):
         else:
             await show_models(callback, brand_id, brand_name, category_name=category_name)
     else:
-        # Для остальных категорий показываем модели без фильтра
         await show_models(callback, brand_id, brand_name, category_name=category_name)
     
     await callback.answer()
@@ -381,10 +379,11 @@ async def mount_all_callback(callback: CallbackQuery):
     brand_id = int(callback.data.split("_")[2])
     
     async with AsyncSessionLocal() as session:
-        brand = await session.get(Brand, brand_id)
+        brand = await session.get(Brand, brand_id, options=[selectinload(Brand.category)])
         brand_name = brand.name if brand else "Техника"
+        category_name = brand.category.name if brand and brand.category else None
     
-    await show_models(callback, brand_id, brand_name, "all")
+    await show_models(callback, brand_id, brand_name, "all", category_name)
     await callback.answer()
 
 
@@ -395,10 +394,11 @@ async def mount_filter_callback(callback: CallbackQuery):
     brand_id = int(parts[2])
     
     async with AsyncSessionLocal() as session:
-        brand = await session.get(Brand, brand_id)
+        brand = await session.get(Brand, brand_id, options=[selectinload(Brand.category)])
         brand_name = brand.name if brand else "Техника"
+        category_name = brand.category.name if brand and brand.category else None
     
-    await show_models(callback, brand_id, brand_name, mount_type)
+    await show_models(callback, brand_id, brand_name, mount_type, category_name)
     await callback.answer()
 
 
@@ -407,9 +407,8 @@ async def change_filter_callback(callback: CallbackQuery):
     brand_id = int(callback.data.split("_")[2])
     
     async with AsyncSessionLocal() as session:
-        brand = await session.get(Brand, brand_id)
+        brand = await session.get(Brand, brand_id, options=[selectinload(Brand.category)])
         brand_name = brand.name if brand else "Техника"
-        category_id = brand.category_id if brand else None
     
     await show_mount_filter(callback, brand_id, brand_name)
     await callback.answer()
