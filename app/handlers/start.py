@@ -283,7 +283,6 @@ async def process_phone(message: Message, state: FSMContext):
         await state.update_data(request_id=request.id)
         
         # === УВЕДОМЛЕНИЕ АДМИНИСТРАТОРУ ===
-        # Формируем сообщение
         admin_msg = f"🔔 НОВАЯ ЗАЯВКА НА РЕГИСТРАЦИЮ!\n\n"
         admin_msg += f"👤 Имя: {full_name}\n"
         admin_msg += f"📱 Телефон: {phone}\n"
@@ -309,7 +308,6 @@ async def process_phone(message: Message, state: FSMContext):
         admin_msg += f"🤖 Капча: {'✅' if captcha_passed else '❌'}\n\n"
         admin_msg += f"➡️ Перейти к модерации:\n/admin/review"
         
-        # Отправляем всем администраторам
         for admin_id in settings.ADMIN_IDS:
             try:
                 await send_telegram_notification(admin_id, admin_msg)
@@ -335,27 +333,8 @@ async def process_phone(message: Message, state: FSMContext):
 
 @router.message(Command("help"))
 async def cmd_help(message: Message):
-    help_text = (
-        "❓ **Помощь по программе лояльности**\n\n"
-        "📌 **Основные команды:**\n"
-        "• /start — начать регистрацию / перезапустить бота\n"
-        "• /help — показать это сообщение\n"
-        "• /catalog — открыть каталог техники\n\n"
-        "📌 **Как начисляются бонусы:**\n"
-        "• 200 баллов — за регистрацию\n"
-        "• 100 баллов — за каждого друга, который совершит первую аренду\n\n"
-        "📌 **Кнопки главного меню:**\n"
-        "• 🏠 Баланс — проверить количество баллов\n"
-        "• 👥 Мои друзья — список приглашённых\n"
-        "• 📜 История — история операций\n"
-        "• 📸 Каталог — посмотреть технику\n"
-        "• 🎁 Пригласить друга — получить ссылку для приглашения\n\n"
-        "📌 **Требования к Instagram:**\n"
-        "• Аккаунт должен быть открытым (публичным)\n"
-        "• Приватные аккаунты не принимаются\n\n"
-        "По всем вопросам обращайтесь к администратору."
-    )
-    await message.answer(help_text, parse_mode="Markdown")
+    from .menu import help_message
+    await help_message(message)
 
 @router.message(Command("admin"))
 async def cmd_admin(message: Message):
@@ -429,6 +408,12 @@ async def process_manual_code(message: Message, state: FSMContext):
 async def cmd_catalog_command(message: Message):
     from .catalog import cmd_catalog
     await cmd_catalog(message)
+
+
+@router.message(Command("faq"))
+async def cmd_faq_command(message: Message):
+    from .menu import cmd_faq
+    await cmd_faq(message)
 
 
 async def log_user_action(user_id: int, action_type: str, details: str = None):

@@ -47,7 +47,6 @@ def format_transaction_message(transactions: list, current_page: int, total_page
     if not transactions:
         return "📭 У вас пока нет операций."
     
-    # Группируем транзакции по дате
     grouped = defaultdict(list)
     for t in transactions:
         date_str = t.timestamp.strftime("%d.%m.%Y")
@@ -62,7 +61,6 @@ def format_transaction_message(transactions: list, current_page: int, total_page
         day_transactions = grouped[date_str]
         day_transactions.sort(key=lambda x: x.timestamp, reverse=True)
         
-        # Рассчитываем баланс после каждой операции (от конца к началу)
         running_balance = user_balance
         for i, t in enumerate(day_transactions):
             if i > 0:
@@ -85,11 +83,10 @@ def format_transaction_message(transactions: list, current_page: int, total_page
             else:
                 lines.append(f"💰 Баланс после списания: {format_number(running_balance)} ⭐")
             
-            # Разделитель после КАЖДОЙ операции, кроме последней в дне
             if i < len(day_transactions) - 1:
                 lines.append("---------------------------------")
         
-        lines.append("")  # Пустая строка между датами
+        lines.append("")
     
     return "\n".join(lines)
 
@@ -98,7 +95,6 @@ def get_navigation_keyboard(current_page: int, total_pages: int) -> InlineKeyboa
     """Создаёт клавиатуру для навигации по страницам"""
     buttons = []
     
-    # Кнопки навигации (предыдущая/следующая)
     nav_row = []
     if current_page > 1:
         nav_row.append(InlineKeyboardButton(text="◀️ Предыдущая", callback_data=f"history_page_{current_page - 1}"))
@@ -114,22 +110,18 @@ def get_navigation_keyboard(current_page: int, total_pages: int) -> InlineKeyboa
     
     buttons.append(nav_row)
     
-    # Кнопки быстрого перехода по страницам (если страниц > 5)
     if total_pages > 5:
         page_buttons = []
         
-        # Показываем первые 3 страницы
         for i in range(1, min(4, total_pages + 1)):
             if i == current_page:
                 page_buttons.append(InlineKeyboardButton(text=f"•{i}•", callback_data="noop"))
             else:
                 page_buttons.append(InlineKeyboardButton(text=str(i), callback_data=f"history_page_{i}"))
         
-        # Если есть пропуск, добавляем "..."
         if current_page > 4:
             page_buttons.append(InlineKeyboardButton(text="...", callback_data="noop"))
         
-        # Показываем страницу вокруг текущей
         start = max(4, current_page - 1)
         end = min(total_pages - 1, current_page + 1)
         for i in range(start, end + 1):
@@ -139,11 +131,9 @@ def get_navigation_keyboard(current_page: int, total_pages: int) -> InlineKeyboa
                 else:
                     page_buttons.append(InlineKeyboardButton(text=str(i), callback_data=f"history_page_{i}"))
         
-        # Если есть пропуск в конце
         if current_page < total_pages - 2:
             page_buttons.append(InlineKeyboardButton(text="...", callback_data="noop"))
         
-        # Показываем последние 3 страницы
         for i in range(max(total_pages - 2, 4), total_pages + 1):
             if i > 3:
                 if i == current_page:
@@ -154,7 +144,6 @@ def get_navigation_keyboard(current_page: int, total_pages: int) -> InlineKeyboa
         if page_buttons:
             buttons.append(page_buttons)
     else:
-        # Если страниц мало, показываем все
         page_buttons = []
         for i in range(1, total_pages + 1):
             if i == current_page:
@@ -163,7 +152,6 @@ def get_navigation_keyboard(current_page: int, total_pages: int) -> InlineKeyboa
                 page_buttons.append(InlineKeyboardButton(text=str(i), callback_data=f"history_page_{i}"))
         buttons.append(page_buttons)
     
-    # Кнопка "В начало" и "Назад в меню"
     buttons.append([
         InlineKeyboardButton(text="🔝 В начало", callback_data="history_page_1"),
         InlineKeyboardButton(text="◀️ Назад в меню", callback_data="back_to_main")
@@ -190,7 +178,6 @@ async def send_history_page(message: Message, user_id: int, page: int = 1):
         
         total_pages = math.ceil(total_count / OPERATIONS_PER_PAGE)
         
-        # Корректируем номер страницы
         if page < 1:
             page = 1
         if page > total_pages:
@@ -198,7 +185,6 @@ async def send_history_page(message: Message, user_id: int, page: int = 1):
         
         transactions = await get_transactions_page(user.id, page)
         
-        # Логируем действие
         log = UserLog(
             user_id=user.id,
             action_type="view_history",
@@ -207,7 +193,6 @@ async def send_history_page(message: Message, user_id: int, page: int = 1):
         session.add(log)
         await session.commit()
         
-        # Формируем сообщение
         text = format_transaction_message(transactions, page, total_pages, user.balance)
         keyboard = get_navigation_keyboard(page, total_pages)
         
@@ -241,13 +226,11 @@ async def show_balance(message: Message):
 
 @router.message(F.text == "📜 История")
 async def show_history(message: Message):
-    """Показывает первую страницу истории операций"""
     await send_history_page(message, message.from_user.id, 1)
 
 
 @router.callback_query(F.data.startswith("history_page_"))
 async def history_page_callback(callback: CallbackQuery):
-    """Обработчик навигации по страницам истории"""
     page = int(callback.data.split("_")[2])
     await callback.message.delete()
     await send_history_page(callback.message, callback.from_user.id, page)
@@ -256,12 +239,12 @@ async def history_page_callback(callback: CallbackQuery):
 
 @router.callback_query(F.data == "noop")
 async def noop_callback(callback: CallbackQuery):
-    """Заглушка для неактивных кнопок"""
     await callback.answer()
 
 
 @router.message(F.text == "❓ Помощь")
 async def help_message(message: Message):
+    """Показывает страницу помощи (для кнопки и команды /help)"""
     async with AsyncSessionLocal() as session:
         user = await session.execute(select(User).where(User.telegram_id == message.from_user.id))
         user = user.scalar_one_or_none()
@@ -276,29 +259,61 @@ async def help_message(message: Message):
             await session.commit()
     
     help_text = (
-        "❓ <b>Помощь</b>\n\n"
-        "<b>Часто задаваемые вопросы:</b>\n\n"
-        "❓ <b>Сколько стоит 1 балл?</b>\n"
-        "1 балл = 1 рубль.\n\n"
-        "❓ <b>Сколько баллов можно потратить за аренду?</b>\n"
-        "До 50% стоимости аренды.\n\n"
-        "❓ <b>Как получить баллы за аренду?</b>\n"
-        "Баллы начисляются после завершения аренды. 5% — посуточно, 10% — от месяца.\n\n"
-        "❓ <b>Что такое повышенный кэшбэк?</b>\n"
-        "Если арендуете каждый месяц — ставка растёт: 5% → 6% → ... → 10% (максимум).\n\n"
-        "❓ <b>Как получить бонус за друга?</b>\n"
-        "Перешлите свою ссылку другу. Бонусы начисляются после его первой аренды.\n\n"
-        "❓ <b>Сколько действуют баллы?</b>\n"
-        "3 месяца с последней аренды. Новая аренда продлевает срок.\n\n"
-        "❓ <b>Где посмотреть баланс?</b>\n"
-        "Нажмите кнопку «🏠 Баланс» или отправьте команду /balance.\n\n"
-        "📋 <b>Полные правила программы</b>\n"
-        "/regulations\n\n"
-        "📞 <b>Связаться с поддержкой</b>\n"
-        "@el_drinkins"
+        "❓ **Помощь по боту и программе лояльности**\n\n"
+        "📌 **Основные команды:**\n"
+        "• /start — начать регистрацию / перезапустить бота\n"
+        "• /help — показать это сообщение\n"
+        "• /catalog — открыть каталог техники\n"
+        "• /faq — часто задаваемые вопросы\n"
+        "• /regulations — полные правила программы\n\n"
+        "📌 **Кнопки главного меню:**\n"
+        "• 🏠 Баланс — проверить количество баллов\n"
+        "• 👥 Мои друзья — список приглашённых\n"
+        "• 📜 История — история операций\n"
+        "• 📸 Каталог — посмотреть технику\n"
+        "• 🎁 Пригласить друга — получить ссылку для приглашения\n\n"
+        "📌 **Для заказа техники напишите:**\n"
+        "- телеграм @el_drinkins\n"
+        "- инста @fototehnika_arenda_ufa\n\n"
+        "📌 **Требования к соцсетям:**\n"
+        "• Аккаунт должен быть открытым (публичным)\n"
+        "• Приватные аккаунты не принимаются\n\n"
+        "📞 **Связаться с поддержкой**\n"
+        "   @el_drinkins"
     )
     
-    await message.answer(help_text, parse_mode="HTML")
+    await message.answer(help_text, parse_mode="Markdown")
+
+
+@router.message(Command("help"))
+async def cmd_help(message: Message):
+    await help_message(message)
+
+
+@router.message(Command("faq"))
+async def cmd_faq(message: Message):
+    """Показывает часто задаваемые вопросы"""
+    faq_text = (
+        "❓ **ЧАСТО ЗАДАВАЕМЫЕ ВОПРОСЫ**\n\n"
+        "❓ **Сколько стоит 1 балл?**\n"
+        "   1 балл = 1 рубль.\n\n"
+        "❓ **Сколько баллов можно потратить за аренду?**\n"
+        "   До 50% стоимости аренды.\n\n"
+        "❓ **Как получить баллы за аренду?**\n"
+        "   Баллы начисляются после завершения аренды. 5% — посуточно, 10% — от месяца.\n\n"
+        "❓ **Что такое повышенный кэшбэк?**\n"
+        "   Если арендуете каждый месяц — ставка растёт: 5% → 6% → ... → 10% (максимум).\n\n"
+        "❓ **Как получить бонус за друга?**\n"
+        "   Перешлите свою ссылку другу. Бонусы начисляются после его первой аренды.\n\n"
+        "❓ **Сколько действуют баллы?**\n"
+        "   3 месяца с последней аренды. Новая аренда продлевает срок.\n\n"
+        "❓ **Где посмотреть баланс?**\n"
+        "   Нажмите кнопку «🏠 Баланс» или отправьте команду /balance.\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "🔙 /help — вернуться к помощи"
+    )
+    
+    await message.answer(faq_text, parse_mode="Markdown")
 
 
 @router.message(F.text == "👥 Мои друзья")
@@ -307,7 +322,7 @@ async def my_friends_button(message: Message):
     await send_friends_list(message, message.from_user.id)
 
 
-@router.message(F.text == "🎁 Пригласить друга")
+@router.message(F.text == "🎁 Пригласить друга в бот")
 async def invite_button(message: Message):
     from .invite import invite_friend
     await invite_friend(message)
