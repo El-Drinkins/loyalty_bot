@@ -13,6 +13,7 @@ from ..models import User, Referral, Transaction, AsyncSessionLocal, ReferralCod
 from ..keyboards import main_menu_keyboard
 from ..utils import calculate_expiry_date
 from ..config import settings
+from ..notifications import send_telegram_notification
 from .captcha import captcha, CaptchaStates
 from .storm import StormProtection
 
@@ -280,6 +281,40 @@ async def process_phone(message: Message, state: FSMContext):
         session.add(request)
         await session.commit()
         await state.update_data(request_id=request.id)
+        
+        # === УВЕДОМЛЕНИЕ АДМИНИСТРАТОРУ ===
+        # Формируем сообщение
+        admin_msg = f"🔔 НОВАЯ ЗАЯВКА НА РЕГИСТРАЦИЮ!\n\n"
+        admin_msg += f"👤 Имя: {full_name}\n"
+        admin_msg += f"📱 Телефон: {phone}\n"
+        admin_msg += f"🆔 Telegram ID: {message.from_user.id}\n"
+        
+        # Instagram (если есть в данных)
+        instagram = data.get("instagram")
+        if instagram:
+            admin_msg += f"📸 Instagram: @{instagram}\n"
+        
+        # VK (если есть в данных)
+        vkontakte = data.get("vkontakte")
+        if vkontakte:
+            admin_msg += f"📱 VK: {vkontakte}\n"
+        
+        # Пригласивший
+        if referrer_id:
+            inviter = await session.get(User, referrer_id)
+            if inviter:
+                admin_msg += f"🎟️ Пригласил: {inviter.full_name} (ID: {referrer_id})\n"
+        
+        admin_msg += f"🌐 IP: {ip_address}\n"
+        admin_msg += f"🤖 Капча: {'✅' if captcha_passed else '❌'}\n\n"
+        admin_msg += f"➡️ Перейти к модерации:\n/admin/review"
+        
+        # Отправляем всем администраторам
+        for admin_id in settings.ADMIN_IDS:
+            try:
+                await send_telegram_notification(admin_id, admin_msg)
+            except Exception as e:
+                print(f"Не удалось отправить уведомление админу {admin_id}: {e}")
 
     await message.answer(
         "✅ Номер телефона принят!\n\n"
