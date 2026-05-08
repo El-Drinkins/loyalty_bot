@@ -1,5 +1,6 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.filters import Command
 from sqlalchemy import select, func
 from collections import defaultdict
 import math
@@ -353,7 +354,7 @@ async def back_to_main(callback: CallbackQuery):
     await callback.answer()
 
 
-@router.message(F.text == "/regulations")
+@router.message(Command("regulations"))
 async def regulations_command(message: Message):
     regulations_text = (
         "📋 <b>Программа лояльности</b>\n\n"
