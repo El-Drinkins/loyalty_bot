@@ -30,8 +30,13 @@ def format_expiry_message(balance: int, expiry_date: datetime, days: int) -> str
     """
     Форматирует сообщение в зависимости от количества дней до сгорания
     """
-    date_str = expiry_date.strftime("%d.%m.%Y")
     balance_str = f"{balance:,}".replace(",", " ")
+    
+    # Проверяем, что expiry_date не None
+    if expiry_date is None:
+        date_str = "дата не установлена"
+    else:
+        date_str = expiry_date.strftime("%d.%m.%Y")
     
     if days == 30:
         return (
