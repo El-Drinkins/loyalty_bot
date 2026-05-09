@@ -57,21 +57,21 @@ def format_expiry_message(balance: int, expiry_date: datetime, days: int) -> str
         )
     else:
         return (
-            f"⏳ Ваши баллы сгорают {date_str}\n\n"
-            f"💰 Баланс: {balance_str} ⭐\n\n"
-            f"💡 Баллами можно оплатить до 50% стоимости любой аренды.\n\n"
-            f"🔄 Сделайте новую аренду, чтобы продлить срок действия всех баллов ещё на 3 месяца!"
+            f"⏳ Ваши баллы просрочены!\n\n"
+            f"К сожалению, ваши баллы ({balance_str} ⭐) были аннулированы, так как срок их действия истёк {date_str}.\n\n"
+            f"💡 Совершайте новые аренды, чтобы получать баллы и продлевать срок их действия!"
         )
 
 
 async def check_expiring_points():
     """
     Проверяет пользователей с истекающими баллами и отправляет напоминания
-    Возвращает количество отправленных уведомлений
+    Также списывает баллы, если срок уже истёк
     """
     # Периоды напоминания: 30 дней, 7 дней, 1 день
     reminder_days = [30, 7, 1]
     total_sent = 0
+    total_expired = 0
     
     async with AsyncSessionLocal() as session:
         for days in reminder_days:
@@ -86,8 +86,37 @@ async def check_expiring_points():
                     print(f"✅ Напоминание отправлено пользователю {user.telegram_id} (за {days} дней)")
                 except Exception as e:
                     print(f"❌ Ошибка отправки пользователю {user.telegram_id}: {e}")
+        
+        # === СПИСАНИЕ ПРОСРОЧЕННЫХ БАЛЛОВ ===
+        # Находим пользователей, у которых дата сгорания уже прошла
+        today = datetime.utcnow().date()
+        result = await session.execute(
+            select(User).where(
+                User.points_expiry_date.is_not(None),
+                func.date(User.points_expiry_date) < today,
+                User.balance > 0
+            )
+        )
+        expired_users = result.scalars().all()
+        
+        for user in expired_users:
+            old_balance = user.balance
+            user.balance = 0
+            user.points_expiry_date = None
+            total_expired += 1
+            print(f"💸 Списаны баллы у пользователя {user.telegram_id}: было {old_balance} ⭐")
+            
+            # Отправляем уведомление о списании
+            message = format_expiry_message(old_balance, user.points_expiry_date, -1)
+            try:
+                await send_telegram_notification(user.telegram_id, message)
+            except Exception as e:
+                print(f"❌ Ошибка отправки уведомления о списании пользователю {user.telegram_id}: {e}")
+        
+        await session.commit()
     
-    return total_sent
+    print(f"📊 Итог: отправлено напоминаний: {total_sent}, списано баллов у: {total_expired} пользователей")
+    return total_sent, total_expired
 
 
 async def test_expiry_for_user(user_id: int, days: int):
@@ -117,5 +146,4 @@ async def test_expiry_for_user(user_id: int, days: int):
 
 
 if __name__ == "__main__":
-    # Для ручного запуска
     asyncio.run(check_expiring_points())
