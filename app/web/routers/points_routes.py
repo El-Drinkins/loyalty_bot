@@ -28,6 +28,8 @@ async def add_points(
     
     old_balance = user.balance
     user.balance += amount
+    
+    # ОБНОВЛЯЕМ ДАТУ СГОРАНИЯ ПРИ НАЧИСЛЕНИИ БАЛЛОВ
     if amount > 0:
         user.points_expiry_date = calculate_expiry_date()
     
@@ -167,7 +169,6 @@ async def referrals_page(
     if not user:
         raise HTTPException(404, "Пользователь не найден")
     
-    # Получаем всех друзей пользователя
     result = await db.execute(
         select(Referral, User)
         .join(User, User.id == Referral.new_user_id)
@@ -178,13 +179,11 @@ async def referrals_page(
     
     friends_data = []
     for ref, friend in referrals:
-        # СЧИТАЕМ СУММУ АРЕНД НАПРЯМУЮ ИЗ ТАБЛИЦЫ rentals (как в финансовой статистике)
         total_rentals = await db.scalar(
             select(func.coalesce(func.sum(Rental.total_price), 0))
             .where(Rental.user_id == friend.id, Rental.status == "completed")
         ) or 0
         
-        # Получаем сумму полученных бонусов
         bonuses_result = await db.execute(
             select(func.sum(ReferralBonus.amount))
             .where(
@@ -194,7 +193,6 @@ async def referrals_page(
         )
         total_bonus = bonuses_result.scalar() or 0
         
-        # Получаем ожидающие бонусы
         pending_bonuses = await get_pending_bonuses_for_referral(db, ref.id)
         
         friends_data.append({
@@ -228,13 +226,11 @@ async def referral_detail_page(
     friend = await db.get(User, referral.new_user_id)
     user = await db.get(User, referral.old_user_id)
     
-    # СЧИТАЕМ СУММУ АРЕНД НАПРЯМУЮ ИЗ ТАБЛИЦЫ rentals
     total_rentals = await db.scalar(
         select(func.coalesce(func.sum(Rental.total_price), 0))
         .where(Rental.user_id == friend.id, Rental.status == "completed")
     ) or 0
     
-    # Получаем все бонусы
     bonuses_result = await db.execute(
         select(ReferralBonus).where(ReferralBonus.referral_id == referral_id)
     )
@@ -262,7 +258,6 @@ async def confirm_bonus_api(
     admin_id: int = Form(0),
     _=Depends(require_auth)
 ):
-    """API для подтверждения бонуса"""
     success = await award_referral_bonus(db, bonus_id, admin_id)
     if not success:
         raise HTTPException(400, "Не удалось подтвердить бонус")
@@ -284,12 +279,9 @@ async def confirm_all_pending_bonuses(
     admin_id: int = Form(0),
     _=Depends(require_auth)
 ):
-    """Подтверждает все ожидающие бонусы для реферала"""
     pending = await get_pending_bonuses_for_referral(db, referral_id)
     
-    awarded = 0
     for bonus in pending:
-        if await award_referral_bonus(db, bonus.id, admin_id):
-            awarded += 1
+        await award_referral_bonus(db, bonus.id, admin_id)
     
     return RedirectResponse(url=f"/admin/referral_detail/{referral_id}", status_code=303)
