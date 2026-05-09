@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 
 from ..models import AsyncSessionLocal, User, RegistrationRequest, UserLog, Referral
 from ..config import settings
+from ..utils import calculate_expiry_date
 from .storm import StormProtection
 
 router = Router()
@@ -104,14 +105,12 @@ async def approve_request(callback: CallbackQuery):
             verification_level="basic",
             badge="🟢",
             verified_at=datetime.utcnow(),
-            points_expiry_date=datetime.utcnow() + timedelta(days=90)
+            points_expiry_date=calculate_expiry_date()
         )
         session.add(user)
         await session.flush()
         
-        # СОЗДАЁМ РЕФЕРАЛЬНУЮ ЗАПИСЬ (ИСПРАВЛЕНО)
         if req.invited_by_id:
-            # Проверяем, нет ли уже такой записи
             existing = await session.execute(
                 select(Referral).where(
                     Referral.new_user_id == user.id,

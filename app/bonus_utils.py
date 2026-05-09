@@ -194,14 +194,14 @@ def get_bonus_type_name(bonus_type: str) -> str:
 
 
 def calculate_expiry_date() -> datetime:
-    """Возвращает дату истечения срока баллов (через 90 дней)"""
-    return datetime.utcnow() + timedelta(days=90)
+    """Возвращает дату истечения срока баллов (из настроек)"""
+    return datetime.utcnow() + timedelta(days=settings.POINTS_VALID_DAYS)
 
 
 async def check_and_create_pending_bonuses(session, referral_id: int) -> list:
     """
     Проверяет, какие бонусы стали доступны, и создаёт записи в referral_bonuses
-    Также удаляет бонусы, если условие больше не выполняется (например, после удаления аренды)
+    Также удаляет бонусы, если условие больше не выполняется
     """
     from .models import Referral, Rental, ReferralBonus
     
@@ -210,14 +210,12 @@ async def check_and_create_pending_bonuses(session, referral_id: int) -> list:
         print(f"❌ Referral {referral_id} not found")
         return []
     
-    # Получаем сумму всех завершённых аренд
     total_result = await session.execute(
         select(func.coalesce(func.sum(Rental.total_price), 0))
         .where(Rental.user_id == referral.new_user_id, Rental.status == "completed")
     )
     total = total_result.scalar() or 0
     
-    # Получаем количество завершённых аренд
     count_result = await session.execute(
         select(func.count(Rental.id))
         .where(Rental.user_id == referral.new_user_id, Rental.status == "completed")
@@ -228,11 +226,10 @@ async def check_and_create_pending_bonuses(session, referral_id: int) -> list:
     
     created_bonuses = []
     
-    # Получаем информацию для уведомлений
     user = await session.get(User, referral.old_user_id)
     friend = await session.get(User, referral.new_user_id)
     
-    # ----- Бонус за первую аренду -----
+    # Бонус за первую аренду
     if rentals_count >= 1:
         existing = await session.execute(
             select(ReferralBonus).where(
@@ -252,7 +249,6 @@ async def check_and_create_pending_bonuses(session, referral_id: int) -> list:
             created_bonuses.append("first_rental")
             print(f"✅ Created bonus: first_rental for referral {referral_id}")
             
-            # Уведомление администратору
             for admin_id in settings.ADMIN_IDS:
                 await send_admin_notification(
                     settings.BOT_TOKEN,
@@ -266,7 +262,6 @@ async def check_and_create_pending_bonuses(session, referral_id: int) -> list:
                     f"➡️ Подтвердить в админке: /admin/referral_detail/{referral_id}"
                 )
     else:
-        # Если нет аренд, удаляем бонус за первую аренду (если он есть)
         existing = await session.execute(
             select(ReferralBonus).where(
                 ReferralBonus.referral_id == referral_id,
@@ -277,9 +272,9 @@ async def check_and_create_pending_bonuses(session, referral_id: int) -> list:
         bonus = existing.scalar_one_or_none()
         if bonus:
             await session.delete(bonus)
-            print(f"🗑️ Deleted bonus: first_rental for referral {referral_id} (no rentals)")
+            print(f"🗑️ Deleted bonus: first_rental for referral {referral_id}")
     
-    # ----- Бонус за вторую аренду -----
+    # Бонус за вторую аренду
     if rentals_count >= 2:
         existing = await session.execute(
             select(ReferralBonus).where(
@@ -324,7 +319,7 @@ async def check_and_create_pending_bonuses(session, referral_id: int) -> list:
             await session.delete(bonus)
             print(f"🗑️ Deleted bonus: second_rental for referral {referral_id}")
     
-    # ----- Бонус за 10 000 ₽ -----
+    # Бонус за 10 000 ₽
     if total >= 10000:
         existing = await session.execute(
             select(ReferralBonus).where(
@@ -356,7 +351,7 @@ async def check_and_create_pending_bonuses(session, referral_id: int) -> list:
             await session.delete(bonus)
             print(f"🗑️ Deleted bonus: threshold_10k for referral {referral_id}")
     
-    # ----- Бонус за 30 000 ₽ -----
+    # Бонус за 30 000 ₽
     if total >= 30000:
         existing = await session.execute(
             select(ReferralBonus).where(
