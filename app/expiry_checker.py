@@ -73,7 +73,6 @@ async def check_expiring_points():
     Проверяет пользователей с истекающими баллами и отправляет напоминания
     Также списывает баллы, если срок уже истёк
     """
-    # Периоды напоминания: 30 дней, 7 дней, 1 день
     reminder_days = [30, 7, 1]
     total_sent = 0
     total_expired = 0
@@ -93,7 +92,6 @@ async def check_expiring_points():
                     print(f"❌ Ошибка отправки пользователю {user.telegram_id}: {e}")
         
         # === СПИСАНИЕ ПРОСРОЧЕННЫХ БАЛЛОВ ===
-        # Находим пользователей, у которых дата сгорания уже прошла
         today = datetime.utcnow().date()
         result = await session.execute(
             select(User).where(
@@ -106,13 +104,14 @@ async def check_expiring_points():
         
         for user in expired_users:
             old_balance = user.balance
+            old_expiry_date = user.points_expiry_date  # СОХРАНЯЕМ ДАТУ ДО ОБНУЛЕНИЯ
             user.balance = 0
             user.points_expiry_date = None
             total_expired += 1
             print(f"💸 Списаны баллы у пользователя {user.telegram_id}: было {old_balance} ⭐")
             
-            # Отправляем уведомление о списании
-            message = format_expiry_message(old_balance, user.points_expiry_date, -1)
+            # Отправляем уведомление о списании (передаём сохранённую дату)
+            message = format_expiry_message(old_balance, old_expiry_date, -1)
             try:
                 await send_telegram_notification(user.telegram_id, message)
             except Exception as e:
@@ -134,7 +133,6 @@ async def test_expiry_for_user(user_id: int, days: int):
             print(f"❌ Пользователь с ID {user_id} не найден")
             return False
         
-        # Устанавливаем тестовую дату сгорания
         test_expiry = datetime.utcnow() + timedelta(days=days)
         user.points_expiry_date = test_expiry
         await session.commit()
