@@ -274,13 +274,13 @@ async def help_message(message: Message):
         "• 📸 Каталог — посмотреть технику\n"
         "• 🎁 Пригласить друга — получить ссылку для приглашения\n\n"
         "📌 **Для заказа техники напишите:**\n"
-        "- телеграм @el_Drinkins\n"
-        "- инста @fototehnika_arenda_ufa\n\n"
+        "- телеграм @el\\_Drinkins\n"
+        "- инста @fototehnika\\_arenda\\_ufa\n\n"
         "📌 **Требования к соцсетям:**\n"
         "• Аккаунт должен быть открытым (публичным)\n"
         "• Приватные аккаунты не принимаются\n\n"
         "📞 **Связаться с поддержкой**\n"
-        "   @el_Drinkins"
+        "   @el\\_Drinkins"
     )
     
     await message.answer(help_text, parse_mode="Markdown")
