@@ -274,13 +274,13 @@ async def help_message(message: Message):
         "• 📸 Каталог — посмотреть технику\n"
         "• 🎁 Пригласить друга — получить ссылку для приглашения\n\n"
         "📌 **Для заказа техники напишите:**\n"
-        "- телеграм @el_drinkins\n"
+        "- телеграм @el_Drinkins\n"
         "- инста @fototehnika_arenda_ufa\n\n"
         "📌 **Требования к соцсетям:**\n"
         "• Аккаунт должен быть открытым (публичным)\n"
         "• Приватные аккаунты не принимаются\n\n"
         "📞 **Связаться с поддержкой**\n"
-        "   @el_drinkins"
+        "   @el_Drinkins"
     )
     
     await message.answer(help_text, parse_mode="Markdown")
@@ -323,7 +323,7 @@ async def my_friends_button(message: Message):
     await send_friends_list(message, message.from_user.id)
 
 
-@router.message(F.text == "🎁 Пригласить друга в бот")
+@router.message(F.text == "🎁 Пригласить друга")
 async def invite_button(message: Message):
     from .invite import invite_friend
     await invite_friend(message)
