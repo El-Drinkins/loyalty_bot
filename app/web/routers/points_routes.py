@@ -22,14 +22,16 @@ async def add_points(
     admin_id: int = Form(0),
     _=Depends(require_auth)
 ):
+    from ...logger import web_logger as logger
+    
     user = await db.get(User, user_id)
     if not user:
+        logger.warning(f"Попытка начислить баллы несуществующему пользователю {user_id}")
         raise HTTPException(404, "Пользователь не найден")
     
     old_balance = user.balance
     user.balance += amount
     
-    # ОБНОВЛЯЕМ ДАТУ СГОРАНИЯ ПРИ НАЧИСЛЕНИИ БАЛЛОВ
     if amount > 0:
         user.points_expiry_date = calculate_expiry_date()
     
@@ -52,6 +54,9 @@ async def add_points(
     db.add(log)
     
     await db.commit()
+    
+    logger.info(f"Начисление баллов: админ={admin_id}, пользователь={user_id} ({user.full_name}), "
+                f"сумма={amount}, причина='{reason}', баланс: {old_balance} → {user.balance}")
     
     await send_telegram_notification(
         user.telegram_id,

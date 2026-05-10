@@ -21,6 +21,7 @@ from .routers import (
 )
 from .middleware import AuthMiddleware
 from ..models import AsyncSessionLocal
+from ..logger import web_logger as logger
 
 app = FastAPI()
 
@@ -40,9 +41,9 @@ app.add_middleware(
 public_dir = os.path.join(os.path.dirname(__file__), "public")
 if os.path.exists(public_dir):
     app.mount("/public", StaticFiles(directory=public_dir), name="public")
-    print(f"✅ Статические файлы веб-версии подключены из {public_dir}")
+    logger.info(f"Статические файлы веб-версии подключены из {public_dir}")
 else:
-    print(f"⚠️ Папка public не найдена: {public_dir}")
+    logger.warning(f"Папка public не найдена: {public_dir}")
 
 templates = Jinja2Templates(directory="app/web/templates")
 
@@ -50,7 +51,6 @@ templates = Jinja2Templates(directory="app/web/templates")
 app.include_router(auth_router)
 app.include_router(web_client_router)
 
-# Админские роутеры с префиксами
 app.include_router(main_router, prefix="/admin")
 app.include_router(points_router, prefix="/admin")
 app.include_router(stats_router, prefix="/admin")
@@ -66,12 +66,6 @@ app.include_router(admin_review_router, prefix="/admin/review")
 # ========== HEALTH CHECK ==========
 @app.get("/health")
 async def health_check():
-    """
-    Проверка здоровья сервера.
-    Возвращает:
-    - 200 OK если сервер и база данных работают
-    - 503 Service Unavailable если база данных недоступна
-    """
     try:
         async with AsyncSessionLocal() as session:
             result = await session.execute(text("SELECT 1"))
@@ -83,6 +77,7 @@ async def health_check():
             "database": "connected"
         }
     except Exception as e:
+        logger.error(f"Health check: база данных недоступна — {e}")
         return {
             "status": "error",
             "server": "running",
@@ -91,10 +86,7 @@ async def health_check():
         }
 
 
-print("=== ЗАРЕГИСТРИРОВАННЫЕ МАРШРУТЫ ===")
+logger.info("Маршруты зарегистрированы:")
 for route in app.routes:
     if hasattr(route, "methods"):
-        print(f"{route.methods} {route.path}")
-    else:
-        print(f"Mount: {route.path}")
-print("===================================")
+        logger.debug(f"  {route.methods} {route.path}")
