@@ -5,7 +5,7 @@ from aiogram.enums import ParseMode
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from .config import settings
-from .handlers import start, menu, referral, admin_commands, referral_codes, invite, captcha, social_verification, admin_review
+from .handlers import start, menu, referral, admin_commands, referral_codes, invite, captcha, social_verification, admin_review, catalog
 from .middleware import BlacklistMiddleware, UserLoggingMiddleware
 from .models import init_db
 from .expiry_checker import check_expiring_points
@@ -94,6 +94,7 @@ async def main():
     dp.include_router(social_verification.router)
     dp.include_router(admin_review.router)
     dp.include_router(admin_commands.router)
+    dp.include_router(catalog.router)
 
     scheduler = AsyncIOScheduler()
     scheduler.add_job(check_expiring_points, 'cron', hour=9, minute=0)
