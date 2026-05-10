@@ -2,7 +2,7 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 from sqlalchemy import select, func
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 import math
 
 from ..models import User, Transaction, AsyncSessionLocal, UserLog
@@ -48,29 +48,39 @@ def format_transaction_message(transactions: list, current_page: int, total_page
     if not transactions:
         return "📭 У вас пока нет операций."
     
-    grouped = defaultdict(list)
+    # Группируем по датам с сохранением порядка (от новых к старым)
+    grouped = OrderedDict()
     for t in transactions:
         date_str = t.timestamp.strftime("%d.%m.%Y")
+        if date_str not in grouped:
+            grouped[date_str] = []
         grouped[date_str].append(t)
     
     lines = ["📊 **История ваших операций**\n"]
     lines.append(f"Страница {current_page} из {total_pages}\n")
     
-    for date_str in sorted(grouped.keys(), reverse=True):
+    for date_str in grouped:
         lines.append(f"📅 {date_str}")
         
         day_transactions = grouped[date_str]
+        # Сортируем транзакции внутри дня: от новых к старым
         day_transactions.sort(key=lambda x: x.timestamp, reverse=True)
         
+        # Считаем баланс на начало дня: текущий баланс минус все транзакции этого дня
+        day_total = sum(t.amount for t in day_transactions)
         running_balance = user_balance
-        for i, t in enumerate(day_transactions):
-            if i > 0:
-                for j in range(i):
-                    running_balance -= day_transactions[j].amount
         
+        # Восстанавливаем баланс на конец дня (перед последней транзакцией дня)
+        # а потом идём от самой новой к самой старой
         for i, t in enumerate(day_transactions):
-            if i > 0:
-                running_balance -= day_transactions[i-1].amount
+            if i == 0:
+                # Самая новая транзакция дня — баланс ПОСЛЕ неё уже user_balance
+                balance_after = running_balance
+                balance_before = balance_after - t.amount
+            else:
+                # Для предыдущих транзакций баланс после = баланс перед следующей
+                balance_after = balance_before
+                balance_before = balance_after - t.amount
             
             amount_str = f"+{t.amount}" if t.amount > 0 else str(t.amount)
             emoji = "🟢" if t.amount > 0 else "🔴"
@@ -80,9 +90,9 @@ def format_transaction_message(transactions: list, current_page: int, total_page
             lines.append(time_str)
             
             if t.amount > 0:
-                lines.append(f"💰 Баланс после начисления: {format_number(running_balance)} ⭐")
+                lines.append(f"💰 Баланс после начисления: {balance_after} ⭐")
             else:
-                lines.append(f"💰 Баланс после списания: {format_number(running_balance)} ⭐")
+                lines.append(f"💰 Баланс после списания: {balance_after} ⭐")
             
             if i < len(day_transactions) - 1:
                 lines.append("---------------------------------")
