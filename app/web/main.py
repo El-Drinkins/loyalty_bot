@@ -2,15 +2,16 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
+from sqlalchemy import text
 import os
 
 from .routers import (
-    main_router, 
-    points_router, 
+    main_router,
+    points_router,
     stats_router,
-    admin_router, 
-    user_router, 
-    api_router, 
+    admin_router,
+    user_router,
+    api_router,
     catalog_router,
     search_router,
     admin_review_router,
@@ -19,6 +20,7 @@ from .routers import (
     web_client_router
 )
 from .middleware import AuthMiddleware
+from ..models import AsyncSessionLocal
 
 app = FastAPI()
 
@@ -52,13 +54,42 @@ app.include_router(web_client_router)
 app.include_router(main_router, prefix="/admin")
 app.include_router(points_router, prefix="/admin")
 app.include_router(stats_router, prefix="/admin")
-app.include_router(admin_router)  # без префикса, так как у него уже есть свои
+app.include_router(admin_router)
 app.include_router(user_router, prefix="/admin")
 app.include_router(api_router, prefix="/admin")
 app.include_router(search_router, prefix="/admin")
 app.include_router(mailing_router, prefix="/admin")
 app.include_router(catalog_router, prefix="/admin/catalog")
 app.include_router(admin_review_router, prefix="/admin/review")
+
+
+# ========== HEALTH CHECK ==========
+@app.get("/health")
+async def health_check():
+    """
+    Проверка здоровья сервера.
+    Возвращает:
+    - 200 OK если сервер и база данных работают
+    - 503 Service Unavailable если база данных недоступна
+    """
+    try:
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(text("SELECT 1"))
+            result.scalar()
+        
+        return {
+            "status": "ok",
+            "server": "running",
+            "database": "connected"
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "server": "running",
+            "database": "disconnected",
+            "error": str(e)
+        }
+
 
 print("=== ЗАРЕГИСТРИРОВАННЫЕ МАРШРУТЫ ===")
 for route in app.routes:
