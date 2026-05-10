@@ -180,11 +180,16 @@ async def catalog_button(message: Message):
     await cmd_catalog(message)
 
 
-async def show_categories(message: Message):
+async def show_categories(message_or_callback):
+    """Показывает категории. Принимает и Message (для /catalog), и CallbackQuery (для кнопки Назад)."""
     categories = await get_categories()
     
     if not categories:
-        await message.answer("📭 Каталог временно недоступен. Попробуйте позже.")
+        text = "📭 Каталог временно недоступен. Попробуйте позже."
+        if isinstance(message_or_callback, CallbackQuery):
+            await message_or_callback.message.edit_text(text)
+        else:
+            await message_or_callback.answer(text)
         return
     
     buttons = []
@@ -203,11 +208,13 @@ async def show_categories(message: Message):
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
     
-    await message.answer(
-        "📸 **КАТАЛОГ ТЕХНИКИ**\n\nВыберите категорию:",
-        reply_markup=keyboard,
-        parse_mode="Markdown"
-    )
+    text = "📸 **КАТАЛОГ ТЕХНИКИ**\n\nВыберите категорию:"
+    
+    # Для Message — отправляем новое сообщение, для CallbackQuery — редактируем текущее
+    if isinstance(message_or_callback, CallbackQuery):
+        await message_or_callback.message.edit_text(text, reply_markup=keyboard, parse_mode="Markdown")
+    else:
+        await message_or_callback.answer(text, reply_markup=keyboard, parse_mode="Markdown")
 
 
 async def show_brands(callback: CallbackQuery, category_id: int):
@@ -392,9 +399,12 @@ async def show_model_detail(callback: CallbackQuery, model_id: int):
     await callback.answer()
 
 
+# ========== ОБРАБОТЧИКИ КНОПОК ==========
+
 @router.callback_query(F.data == "back_to_categories")
 async def back_to_categories(callback: CallbackQuery):
-    await show_categories(callback.message)
+    # Вместо отправки нового сообщения — редактируем текущее
+    await show_categories(callback)
     await callback.answer()
 
 
@@ -482,7 +492,7 @@ async def back_to_brands_callback(callback: CallbackQuery):
     if category_id:
         await show_brands(callback, category_id)
     else:
-        await show_categories(callback.message)
+        await show_categories(callback)
     
     await callback.answer()
 
