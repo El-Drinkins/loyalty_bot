@@ -123,7 +123,7 @@ async function confirmStatus(rentalId) {
     button.textContent = '⏳ Сохранение...';
     
     try {
-        const response = await fetch(`/admin/api/rentals/${rentalId}/confirm_status`, {
+        const response = await fetch(`/admin/catalog/rentals/${rentalId}/confirm_status`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: newStatus })
