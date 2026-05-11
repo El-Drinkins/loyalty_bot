@@ -3,8 +3,12 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from sqlalchemy import select
+from datetime import datetime
 
-from ..models import AsyncSessionLocal, RegistrationRequest
+from ..models import AsyncSessionLocal, RegistrationRequest, User, ReferralCode
+from ..config import settings
+from ..notifications import send_telegram_notification
 
 router = Router()
 
@@ -212,6 +216,68 @@ async def skip_instagram(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "social_finish")
 async def social_finish(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    
+    phone = data.get("phone")
+    full_name = callback.from_user.full_name or "Имя не указано"
+    referrer_id = data.get("referrer_id")
+    ip_address = data.get("ip_address", str(callback.from_user.id))
+    captcha_passed = data.get("captcha_passed", False)
+    instagram = data.get("instagram")
+    vkontakte = data.get("vkontakte")
+
+    # Создаём заявку на регистрацию
+    async with AsyncSessionLocal() as session:
+        existing = await session.execute(select(User).where(User.phone == phone))
+        if existing.scalar_one_or_none():
+            await callback.message.edit_text(
+                "❌ Этот номер уже зарегистрирован.\n\n"
+                "Если это ваш номер, свяжитесь с администратором."
+            )
+            await state.clear()
+            await callback.answer()
+            return
+
+        request = RegistrationRequest(
+            telegram_id=callback.from_user.id,
+            full_name=full_name,
+            phone=phone,
+            invited_by_id=referrer_id,
+            captcha_passed=captcha_passed,
+            ip_address=ip_address,
+            instagram=instagram,
+            vkontakte=vkontakte,
+            risk_score=0
+        )
+        session.add(request)
+        await session.commit()
+
+        # Уведомление админу
+        admin_msg = f"🔔 НОВАЯ ЗАЯВКА НА РЕГИСТРАЦИЮ!\n\n"
+        admin_msg += f"👤 Имя: {full_name}\n"
+        admin_msg += f"📱 Телефон: {phone}\n"
+        admin_msg += f"🆔 Telegram ID: {callback.from_user.id}\n"
+        
+        if instagram:
+            admin_msg += f"📸 Instagram: @{instagram}\n"
+        if vkontakte:
+            admin_msg += f"📱 VK: {vkontakte}\n"
+        
+        if referrer_id:
+            inviter = await session.get(User, referrer_id)
+            if inviter:
+                admin_msg += f"🎟️ Пригласил: {inviter.full_name} (ID: {referrer_id})\n"
+        
+        admin_msg += f"🌐 IP: {ip_address}\n"
+        admin_msg += f"🤖 Капча: {'✅' if captcha_passed else '❌'}\n\n"
+        admin_msg += f"➡️ Перейти к модерации: /admin/review"
+        
+        for admin_id in settings.ADMIN_IDS:
+            try:
+                await send_telegram_notification(admin_id, admin_msg)
+            except Exception as e:
+                print(f"Не удалось отправить уведомление админу {admin_id}: {e}")
+
     await callback.message.edit_text(
         "✅ Ваша заявка отправлена на модерацию. Ожидайте подтверждения администратора."
     )
