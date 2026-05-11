@@ -164,8 +164,8 @@ async def approve_request(callback: CallbackQuery):
                 try:
                     await callback.message.bot.send_message(
                         inviter.telegram_id,
-                        f"👤 Ваш друг {new_user_name} зарегистрировался по вашей ссылке!\n\n"
-                        f"⏳ Он ещё не совершил первую аренду — как только арендует, вы получите 300 ⭐.\n\n"
+                        f"👤 По вашей ссылке зарегистрировался новый друг: {new_user_name}\n\n"
+                        f"⏳ Первая аренда ещё не совершена — как только это произойдёт, вы получите 300 ⭐.\n\n"
                         f"👥 Следить за прогрессом: кнопка «Мои друзья» в боте.",
                         parse_mode="Markdown"
                     )
