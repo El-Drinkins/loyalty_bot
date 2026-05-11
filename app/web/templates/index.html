@@ -1,39 +1,46 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Статистика</h1>
-<p>Всего клиентов: {{ total_users }}</p>
-<p>Суммарный баланс: {{ total_balance }} ⭐</p>
+<h1>📊 Панель управления</h1>
 
-<h2>Неподтвержденные новички (ждут первой аренды)</h2>
-{% if pending_refs %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>👥 Всего клиентов</h3>
+        <div class="value">{{ total_users }}</div>
+    </div>
+    <div class="stat-card">
+        <h3>💰 Суммарный баланс</h3>
+        <div class="value">{{ total_balance }} ⭐</div>
+    </div>
+</div>
+
+<h2>⏳ Бонусы, ожидающие подтверждения</h2>
+
+{% if pending_bonuses %}
+    <p>Всего ожидает: <strong>{{ pending_bonuses|length }}</strong></p>
     <ul>
-    {% for ref in pending_refs %}
+    {% for bonus, referral, user in pending_bonuses[:10] %}
         <li>
-            <strong>{{ ref.new_user.full_name }}</strong> ({{ ref.new_user.phone }})<br>
-            Пригласил: 
-            {% if ref.old_user %}
-                <a href="/admin/client/{{ ref.old_user.id }}">{{ ref.old_user.full_name }}</a>
-            {% else %}
-                неизвестно
+            <strong>{{ user.full_name }}</strong> 
+            {% if bonus.bonus_type == 'first_rental' %}
+                — первая аренда друга
+            {% elif bonus.bonus_type == 'second_rental' %}
+                — вторая аренда друга
+            {% elif bonus.bonus_type == 'threshold_10k' %}
+                — аренды друга на 10 000 ₽
+            {% elif bonus.bonus_type == 'threshold_30k' %}
+                — аренды друга на 30 000 ₽
             {% endif %}
-            <br>
-            <form action="/admin/confirm_referral/{{ ref.id }}" method="post" style="display:inline">
-                <!-- В реальном приложении admin_id должен браться из сессии, здесь временно -->
-                <input type="hidden" name="admin_id" value="0">
-                <button type="submit" class="button button-small">✅ Подтвердить первую аренду</button>
-            </form>
-            <a href="/admin/client/{{ ref.new_user.id }}" class="button button-small">Карточка новичка</a>
+            → +{{ bonus.amount }} ⭐
         </li>
     {% endfor %}
     </ul>
+    {% if pending_bonuses|length > 10 %}
+        <p>... и ещё {{ pending_bonuses|length - 10 }}</p>
+    {% endif %}
+    <a href="/admin/referrals/{{ pending_bonuses[0][1].old_user_id }}" class="button">👥 Перейти к рефералам</a>
 {% else %}
-    <p>Нет неподтвержденных новичков.</p>
+    <p style="text-align: center; padding: 40px; background: #f5f5f5; border-radius: 8px;">
+        ✅ Нет бонусов, ожидающих подтверждения
+    </p>
 {% endif %}
-
-<h2>Быстрый переход</h2>
-<form action="/client/" method="get" onsubmit="event.preventDefault(); window.location.href='/client/' + document.getElementById('user_id_input').value;">
-    <label for="user_id_input">Введите ID клиента (число):</label>
-    <input type="number" id="user_id_input" name="user_id" required>
-    <button type="submit" class="button">Перейти</button>
-</form>
 {% endblock %}

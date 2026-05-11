@@ -16,27 +16,19 @@ async def admin_index(
     db: AsyncSession = Depends(get_db),
     _=Depends(require_auth)
 ):
-    total_users = await db.execute(select(func.count(User.id)))
-    total_users = total_users.scalar()
+    total_users = await db.scalar(select(func.count(User.id)))
     
-    total_balance = await db.execute(select(func.sum(User.balance)))
-    total_balance = total_balance.scalar() or 0
+    total_balance = await db.scalar(select(func.sum(User.balance))) or 0
 
-    stmt = (
-        select(Referral)
-        .options(
-            selectinload(Referral.new_user).selectinload(User.invited_by)
-        )
-        .where(Referral.status == ReferralStatus.pending)
-    )
-    result = await db.execute(stmt)
-    pending_refs = result.scalars().all()
+    # Загружаем бонусы, ожидающие подтверждения
+    from ...bonus_utils import get_all_pending_bonuses
+    pending_bonuses = await get_all_pending_bonuses(db)
 
     return templates.TemplateResponse("index.html", {
         "request": request,
         "total_users": total_users,
         "total_balance": total_balance,
-        "pending_refs": pending_refs
+        "pending_bonuses": pending_bonuses
     })
 
 @router.get("/client/{user_id}", response_class=HTMLResponse)
