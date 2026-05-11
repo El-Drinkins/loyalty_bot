@@ -144,7 +144,7 @@
 <h2>⏳ Бонусы, ожидающие подтверждения</h2>
 {% if pending_bonuses %}
     <form action="/admin/api/confirm_all_pending/{{ referral.id }}" method="post" style="margin-bottom: 20px;">
-        <input type="hidden" name="admin_id" value="0">
+        <input type="hidden" name="admin_id" value="1">
         <button type="submit" class="button" style="background-color: #FF9800;" onclick="return confirm('Подтвердить все бонусы сразу? Пользователь получит все баллы.')">
             ⭐ Подтвердить все доступные бонусы
         </button>
@@ -176,7 +176,7 @@
             </div>
             <div style="margin-top: 10px;">
                 <form action="/admin/api/confirm_bonus/{{ bonus.id }}" method="post" style="display: inline;">
-                    <input type="hidden" name="admin_id" value="0">
+                    <input type="hidden" name="admin_id" value="1">
                     <button type="submit" class="button button-small" style="background-color: #4CAF50;" onclick="return confirm('Подтвердить начисление бонуса? Пользователь получит {{ bonus.amount }} ⭐')">
                         ✅ Подтвердить
                     </button>
