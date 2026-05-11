@@ -137,17 +137,33 @@ async def api_approve_request(
     
     await db.commit()
     
+    # Уведомление новому пользователю
     try:
         await send_telegram_notification(
             req.telegram_id,
             f"✅ Регистрация подтверждена!\n\n"
             f"Ваша заявка одобрена. Добро пожаловать в программу лояльности!\n\n"
             f"🎁 Вам начислено {settings.WELCOME_BONUS} приветственных баллов.\n\n"
-            f"Отправьте /start для начала работы."
+            f"Отправьте /start для начала работы.\n\n"
             f"Что можно делать в боте и как копить баллы — смотрите в /help или по кнопке \"❓ Помощь\" в главном меню."
         )
     except Exception as e:
         print(f"Не удалось отправить уведомление пользователю {req.telegram_id}: {e}")
+    
+    # Уведомление пригласившему
+    if req.invited_by_id:
+        inviter = await db.get(User, req.invited_by_id)
+        if inviter:
+            new_user_name = req.full_name or "Пользователь"
+            try:
+                await send_telegram_notification(
+                    inviter.telegram_id,
+                    f"👤 Ваш друг {new_user_name} зарегистрировался по вашей ссылке!\n\n"
+                    f"⏳ Он ещё не совершил первую аренду — как только арендует, вы получите 300 ⭐.\n\n"
+                    f"👥 Следить за прогрессом: кнопка «Мои друзья» в боте."
+                )
+            except Exception as e:
+                print(f"Не удалось отправить уведомление пригласившему {inviter.telegram_id}: {e}")
     
     return RedirectResponse(url="/admin/review", status_code=303)
 

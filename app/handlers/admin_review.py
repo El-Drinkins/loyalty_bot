@@ -140,6 +140,7 @@ async def approve_request(callback: CallbackQuery):
         
         await session.commit()
         
+        # Уведомление новому пользователю
         try:
             await callback.message.bot.send_message(
                 req.telegram_id,
@@ -148,12 +149,28 @@ async def approve_request(callback: CallbackQuery):
                 "🎁 Вам начислено 200 приветственных баллов.\n"
                 "⏳ Баллы действительны 3 месяца.\n\n"
                 "👥 Ваш друг получит бонус после вашей первой аренды.\n\n"
-                "Отправьте /start для начала работы.",
+                "Отправьте /start для начала работы.\n\n"
                 "Что можно делать в боте и как копить баллы — смотрите в /help или по кнопке \"❓ Помощь\" в главном меню.",
                 parse_mode="Markdown"
             )
         except Exception as e:
             print(f"Не удалось отправить уведомление пользователю {req.telegram_id}: {e}")
+        
+        # Уведомление пригласившему
+        if req.invited_by_id:
+            inviter = await session.get(User, req.invited_by_id)
+            if inviter:
+                new_user_name = req.full_name or "Пользователь"
+                try:
+                    await callback.message.bot.send_message(
+                        inviter.telegram_id,
+                        f"👤 Ваш друг {new_user_name} зарегистрировался по вашей ссылке!\n\n"
+                        f"⏳ Он ещё не совершил первую аренду — как только арендует, вы получите 300 ⭐.\n\n"
+                        f"👥 Следить за прогрессом: кнопка «Мои друзья» в боте.",
+                        parse_mode="Markdown"
+                    )
+                except Exception as e:
+                    print(f"Не удалось отправить уведомление пригласившему {inviter.telegram_id}: {e}")
         
         await callback.message.edit_text(
             f"✅ Заявка #{request_id} одобрена. Пользователь создан (ID: {user.id})."
