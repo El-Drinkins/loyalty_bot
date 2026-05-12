@@ -431,13 +431,17 @@ async def award_referral_bonus(session: AsyncSession, bonus_id: int, admin_id: i
     if not user:
         return False
     
+    # Получаем имя друга
+    friend = await session.get(User, referral.new_user_id)
+    friend_name = friend.full_name if friend else f"ID: {referral.new_user_id}"
+    
     user.balance += bonus.amount
     user.points_expiry_date = calculate_expiry_date()
     
     transaction = Transaction(
         user_id=user.id,
         amount=bonus.amount,
-        reason=f"Бонус за {get_bonus_type_name(bonus.bonus_type)} друга (ID: {referral.new_user_id})",
+        reason=f"Бонус за {get_bonus_type_name(bonus.bonus_type)} друга ({friend_name})",
         admin_id=admin_id
     )
     session.add(transaction)
@@ -460,7 +464,7 @@ async def award_referral_bonus(session: AsyncSession, bonus_id: int, admin_id: i
         message = (
             f"🎉 Вам начислен бонус!\n\n"
             f"💰 +{bonus.amount} ⭐\n"
-            f"📋 За: {bonus_name} друга (ID: {referral.new_user_id})\n"
+            f"📋 За: {bonus_name} друга ({friend_name})\n"
             f"💳 Ваш баланс: {user.balance} ⭐\n\n"
             f"Спасибо, что приглашаете друзей!"
         )
