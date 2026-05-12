@@ -201,7 +201,8 @@ def calculate_expiry_date() -> datetime:
 async def check_and_create_pending_bonuses(session, referral_id: int) -> list:
     """
     Проверяет, какие бонусы стали доступны, и создаёт записи в referral_bonuses
-    Также удаляет бонусы, если условие больше не выполняется
+    Также удаляет бонусы, если условие больше не выполняется.
+    НЕ создаёт новые бонусы, если такой бонус уже был начислен (awarded).
     """
     from .models import Referral, Rental, ReferralBonus
     
@@ -229,8 +230,17 @@ async def check_and_create_pending_bonuses(session, referral_id: int) -> list:
     user = await session.get(User, referral.old_user_id)
     friend = await session.get(User, referral.new_user_id)
     
+    # Проверяем, какие бонусы уже были начислены (awarded)
+    awarded_result = await session.execute(
+        select(ReferralBonus.bonus_type).where(
+            ReferralBonus.referral_id == referral_id,
+            ReferralBonus.status == "awarded"
+        )
+    )
+    awarded_types = set(row[0] for row in awarded_result.all())
+    
     # Бонус за первую аренду
-    if rentals_count >= 1:
+    if rentals_count >= 1 and "first_rental" not in awarded_types:
         existing = await session.execute(
             select(ReferralBonus).where(
                 ReferralBonus.referral_id == referral_id,
@@ -275,7 +285,7 @@ async def check_and_create_pending_bonuses(session, referral_id: int) -> list:
             print(f"🗑️ Deleted bonus: first_rental for referral {referral_id}")
     
     # Бонус за вторую аренду
-    if rentals_count >= 2:
+    if rentals_count >= 2 and "second_rental" not in awarded_types:
         existing = await session.execute(
             select(ReferralBonus).where(
                 ReferralBonus.referral_id == referral_id,
@@ -320,7 +330,7 @@ async def check_and_create_pending_bonuses(session, referral_id: int) -> list:
             print(f"🗑️ Deleted bonus: second_rental for referral {referral_id}")
     
     # Бонус за 10 000 ₽
-    if total >= 10000:
+    if total >= 10000 and "threshold_10k" not in awarded_types:
         existing = await session.execute(
             select(ReferralBonus).where(
                 ReferralBonus.referral_id == referral_id,
@@ -352,7 +362,7 @@ async def check_and_create_pending_bonuses(session, referral_id: int) -> list:
             print(f"🗑️ Deleted bonus: threshold_10k for referral {referral_id}")
     
     # Бонус за 30 000 ₽
-    if total >= 30000:
+    if total >= 30000 and "threshold_30k" not in awarded_types:
         existing = await session.execute(
             select(ReferralBonus).where(
                 ReferralBonus.referral_id == referral_id,
