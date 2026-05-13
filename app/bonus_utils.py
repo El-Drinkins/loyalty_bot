@@ -105,29 +105,30 @@ async def get_all_friends_total_rentals(session: AsyncSession, user_id: int) -> 
 
 
 async def is_team_bonus_awarded(session: AsyncSession, user_id: int) -> bool:
-    """Проверяет, получен ли уже командный бонус 5000⭐ за 100000₽"""
+    """Проверяет, получен ли уже командный бонус 5000⭐ за 100000₽ (awarded или pending)"""
+    # Проверяем, есть ли awarded или pending командный бонус у пользователя
     user = await session.get(User, user_id)
-    return user.team_bonus_100k_awarded if user else False
+    if user and user.team_bonus_100k_awarded:
+        return True
+    
+    # Также проверяем через referral_bonuses
+    result = await session.execute(
+        select(ReferralBonus).join(Referral).where(
+            Referral.old_user_id == user_id,
+            ReferralBonus.bonus_type == "team_100k",
+            ReferralBonus.status.in_(["awarded", "pending"])
+        )
+    )
+    return result.scalar_one_or_none() is not None
 
 
 async def award_team_bonus(session: AsyncSession, user_id: int, total_rentals: int) -> bool:
-    """Начисляет командный бонус 5000⭐"""
-    if total_rentals >= 100000:
-        already_awarded = await is_team_bonus_awarded(session, user_id)
-        if not already_awarded:
-            user = await session.get(User, user_id)
-            if user:
-                user.balance += 5000
-                user.team_bonus_100k_awarded = True
-                
-                transaction = Transaction(
-                    user_id=user_id,
-                    amount=5000,
-                    reason="🏆 Командный бонус: аренды всех друзей на 100 000 ₽"
-                )
-                session.add(transaction)
-                await session.commit()
-                return True
+    """
+    Больше не начисляет автоматически.
+    Вместо этого создаётся pending-бонус, который админ должен подтвердить.
+    """
+    # Эта функция больше не используется для автоматического начисления.
+    # Бонус создаётся через check_and_create_pending_bonuses.
     return False
 
 
@@ -188,7 +189,8 @@ def get_bonus_type_name(bonus_type: str) -> str:
         "first_rental": "первую аренду",
         "second_rental": "вторую аренду",
         "threshold_10k": "аренды на 10000₽",
-        "threshold_30k": "аренды на 30000₽"
+        "threshold_30k": "аренды на 30000₽",
+        "team_100k": "командный бонус 100 000 ₽"
     }
     return names.get(bonus_type, bonus_type)
 
@@ -202,7 +204,7 @@ async def check_and_create_pending_bonuses(session, referral_id: int) -> list:
     """
     Проверяет, какие бонусы стали доступны, и создаёт записи в referral_bonuses
     Также удаляет бонусы, если условие больше не выполняется.
-    НЕ создаёт новые бонусы, если такой бонус уже был начислен (awarded).
+    НЕ создаёт новые бонусы, если такой бонус уже был начислен (awarded) или ожидает (pending).
     """
     from .models import Referral, Rental, ReferralBonus
     
@@ -230,168 +232,148 @@ async def check_and_create_pending_bonuses(session, referral_id: int) -> list:
     user = await session.get(User, referral.old_user_id)
     friend = await session.get(User, referral.new_user_id)
     
-    # Проверяем, какие бонусы уже были начислены (awarded)
-    awarded_result = await session.execute(
-        select(ReferralBonus.bonus_type).where(
+    # Проверяем, какие бонусы уже были начислены (awarded) или ожидают (pending)
+    existing_result = await session.execute(
+        select(ReferralBonus.bonus_type, ReferralBonus.status).where(
             ReferralBonus.referral_id == referral_id,
-            ReferralBonus.status == "awarded"
+            ReferralBonus.status.in_(["awarded", "pending"])
         )
     )
-    awarded_types = set(row[0] for row in awarded_result.all())
+    existing_types = set(row[0] for row in existing_result.all())
     
     # Бонус за первую аренду
-    if rentals_count >= 1 and "first_rental" not in awarded_types:
-        existing = await session.execute(
-            select(ReferralBonus).where(
-                ReferralBonus.referral_id == referral_id,
-                ReferralBonus.bonus_type == "first_rental",
-                ReferralBonus.status == "pending"
-            )
+    if rentals_count >= 1 and "first_rental" not in existing_types:
+        bonus = ReferralBonus(
+            referral_id=referral_id,
+            bonus_type="first_rental",
+            amount=300,
+            status="pending"
         )
-        if not existing.scalar_one_or_none():
-            bonus = ReferralBonus(
-                referral_id=referral_id,
-                bonus_type="first_rental",
-                amount=300,
-                status="pending"
+        session.add(bonus)
+        created_bonuses.append("first_rental")
+        print(f"✅ Created bonus: first_rental for referral {referral_id}")
+        
+        for admin_id in settings.ADMIN_IDS:
+            await send_admin_notification(
+                settings.BOT_TOKEN,
+                [admin_id],
+                f"🔔 НОВЫЙ БОНУС ДЛЯ ПОДТВЕРЖДЕНИЯ!\n\n"
+                f"👥 Пользователь: {user.full_name if user else '?'} (ID: {referral.old_user_id})\n"
+                f"👤 Друг: {friend.full_name if friend else '?'} (ID: {referral.new_user_id})\n"
+                f"📞 Телефон: {friend.phone if friend else '?'}\n\n"
+                f"🎯 Условие: первая аренда\n"
+                f"💰 Бонус: +300 ⭐\n\n"
+                f"➡️ Подтвердить в админке: /admin/referral_detail/{referral_id}"
             )
-            session.add(bonus)
-            created_bonuses.append("first_rental")
-            print(f"✅ Created bonus: first_rental for referral {referral_id}")
-            
-            for admin_id in settings.ADMIN_IDS:
-                await send_admin_notification(
-                    settings.BOT_TOKEN,
-                    [admin_id],
-                    f"🔔 НОВЫЙ БОНУС ДЛЯ ПОДТВЕРЖДЕНИЯ!\n\n"
-                    f"👥 Пользователь: {user.full_name if user else '?'} (ID: {referral.old_user_id})\n"
-                    f"👤 Друг: {friend.full_name if friend else '?'} (ID: {referral.new_user_id})\n"
-                    f"📞 Телефон: {friend.phone if friend else '?'}\n\n"
-                    f"🎯 Условие: первая аренда\n"
-                    f"💰 Бонус: +300 ⭐\n\n"
-                    f"➡️ Подтвердить в админке: /admin/referral_detail/{referral_id}"
-                )
-    else:
-        existing = await session.execute(
-            select(ReferralBonus).where(
-                ReferralBonus.referral_id == referral_id,
-                ReferralBonus.bonus_type == "first_rental",
-                ReferralBonus.status == "pending"
-            )
-        )
-        bonus = existing.scalar_one_or_none()
-        if bonus:
-            await session.delete(bonus)
-            print(f"🗑️ Deleted bonus: first_rental for referral {referral_id}")
     
     # Бонус за вторую аренду
-    if rentals_count >= 2 and "second_rental" not in awarded_types:
-        existing = await session.execute(
-            select(ReferralBonus).where(
-                ReferralBonus.referral_id == referral_id,
-                ReferralBonus.bonus_type == "second_rental",
-                ReferralBonus.status == "pending"
+    if rentals_count >= 2 and "second_rental" not in existing_types:
+        bonus = ReferralBonus(
+            referral_id=referral_id,
+            bonus_type="second_rental",
+            amount=700,
+            status="pending"
+        )
+        session.add(bonus)
+        created_bonuses.append("second_rental")
+        print(f"✅ Created bonus: second_rental for referral {referral_id}")
+        
+        for admin_id in settings.ADMIN_IDS:
+            await send_admin_notification(
+                settings.BOT_TOKEN,
+                [admin_id],
+                f"🔔 НОВЫЙ БОНУС ДЛЯ ПОДТВЕРЖДЕНИЯ!\n\n"
+                f"👥 Пользователь: {user.full_name if user else '?'} (ID: {referral.old_user_id})\n"
+                f"👤 Друг: {friend.full_name if friend else '?'} (ID: {referral.new_user_id})\n"
+                f"📞 Телефон: {friend.phone if friend else '?'}\n\n"
+                f"🎯 Условие: вторая аренда\n"
+                f"💰 Бонус: +700 ⭐\n\n"
+                f"➡️ Подтвердить в админке: /admin/referral_detail/{referral_id}"
+            )
+    
+    # Бонус за 10 000 ₽
+    if total >= 10000 and "threshold_10k" not in existing_types:
+        bonus = ReferralBonus(
+            referral_id=referral_id,
+            bonus_type="threshold_10k",
+            amount=1000,
+            status="pending"
+        )
+        session.add(bonus)
+        created_bonuses.append("threshold_10k")
+        print(f"✅ Created bonus: threshold_10k for referral {referral_id}")
+        
+        for admin_id in settings.ADMIN_IDS:
+            await send_admin_notification(
+                settings.BOT_TOKEN,
+                [admin_id],
+                f"🔔 НОВЫЙ БОНУС ДЛЯ ПОДТВЕРЖДЕНИЯ!\n\n"
+                f"👥 Пользователь: {user.full_name if user else '?'} (ID: {referral.old_user_id})\n"
+                f"👤 Друг: {friend.full_name if friend else '?'} (ID: {referral.new_user_id})\n"
+                f"📞 Телефон: {friend.phone if friend else '?'}\n\n"
+                f"🎯 Условие: сумма аренд достигла 10 000 ₽\n"
+                f"💰 Бонус: +1000 ⭐\n\n"
+                f"➡️ Подтвердить в админке: /admin/referral_detail/{referral_id}"
+            )
+    
+    # Бонус за 30 000 ₽
+    if total >= 30000 and "threshold_30k" not in existing_types:
+        bonus = ReferralBonus(
+            referral_id=referral_id,
+            bonus_type="threshold_30k",
+            amount=1000,
+            status="pending"
+        )
+        session.add(bonus)
+        created_bonuses.append("threshold_30k")
+        print(f"✅ Created bonus: threshold_30k for referral {referral_id}")
+        
+        for admin_id in settings.ADMIN_IDS:
+            await send_admin_notification(
+                settings.BOT_TOKEN,
+                [admin_id],
+                f"🔔 НОВЫЙ БОНУС ДЛЯ ПОДТВЕРЖДЕНИЯ!\n\n"
+                f"👥 Пользователь: {user.full_name if user else '?'} (ID: {referral.old_user_id})\n"
+                f"👤 Друг: {friend.full_name if friend else '?'} (ID: {referral.new_user_id})\n"
+                f"📞 Телефон: {friend.phone if friend else '?'}\n\n"
+                f"🎯 Условие: сумма аренд достигла 30 000 ₽\n"
+                f"💰 Бонус: +1000 ⭐\n\n"
+                f"➡️ Подтвердить в админке: /admin/referral_detail/{referral_id}"
+            )
+    
+    # Командный бонус за 100 000 ₽ (сумма аренд ВСЕХ друзей)
+    all_friends_total = await get_all_friends_total_rentals(session, referral.old_user_id)
+    if all_friends_total >= 100000 and "team_100k" not in existing_types:
+        # Проверяем, нет ли уже team_100k бонуса у этого пользователя в любом реферале
+        team_bonus_exists = await session.execute(
+            select(ReferralBonus).join(Referral).where(
+                Referral.old_user_id == referral.old_user_id,
+                ReferralBonus.bonus_type == "team_100k",
+                ReferralBonus.status.in_(["awarded", "pending"])
             )
         )
-        if not existing.scalar_one_or_none():
+        if not team_bonus_exists.scalar_one_or_none():
             bonus = ReferralBonus(
                 referral_id=referral_id,
-                bonus_type="second_rental",
-                amount=700,
+                bonus_type="team_100k",
+                amount=5000,
                 status="pending"
             )
             session.add(bonus)
-            created_bonuses.append("second_rental")
-            print(f"✅ Created bonus: second_rental for referral {referral_id}")
+            created_bonuses.append("team_100k")
+            print(f"✅ Created bonus: team_100k for user {referral.old_user_id}")
             
             for admin_id in settings.ADMIN_IDS:
                 await send_admin_notification(
                     settings.BOT_TOKEN,
                     [admin_id],
-                    f"🔔 НОВЫЙ БОНУС ДЛЯ ПОДТВЕРЖДЕНИЯ!\n\n"
+                    f"🔔 НОВЫЙ КОМАНДНЫЙ БОНУС ДЛЯ ПОДТВЕРЖДЕНИЯ!\n\n"
                     f"👥 Пользователь: {user.full_name if user else '?'} (ID: {referral.old_user_id})\n"
-                    f"👤 Друг: {friend.full_name if friend else '?'} (ID: {referral.new_user_id})\n"
-                    f"📞 Телефон: {friend.phone if friend else '?'}\n\n"
-                    f"🎯 Условие: вторая аренда\n"
-                    f"💰 Бонус: +700 ⭐\n\n"
+                    f"📊 Сумма аренд всех друзей: {all_friends_total} ₽\n\n"
+                    f"🎯 Условие: общие аренды всех друзей достигли 100 000 ₽\n"
+                    f"💰 Бонус: +5000 ⭐\n\n"
                     f"➡️ Подтвердить в админке: /admin/referral_detail/{referral_id}"
                 )
-    else:
-        existing = await session.execute(
-            select(ReferralBonus).where(
-                ReferralBonus.referral_id == referral_id,
-                ReferralBonus.bonus_type == "second_rental",
-                ReferralBonus.status == "pending"
-            )
-        )
-        bonus = existing.scalar_one_or_none()
-        if bonus:
-            await session.delete(bonus)
-            print(f"🗑️ Deleted bonus: second_rental for referral {referral_id}")
-    
-    # Бонус за 10 000 ₽
-    if total >= 10000 and "threshold_10k" not in awarded_types:
-        existing = await session.execute(
-            select(ReferralBonus).where(
-                ReferralBonus.referral_id == referral_id,
-                ReferralBonus.bonus_type == "threshold_10k",
-                ReferralBonus.status == "pending"
-            )
-        )
-        if not existing.scalar_one_or_none():
-            bonus = ReferralBonus(
-                referral_id=referral_id,
-                bonus_type="threshold_10k",
-                amount=1000,
-                status="pending"
-            )
-            session.add(bonus)
-            created_bonuses.append("threshold_10k")
-            print(f"✅ Created bonus: threshold_10k for referral {referral_id}")
-    else:
-        existing = await session.execute(
-            select(ReferralBonus).where(
-                ReferralBonus.referral_id == referral_id,
-                ReferralBonus.bonus_type == "threshold_10k",
-                ReferralBonus.status == "pending"
-            )
-        )
-        bonus = existing.scalar_one_or_none()
-        if bonus:
-            await session.delete(bonus)
-            print(f"🗑️ Deleted bonus: threshold_10k for referral {referral_id}")
-    
-    # Бонус за 30 000 ₽
-    if total >= 30000 and "threshold_30k" not in awarded_types:
-        existing = await session.execute(
-            select(ReferralBonus).where(
-                ReferralBonus.referral_id == referral_id,
-                ReferralBonus.bonus_type == "threshold_30k",
-                ReferralBonus.status == "pending"
-            )
-        )
-        if not existing.scalar_one_or_none():
-            bonus = ReferralBonus(
-                referral_id=referral_id,
-                bonus_type="threshold_30k",
-                amount=1000,
-                status="pending"
-            )
-            session.add(bonus)
-            created_bonuses.append("threshold_30k")
-            print(f"✅ Created bonus: threshold_30k for referral {referral_id}")
-    else:
-        existing = await session.execute(
-            select(ReferralBonus).where(
-                ReferralBonus.referral_id == referral_id,
-                ReferralBonus.bonus_type == "threshold_30k",
-                ReferralBonus.status == "pending"
-            )
-        )
-        bonus = existing.scalar_one_or_none()
-        if bonus:
-            await session.delete(bonus)
-            print(f"🗑️ Deleted bonus: threshold_30k for referral {referral_id}")
     
     if created_bonuses:
         await session.commit()
@@ -463,6 +445,9 @@ async def award_referral_bonus(session: AsyncSession, bonus_id: int, admin_id: i
     if bonus.bonus_type == "first_rental":
         referral.status = "completed"
         referral.completion_date = datetime.utcnow()
+    
+    if bonus.bonus_type == "team_100k":
+        user.team_bonus_100k_awarded = True
     
     await session.commit()
     
