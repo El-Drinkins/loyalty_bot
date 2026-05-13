@@ -433,7 +433,7 @@ async def award_referral_bonus(session: AsyncSession, bonus_id: int, admin_id: i
     transaction = Transaction(
         user_id=user.id,
         amount=bonus.amount,
-        reason=f"Бонус за {get_bonus_type_name(bonus.bonus_type)} друга ({friend_name})",
+        reason=f"Бонус за {get_bonus_type_name(bonus.bonus_type)} друга ({friend_name})" if bonus.bonus_type != "team_100k" else f"Командный бонус за суммарную аренду друзей на 100 000 ₽",
         admin_id=admin_id
     )
     session.add(transaction)
@@ -459,7 +459,7 @@ async def award_referral_bonus(session: AsyncSession, bonus_id: int, admin_id: i
         message = (
             f"🎉 Вам начислен бонус!\n\n"
             f"💰 +{bonus.amount} ⭐\n"
-            f"📋 За: {bonus_name} друга ({friend_name})\n"
+            f"📋 За: {bonus_name} друга ({friend_name})\n" if bonus.bonus_type != "team_100k" else f"📋 Командный бонус за суммарную аренду друзей на 100 000 ₽.\n"
             f"💳 Ваш баланс: {user.balance} ⭐\n\n"
             f"Спасибо, что приглашаете друзей!"
         )
