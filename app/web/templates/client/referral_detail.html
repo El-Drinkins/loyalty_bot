@@ -119,6 +119,9 @@
                     {% elif bonus.bonus_type == 'threshold_10k' %}
                         🏆 За 10 000 ₽
                     {% elif bonus.bonus_type == 'threshold_30k' %}
+                        🏆 За 30 000 ₽ — +{{ bonus.amount }} ⭐
+                    {% elif bonus.bonus_type == 'team_100k' %}
+                        🏆 Командный бонус за 100 000 ₽ — +{{ bonus.amount }} ⭐
                         🏆 За 30 000 ₽
                     {% endif %}
                 </h3>
@@ -163,12 +166,15 @@
                         🏆 За 10 000 ₽ — +{{ bonus.amount }} ⭐
                     {% elif bonus.bonus_type == 'threshold_30k' %}
                         🏆 За 30 000 ₽ — +{{ bonus.amount }} ⭐
+                    {% elif bonus.bonus_type == 'team_100k' %}
+                        🏆 Командный бонус за 100 000 ₽ — +{{ bonus.amount }} ⭐
+                        🏆 За 30 000 ₽ — +{{ bonus.amount }} ⭐
                     {% endif %}
                 </h3>
                 <p style="margin: 5px 0; color: #666;">
                     📅 Создан: {{ bonus.created_at.strftime('%d.%m.%Y %H:%M') }}
                 </p>
-                {% if bonus.bonus_type == 'threshold_10k' or bonus.bonus_type == 'threshold_30k' %}
+                {% if bonus.bonus_type == 'threshold_10k' or bonus.bonus_type == 'threshold_30k' or bonus.bonus_type == 'team_100k' %}
                 <p style="margin: 5px 0; font-size: 12px; color: #FF9800;">
                     🎯 Условие выполнено! Друг арендовал на {{ "{:,}".format(total_rentals).replace(',', ' ') }} ₽
                 </p>
