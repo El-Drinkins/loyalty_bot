@@ -119,10 +119,8 @@ async def send_friends_list(message: Message, user_id: int):
         lines.append("👥 **Мои друзья**\n")
         lines.append("📊 **Статистика:**")
         lines.append(f"• Приглашено: {total_invited}")
-        lines.append(f"• Подтвердили аренду: {completed}")
-        lines.append(f"• Заработано баллов: {format_number(earned)} ⭐\n")
-        lines.append(SEPARATOR)
-        lines.append("")
+        lines.append(f"• Заработано баллов за всё время: {format_number(earned)} ⭐")
+        lines.append(f"• Баланс баллов в настоящее время: {format_number(user.balance)} ⭐\n")
         
         lines.append("💡 **Бонусы за друзей (суммируются):**")
         lines.append("   📌 Первая аренда друга → 300 ⭐")
