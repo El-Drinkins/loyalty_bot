@@ -22,7 +22,7 @@
 <p><strong>📞 Телефон:</strong> {{ user.phone }}</p>
 <p><strong>🆔 Telegram ID:</strong> {{ user.telegram_id }}</p>
 <p><strong>📅 Дата регистрации:</strong> {{ user.registration_date.strftime('%d.%m.%Y %H:%M') }}</p>
-<p><strong>💰 Баланс:</strong> {{ user.balance }} ⭐</p>
+<p><strong>💰 Баланс:</strong> {{ user.balance }} ⭐ (лимит: 20 000 ⭐)</p>
 <p><strong>⏳ Срок действия баллов:</strong> 
     {% if user.points_expiry_date %}
         {{ user.points_expiry_date.strftime('%d.%m.%Y') }}
