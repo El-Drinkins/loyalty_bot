@@ -61,12 +61,12 @@ async def get_friend_bonuses_status(session: AsyncSession, user_id: int, friend_
         'first_rental': {
             'achieved': rentals_count >= 1,
             'awarded': 'first_rental' in awarded_bonuses,
-            'bonus': 300
+            'bonus': 200
         },
         'second_rental': {
             'achieved': rentals_count >= 2,
             'awarded': 'second_rental' in awarded_bonuses,
-            'bonus': 700
+            'bonus': 800
         },
         'threshold_10k': {
             'achieved': total_amount >= 10000,
@@ -246,7 +246,7 @@ async def check_and_create_pending_bonuses(session, referral_id: int) -> list:
         bonus = ReferralBonus(
             referral_id=referral_id,
             bonus_type="first_rental",
-            amount=300,
+            amount=200,
             status="pending"
         )
         session.add(bonus)
@@ -271,7 +271,7 @@ async def check_and_create_pending_bonuses(session, referral_id: int) -> list:
         bonus = ReferralBonus(
             referral_id=referral_id,
             bonus_type="second_rental",
-            amount=700,
+            amount=800,
             status="pending"
         )
         session.add(bonus)
