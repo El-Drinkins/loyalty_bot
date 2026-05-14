@@ -16,7 +16,7 @@
         <p><strong>🚫 Лимит:</strong> {{ max_balance }} ⭐</p>
     </div>
     
-    <form action="{{ action_url }}" method="post" style="display: flex; gap: 10px; justify-content: center;">
+    <form action="{{ action_url }}_force" method="post" style="display: flex; gap: 10px; justify-content: center;">
         <input type="hidden" name="amount" value="{{ amount }}">
         <input type="hidden" name="reason" value="{{ reason }}">
         <input type="hidden" name="admin_id" value="1">
