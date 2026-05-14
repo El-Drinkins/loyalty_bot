@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>⚠️ Превышение лимита баллов</h1>
+
+<div style="background: white; border-radius: 12px; padding: 30px; max-width: 600px; margin: 0 auto; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    
+    <div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+        <h3 style="margin-top: 0; color: #856404;">⚠️ Внимание!</h3>
+        <p style="font-size: 16px;">{{ message }}</p>
+    </div>
+    
+    <div style="background-color: #f5f5f5; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+        <p><strong>👤 Пользователь:</strong> {{ user.full_name }}</p>
+        <p><strong>💰 Текущий баланс:</strong> {{ current_balance }} ⭐</p>
+        <p><strong>📊 Будет после операции:</strong> {{ new_balance }} ⭐</p>
+        <p><strong>🚫 Лимит:</strong> {{ max_balance }} ⭐</p>
+    </div>
+    
+    <form action="{{ action_url }}" method="post" style="display: flex; gap: 10px; justify-content: center;">
+        <input type="hidden" name="amount" value="{{ amount }}">
+        <input type="hidden" name="reason" value="{{ reason }}">
+        <input type="hidden" name="admin_id" value="1">
+        
+        <button type="submit" class="button" style="background-color: #ff9800;">
+            ✅ Всё равно начислить
+        </button>
+        
+        <a href="javascript:history.back()" class="button" style="background-color: #666;">
+            ↩️ Отмена
+        </a>
+    </form>
+    
+    <p style="text-align: center; margin-top: 20px; font-size: 12px; color: #999;">
+        Начисление сверх лимита будет записано в журнал действий администратора.
+    </p>
+</div>
+{% endblock %}

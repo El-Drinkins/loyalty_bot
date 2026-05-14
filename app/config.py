@@ -10,7 +10,8 @@ class Settings(BaseSettings):
     ADMIN_IDS: list[int] = []
     WELCOME_BONUS: int = 200
     REFERRAL_BONUS: int = 100
-    POINTS_VALID_DAYS: int = 90  # ИЗМЕНЕНО: 365 -> 90
+    POINTS_VALID_DAYS: int = 90
+    MAX_BALANCE: int = 20000
     PROXY_URL: str = ""
 
     class Config:

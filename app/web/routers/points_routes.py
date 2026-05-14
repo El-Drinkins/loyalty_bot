@@ -9,24 +9,20 @@ from ...models import User, Transaction, AdminLog, Referral, ReferralStatus, Ref
 from ...utils import calculate_expiry_date
 from ...config import settings
 from ...notifications import send_telegram_notification
-from ...bonus_utils import award_referral_bonus, get_pending_bonuses_for_referral
+from ...bonus_utils import award_referral_bonus, get_pending_bonuses_for_referral, get_bonus_type_name
 
 router = APIRouter()
 
-@router.post("/client/{user_id}/add_points")
-async def add_points(
-    user_id: int,
-    amount: int = Form(...),
-    reason: str = Form(...),
-    db: AsyncSession = Depends(get_db),
-    admin_id: int = Form(0),
-    _=Depends(require_auth)
-):
-    from ...logger import web_logger as logger
-    
+
+def check_balance_limit(user: User, amount: int) -> bool:
+    """Проверяет, не превысит ли баланс лимит после начисления. True = превышен."""
+    return amount > 0 and (user.balance + amount) > settings.MAX_BALANCE
+
+
+async def add_points_to_user(db: AsyncSession, user_id: int, amount: int, reason: str, admin_id: int):
+    """Начисляет баллы пользователю. Возвращает пользователя после начисления."""
     user = await db.get(User, user_id)
     if not user:
-        logger.warning(f"Попытка начислить баллы несуществующему пользователю {user_id}")
         raise HTTPException(404, "Пользователь не найден")
     
     old_balance = user.balance
@@ -55,15 +51,48 @@ async def add_points(
     
     await db.commit()
     
-    logger.info(f"Начисление баллов: админ={admin_id}, пользователь={user_id} ({user.full_name}), "
-                f"сумма={amount}, причина='{reason}', баланс: {old_balance} → {user.balance}")
+    try:
+        await send_telegram_notification(
+            user.telegram_id,
+            f"💰 Вам начислено {amount} баллов.\nПричина: {reason}"
+        )
+    except Exception as e:
+        print(f"Не удалось отправить уведомление пользователю {user.telegram_id}: {e}")
     
-    await send_telegram_notification(
-        user.telegram_id,
-        f"💰 Вам начислено {amount} баллов.\nПричина: {reason}"
-    )
+    return user
+
+
+@router.post("/client/{user_id}/add_points")
+async def add_points(
+    request: Request,
+    user_id: int,
+    amount: int = Form(...),
+    reason: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+    admin_id: int = Form(0),
+    _=Depends(require_auth)
+):
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(404, "Пользователь не найден")
     
+    if check_balance_limit(user, amount):
+        return templates.TemplateResponse("client/confirm_overlimit.html", {
+            "request": request,
+            "user": user,
+            "action": "add_points",
+            "action_url": f"/admin/client/{user_id}/add_points",
+            "amount": amount,
+            "reason": reason,
+            "current_balance": user.balance,
+            "new_balance": user.balance + amount,
+            "max_balance": settings.MAX_BALANCE,
+            "message": f"После начисления баланс составит {user.balance + amount} ⭐, что превышает лимит {settings.MAX_BALANCE} ⭐."
+        })
+    
+    await add_points_to_user(db, user_id, amount, reason, admin_id)
     return RedirectResponse(url=f"/admin/client/{user_id}", status_code=303)
+
 
 @router.post("/client/{user_id}/subtract_points")
 async def subtract_points(
@@ -81,34 +110,9 @@ async def subtract_points(
     if user.balance < amount:
         raise HTTPException(400, "Недостаточно баллов")
     
-    old_balance = user.balance
-    user.balance -= amount
-    transaction = Transaction(
-        user_id=user_id,
-        amount=-amount,
-        reason=reason,
-        admin_id=admin_id
-    )
-    db.add(transaction)
-    
-    log = AdminLog(
-        admin_id=admin_id,
-        action_type="subtract_points",
-        user_id=user_id,
-        old_value=str(old_balance),
-        new_value=str(user.balance),
-        reason=reason
-    )
-    db.add(log)
-    
-    await db.commit()
-    
-    await send_telegram_notification(
-        user.telegram_id,
-        f"💸 С вашего счета списано {amount} баллов.\nПричина: {reason}"
-    )
-    
+    await add_points_to_user(db, user_id, -amount, reason, admin_id)
     return RedirectResponse(url=f"/admin/client/{user_id}", status_code=303)
+
 
 @router.post("/confirm_referral/{referral_id}")
 async def confirm_referral(
@@ -127,40 +131,16 @@ async def confirm_referral(
     referral.status = ReferralStatus.completed
     referral.completion_date = datetime.utcnow()
 
-    inviter = await db.get(User, referral.old_user_id)
-    if inviter:
-        old_balance = inviter.balance
-        inviter.balance += settings.REFERRAL_BONUS
-        inviter.points_expiry_date = calculate_expiry_date()
+    await add_points_to_user(
+        db, referral.old_user_id, settings.REFERRAL_BONUS,
+        f"Бонус за друга (первая аренда подтверждена, ID: {referral.new_user_id})",
+        admin_id
+    )
 
-        transaction = Transaction(
-            user_id=inviter.id,
-            amount=settings.REFERRAL_BONUS,
-            reason="Бонус за друга (первая аренда подтверждена)",
-            admin_id=admin_id
-        )
-        db.add(transaction)
-        
-        log = AdminLog(
-            admin_id=admin_id,
-            action_type="confirm_referral",
-            user_id=inviter.id,
-            old_value=str(old_balance),
-            new_value=str(inviter.balance),
-            reason=f"Подтверждена первая аренда пользователя ID {referral.new_user_id}"
-        )
-        db.add(log)
-
-        await send_telegram_notification(
-            inviter.telegram_id,
-            f"🎉 Вам начислено {settings.REFERRAL_BONUS} баллов за друга!"
-        )
-
-    await db.commit()
     return RedirectResponse(url="/admin/", status_code=303)
 
 
-# ========== НОВЫЕ ЭНДПОИНТЫ ДЛЯ РЕФЕРАЛЬНЫХ БОНУСОВ ==========
+# ========== РЕФЕРАЛЬНЫЕ БОНУСЫ ==========
 
 @router.get("/referrals/{user_id}")
 async def referrals_page(
@@ -169,7 +149,6 @@ async def referrals_page(
     db: AsyncSession = Depends(get_db),
     _=Depends(require_auth)
 ):
-    """Страница со списком рефералов пользователя"""
     user = await db.get(User, user_id)
     if not user:
         raise HTTPException(404, "Пользователь не найден")
@@ -191,10 +170,7 @@ async def referrals_page(
         
         bonuses_result = await db.execute(
             select(func.sum(ReferralBonus.amount))
-            .where(
-                ReferralBonus.referral_id == ref.id,
-                ReferralBonus.status == "awarded"
-            )
+            .where(ReferralBonus.referral_id == ref.id, ReferralBonus.status == "awarded")
         )
         total_bonus = bonuses_result.scalar() or 0
         
@@ -223,7 +199,6 @@ async def referral_detail_page(
     db: AsyncSession = Depends(get_db),
     _=Depends(require_auth)
 ):
-    """Детальная страница реферала"""
     referral = await db.get(Referral, referral_id)
     if not referral:
         raise HTTPException(404, "Реферал не найден")
@@ -263,17 +238,39 @@ async def confirm_bonus_api(
     admin_id: int = Form(0),
     _=Depends(require_auth)
 ):
+    bonus = await db.get(ReferralBonus, bonus_id)
+    if not bonus or bonus.status != "pending":
+        raise HTTPException(400, "Бонус не найден или уже обработан")
+    
+    referral = await db.get(Referral, bonus.referral_id)
+    if not referral:
+        raise HTTPException(404, "Реферал не найден")
+    
+    user = await db.get(User, referral.old_user_id)
+    if not user:
+        raise HTTPException(404, "Пользователь не найден")
+    
+    # Проверка лимита
+    if check_balance_limit(user, bonus.amount):
+        bonus_name = get_bonus_type_name(bonus.bonus_type)
+        return templates.TemplateResponse("client/confirm_overlimit.html", {
+            "request": request,
+            "user": user,
+            "action": "confirm_bonus",
+            "action_url": f"/admin/api/confirm_bonus/{bonus_id}",
+            "amount": bonus.amount,
+            "reason": f"Бонус за {bonus_name}",
+            "current_balance": user.balance,
+            "new_balance": user.balance + bonus.amount,
+            "max_balance": settings.MAX_BALANCE,
+            "message": f"После начисления бонуса (+{bonus.amount} ⭐) баланс составит {user.balance + bonus.amount} ⭐, что превышает лимит {settings.MAX_BALANCE} ⭐."
+        })
+    
     success = await award_referral_bonus(db, bonus_id, admin_id)
     if not success:
         raise HTTPException(400, "Не удалось подтвердить бонус")
     
-    bonus = await db.get(ReferralBonus, bonus_id)
-    if bonus:
-        referral = await db.get(Referral, bonus.referral_id)
-        if referral:
-            return RedirectResponse(url=f"/admin/referral_detail/{referral.id}", status_code=303)
-    
-    return RedirectResponse(url="/admin/", status_code=303)
+    return RedirectResponse(url=f"/admin/referral_detail/{referral.id}", status_code=303)
 
 
 @router.post("/api/confirm_all_pending/{referral_id}")
