@@ -46,7 +46,12 @@ class User(Base):
     
     # Командный бонус 100k (начислен ли бонус 5000⭐ за суммарные аренды всех друзей на 100000₽)
     team_bonus_100k_awarded: Mapped[bool] = mapped_column(Boolean, default=False)
-    
+    # Кэшбэк
+    cashback_rate: Mapped[int] = mapped_column(Integer, default=5)
+    cashback_months: Mapped[int] = mapped_column(Integer, default=0)
+    cashback_frozen: Mapped[bool] = mapped_column(Boolean, default=False)
+    cashback_frozen_month: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    cashback_frozen_year: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     # Связи (будут заполнены после импорта всех моделей)
     invited_by: Mapped[Optional["User"]] = relationship(
         "User", 

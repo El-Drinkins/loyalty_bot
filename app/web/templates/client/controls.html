@@ -1,8 +1,56 @@
+{% if cashback_info %}
+<div style="background: #f0f8f0; border: 1px solid #4CAF50; border-radius: 8px; padding: 12px; margin-bottom: 15px;">
+    <p style="margin: 0; font-weight: bold;">
+        📊 Текущая ставка кэшбэка: {{ cashback_info.rate }}% 
+        <span style="color: #4CAF50;">({{ cashback_info.status }})</span>
+    </p>
+    {% if cashback_info.months > 0 %}
+    <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">
+        Повышена за {{ cashback_info.months }} мес. подряд с арендами
+    </p>
+    {% endif %}
+</div>
+
+<div style="background: #f5f5f5; border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 15px;">
+    <p style="margin: 0; font-weight: bold;">💡 Быстрый расчёт кэшбэка</p>
+    <div style="display: flex; gap: 10px; margin-top: 8px; align-items: center;">
+        <input type="number" id="rental_amount" placeholder="Сумма аренды (₽)" style="flex: 1; padding: 8px;">
+        <span>→</span>
+        <input type="number" id="calculated_cashback" readonly placeholder="0 ⭐" style="width: 120px; padding: 8px; background: #e8f5e8; font-weight: bold;">
+        <button type="button" onclick="fillCashback()" class="button button-small">Заполнить</button>
+    </div>
+</div>
+
+<script>
+document.getElementById('rental_amount').addEventListener('input', function() {
+    const amount = parseFloat(this.value) || 0;
+    const rate = {{ cashback_info.rate }};
+    const cashback = Math.floor(amount * rate / 100);
+    document.getElementById('calculated_cashback').value = cashback + ' ⭐';
+});
+
+function fillCashback() {
+    const amount = parseFloat(document.getElementById('rental_amount').value) || 0;
+    const rate = {{ cashback_info.rate }};
+    const cashback = Math.floor(amount * rate / 100);
+    
+    const forms = document.querySelectorAll('form');
+    for (const form of forms) {
+        const action = form.getAttribute('action') || '';
+        if (action.includes('/add_points')) {
+            form.querySelector('input[name="amount"]').value = cashback;
+            form.querySelector('input[name="reason"]').value = 'Кэшбэк за аренду (ставка ' + rate + '%)';
+            break;
+        }
+    }
+}
+</script>
+
 <div style="margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
     <!-- Левая колонка: начисление/списание -->
     <div style="border: 1px solid #ddd; border-radius: 8px; padding: 20px;">
         <h3>💰 Начислить баллы</h3>
-        <form action="/client/{{ user.id }}/add_points" method="post" onsubmit="return confirm('Действие будет записано в журнал. Продолжить?')">
+        <form action="/admin/client/{{ user.id }}/add_points" method="post" onsubmit="return confirm('Действие будет записано в журнал. Продолжить?')">
             <div style="margin-bottom: 10px;">
                 <label>Сумма:</label>
                 <input type="number" name="amount" required style="width: 100%; padding: 8px; margin-top: 5px;">
@@ -11,13 +59,13 @@
                 <label>Причина:</label>
                 <input type="text" name="reason" required style="width: 100%; padding: 8px; margin-top: 5px;">
             </div>
-            <input type="hidden" name="admin_id" value="0">
+            <input type="hidden" name="admin_id" value="1">
             <button type="submit" class="button" style="width: 100%;">Начислить</button>
         </form>
         
         <div style="margin-top: 20px;">
             <h3>💸 Списать баллы</h3>
-            <form action="/client/{{ user.id }}/subtract_points" method="post" onsubmit="return confirm('Действие будет записано в журнал. Продолжить?')">
+            <form action="/admin/client/{{ user.id }}/subtract_points" method="post" onsubmit="return confirm('Действие будет записано в журнал. Продолжить?')">
                 <div style="margin-bottom: 10px;">
                     <label>Сумма:</label>
                     <input type="number" name="amount" required style="width: 100%; padding: 8px; margin-top: 5px;">
@@ -26,12 +74,12 @@
                     <label>Причина:</label>
                     <input type="text" name="reason" required style="width: 100%; padding: 8px; margin-top: 5px;">
                 </div>
-                <input type="hidden" name="admin_id" value="0">
+                <input type="hidden" name="admin_id" value="1">
                 <button type="submit" class="button button-red" style="width: 100%;">Списать</button>
             </form>
         </div>
     </div>
     
-    <!-- Правая колонка: управление черным списком (будет в отдельном файле) -->
+    <!-- Правая колонка: управление черным списком -->
     {% include "client/blacklist.html" %}
 </div>

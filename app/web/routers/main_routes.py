@@ -7,6 +7,7 @@ from itertools import groupby
 
 from ..deps import get_db, templates, require_auth
 from ...models import User, Referral, Transaction, ReferralStatus
+from ...cashback import get_cashback_info
 
 router = APIRouter()
 
@@ -20,7 +21,6 @@ async def admin_index(
     
     total_balance = await db.scalar(select(func.sum(User.balance))) or 0
 
-    # Загружаем бонусы, ожидающие подтверждения
     from ...bonus_utils import get_all_pending_bonuses
     pending_bonuses = await get_all_pending_bonuses(db)
 
@@ -38,14 +38,13 @@ async def client_card(
     db: AsyncSession = Depends(get_db),
     _=Depends(require_auth)
 ):
-    # Загружаем пользователя со всеми необходимыми связями (жадная загрузка)
     user = await db.get(
         User, 
         user_id,
         options=[
             selectinload(User.invited_by),
             selectinload(User.referred_users).selectinload(Referral.new_user),
-            selectinload(User.rentals)  # <--- ДОБАВЛЯЕМ ЗАГРУЗКУ АРЕНД
+            selectinload(User.rentals)
         ]
     )
     if not user:
@@ -53,13 +52,11 @@ async def client_card(
 
     inviter = user.invited_by
 
-    # Статистика по рефералам
     total_invited = len(user.referred_users) if user.referred_users else 0
     completed_invited = 0
     if user.referred_users:
         completed_invited = sum(1 for ref in user.referred_users if ref.status == ReferralStatus.completed)
 
-    # Загружаем транзакции (отдельно, так как они не связаны напрямую через selectinload)
     transactions = await db.execute(
         select(Transaction).where(Transaction.user_id == user.id).order_by(Transaction.timestamp.desc())
     )
@@ -69,6 +66,9 @@ async def client_card(
     for date, group in groupby(transactions, key=lambda x: x.timestamp.strftime('%d.%m.%Y')):
         grouped.append((date, list(group)))
 
+    # Загружаем информацию о кэшбэке
+    cashback_info = await get_cashback_info(db, user)
+
     return templates.TemplateResponse("client/base_client.html", {
         "request": request,
         "user": user,
@@ -76,5 +76,6 @@ async def client_card(
         "total_invited": total_invited,
         "completed_invited": completed_invited,
         "transactions": transactions,
-        "grouped_transactions": grouped
+        "grouped_transactions": grouped,
+        "cashback_info": cashback_info
     })
