@@ -117,6 +117,7 @@ async def rental_add(
     deposit: int = Form(0),
     notes: str = Form(""),
     status: str = Form("active"),
+    is_monthly: bool = Form(False),
     admin_id: int = Form(...),
     db: AsyncSession = Depends(get_db),
     _=Depends(require_auth)
@@ -134,6 +135,7 @@ async def rental_add(
         end_date=datetime.strptime(end_date, "%Y-%m-%d"),
         status=status,
         notes=notes,
+        is_monthly=is_monthly,
         created_by=admin_id if admin else None
     )
     
@@ -193,6 +195,7 @@ async def rental_edit(
     deposit: int = Form(0),
     notes: str = Form(""),
     status: str = Form(...),
+    is_monthly: bool = Form(False),
     db: AsyncSession = Depends(get_db),
     _=Depends(require_auth)
 ):
@@ -212,6 +215,7 @@ async def rental_edit(
     rental.deposit = deposit if deposit else None
     rental.notes = notes
     rental.status = new_status
+    rental.is_monthly = is_monthly
     rental.updated_at = datetime.utcnow()
     
     user = await db.get(User, user_id)
@@ -354,7 +358,6 @@ async def add_cashback_from_rental(
     user = rental.user
     rate = await calculate_cashback_rate(db, user)
     
-    # Если сумма передана вручную и больше 0 — используем её, иначе считаем автоматически
     if custom_amount > 0:
         cashback_amount = custom_amount
     else:
@@ -365,7 +368,6 @@ async def add_cashback_from_rental(
     
     model_name = f"{rental.model.brand.name} {rental.model.name}"
     
-    # Проверка лимита
     if user.balance + cashback_amount > settings.MAX_BALANCE:
         return templates.TemplateResponse("client/confirm_overlimit.html", {
             "request": request,
