@@ -70,18 +70,19 @@
             </p>
         </div>
         
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-            <div>
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Сумма аренды:</label>
-                <input type="text" value="{{ rental.total_price }} ₽" readonly style="width: 100%; padding: 8px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px;">
-            </div>
-            <div>
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Кэшбэк к начислению:</label>
-                <input type="text" value="{{ (rental.total_price * cashback_info.rate / 100) | int }} ⭐ ({{ rental.total_price }} × {{ cashback_info.rate }}%)" readonly style="width: 100%; padding: 8px; background: #e8f5e8; border: 1px solid #4CAF50; border-radius: 4px; font-weight: bold; color: #4CAF50;">
-            </div>
-        </div>
-        
         <form action="/admin/catalog/rentals/{{ rental.id }}/add_cashback" method="post" onsubmit="return confirm('Начислить кэшбэк за эту аренду?')">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Сумма аренды:</label>
+                    <input type="text" value="{{ rental.total_price }} ₽" readonly style="width: 100%; padding: 8px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Кэшбэк к начислению:</label>
+                    <input type="number" name="custom_amount" id="cashback_amount" value="{{ (rental.total_price * cashback_info.rate / 100) | int }}" style="width: 100%; padding: 8px; background: #e8f5e8; border: 1px solid #4CAF50; border-radius: 4px; font-weight: bold; color: #4CAF50;">
+                    <small style="color: #666;">Рассчитано автоматически: {{ rental.total_price }} × {{ cashback_info.rate }}% = {{ (rental.total_price * cashback_info.rate / 100) | int }} ⭐. Можно изменить вручную.</small>
+                </div>
+            </div>
+            
             <button type="submit" class="button" style="width: 100%; padding: 12px; font-size: 16px;">
                 ➕ Начислить кэшбэк
             </button>

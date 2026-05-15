@@ -332,6 +332,7 @@ async def confirm_rental_status(
 async def add_cashback_from_rental(
     request: Request,
     rental_id: int,
+    custom_amount: int = Form(0),
     db: AsyncSession = Depends(get_db),
     _=Depends(require_auth)
 ):
@@ -352,7 +353,12 @@ async def add_cashback_from_rental(
     
     user = rental.user
     rate = await calculate_cashback_rate(db, user)
-    cashback_amount = int(rental.total_price * rate / 100)
+    
+    # Если сумма передана вручную и больше 0 — используем её, иначе считаем автоматически
+    if custom_amount > 0:
+        cashback_amount = custom_amount
+    else:
+        cashback_amount = int(rental.total_price * rate / 100)
     
     if cashback_amount <= 0:
         raise HTTPException(400, "Сумма кэшбэка равна нулю")
@@ -414,6 +420,7 @@ async def add_cashback_from_rental(
 async def add_cashback_force(
     request: Request,
     rental_id: int,
+    custom_amount: int = Form(0),
     db: AsyncSession = Depends(get_db),
     _=Depends(require_auth)
 ):
@@ -431,7 +438,11 @@ async def add_cashback_force(
     
     user = rental.user
     rate = await calculate_cashback_rate(db, user)
-    cashback_amount = int(rental.total_price * rate / 100)
+    
+    if custom_amount > 0:
+        cashback_amount = custom_amount
+    else:
+        cashback_amount = int(rental.total_price * rate / 100)
     
     model_name = f"{rental.model.brand.name} {rental.model.name}"
     
