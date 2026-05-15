@@ -136,13 +136,10 @@ async def get_cashback_info(session: AsyncSession, user) -> dict:
     has_rental_this_month = await has_rental_in_current_month(session, user)
     has_active_monthly = await has_active_monthly_rental(session, user)
     
-    # Расчёт ставок на следующий месяц
-    # Если аренда в этом месяце была: next_rate = rate + 1 (но не больше 10)
-    # Если аренды не было: сброс до 5%
-    if has_rental_this_month:
-        next_rate = min(rate + 1, 10)
-    else:
-        next_rate = 5
+    # Ставка на следующий месяц, если будет аренда: текущая + 1%
+    next_rate_if_rental = min(rate + 1, 10)
+    # Ставка на следующий месяц, если не будет аренды: сброс до базовой
+    next_rate_if_no_rental = 5
     
     # Для месячной аренды
     if has_active_monthly:
@@ -165,7 +162,8 @@ async def get_cashback_info(session: AsyncSession, user) -> dict:
         "months": rate - 5,
         "has_rental_this_month": has_rental_this_month,
         "has_active_monthly": has_active_monthly,
-        "next_rate": next_rate,
+        "next_rate_if_rental": next_rate_if_rental,
+        "next_rate_if_no_rental": next_rate_if_no_rental,
         "next_monthly": next_monthly,
         "is_max_daily": rate >= 10,
         "is_max_monthly": monthly_rate >= 15,

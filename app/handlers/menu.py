@@ -49,7 +49,6 @@ def format_transaction_message(transactions: list, current_page: int, total_page
     if not transactions:
         return "📭 У вас пока нет операций."
     
-    # Группируем по датам с сохранением порядка (от новых к старым)
     grouped = OrderedDict()
     for t in transactions:
         date_str = t.timestamp.strftime("%d.%m.%Y")
@@ -64,22 +63,15 @@ def format_transaction_message(transactions: list, current_page: int, total_page
         lines.append(f"📅 {date_str}")
         
         day_transactions = grouped[date_str]
-        # Сортируем транзакции внутри дня: от новых к старым
         day_transactions.sort(key=lambda x: x.timestamp, reverse=True)
         
-        # Считаем баланс на начало дня: текущий баланс минус все транзакции этого дня
-        day_total = sum(t.amount for t in day_transactions)
         running_balance = user_balance
         
-        # Восстанавливаем баланс на конец дня (перед последней транзакцией дня)
-        # а потом идём от самой новой к самой старой
         for i, t in enumerate(day_transactions):
             if i == 0:
-                # Самая новая транзакция дня — баланс ПОСЛЕ неё уже user_balance
                 balance_after = running_balance
                 balance_before = balance_after - t.amount
             else:
-                # Для предыдущих транзакций баланс после = баланс перед следующей
                 balance_after = balance_before
                 balance_before = balance_after - t.amount
             
@@ -234,7 +226,6 @@ async def show_balance(message: Message):
         from app.cashback import get_cashback_info
         cashback_info = await get_cashback_info(session, user)
         
-        # Названия месяцев на русском
         months_ru_gen = {
             1: "января", 2: "февраля", 3: "марта", 4: "апреля",
             5: "мая", 6: "июня", 7: "июля", 8: "августа",
@@ -247,13 +238,11 @@ async def show_balance(message: Message):
         }
         now = datetime.utcnow()
         current_month_nom = months_ru_nom.get(now.month, "")
+        current_month_gen = months_ru_gen.get(now.month, "")
         next_month = now.month + 1
-        next_year = now.year
         if next_month > 12:
             next_month = 1
-            next_year += 1
         next_month_nom = months_ru_nom.get(next_month, "")
-        current_month_gen = months_ru_gen.get(now.month, "")
         
         text = (
             f"💰 Ваш баланс: <b>{format_number(user.balance)} баллов</b> (лимит: 20 000 ⭐)\n"
@@ -264,22 +253,20 @@ async def show_balance(message: Message):
             f"📊 <b>Прогноз ставки вашего кэшбэка на {next_month_nom}:</b>\n"
         )
         
-        # Посуточная аренда — прогноз
         if cashback_info['has_rental_this_month']:
             if cashback_info['is_max_daily']:
                 text += "🎉 Вы достигли максимальной ставки 10% за посуточную аренду!\n"
                 text += "   Поддерживайте её регулярными арендами каждый месяц.\n\n"
             else:
-                text += f"• Посуточная аренда: <b>{cashback_info['next_rate']}%</b> (повышена за аренду в {current_month_nom})\n\n"
+                text += f"• Посуточная аренда: <b>{cashback_info['next_rate_if_rental']}%</b> (повышена за аренду в {current_month_nom})\n\n"
         else:
             if cashback_info['is_max_daily']:
                 text += "🎉 Вы достигли максимальной ставки 10% за посуточную аренду!\n"
                 text += "   Поддерживайте её регулярными арендами каждый месяц.\n\n"
             else:
-                text += f"• Посуточная аренда: <b>{cashback_info['next_rate']}%</b> (если совершите хотя бы одну аренду в {current_month_gen} от 1000 ₽)\n"
-                text += f"  или <b>5%</b> (если {current_month_nom} без аренд)\n\n"
+                text += f"• Посуточная аренда: <b>{cashback_info['next_rate_if_rental']}%</b> (если совершите хотя бы одну аренду в {current_month_gen} от 1000 ₽)\n"
+                text += f"  или <b>{cashback_info['next_rate_if_no_rental']}%</b> (если {current_month_nom} без аренд)\n\n"
         
-        # Месячная аренда — прогноз
         if cashback_info['has_active_monthly']:
             if cashback_info['is_max_monthly']:
                 text += "🎉 Вы достигли максимальной ставки 15% за аренду на месяц!\n"
@@ -375,17 +362,16 @@ async def cmd_faq(message: Message):
         "   До 50% стоимости аренды.\n\n"
         "❓ **Как получить баллы за аренду?**\n"
         "   Баллы начисляются после завершения аренды. 5% — посуточно, 10% — от месяца.\n\n"
-        "   • Максимальный баланс — 20 000 ⭐. При достижении лимита новые баллы не начисляются. Потратьте накопленные — и лимит освободится.\n\n"
         "❓ **Что такое повышенный кэшбэк?**\n"
         "   Если арендуете каждый месяц — ставка растёт: 5% → 6% → ... → 10% (максимум).\n\n"
+        "❓ **Какой максимальный баланс баллов?**\n"
+        "   Максимальный баланс — 20 000 ⭐. При достижении лимита новые баллы не начисляются. Потратьте накопленные — и лимит освободится.\n\n"
         "❓ **Как получить бонус за друга?**\n"
         "   Перешлите свою ссылку другу. Бонусы начисляются после его первой аренды.\n\n"
         "❓ **Сколько действуют баллы?**\n"
         "   3 месяца с последней аренды. Новая аренда продлевает срок.\n\n"
         "❓ **Где посмотреть баланс?**\n"
-        "❓ **Какой максимальный баланс баллов?**\n"
-        "   Максимальный баланс — 20 000 ⭐. При достижении лимита новые баллы не начисляются. Потратьте накопленные — и лимит освободится.\n\n"
-        "   Нажмите кнопку «🏠 Баланс» или отправьте команду /balance.\n\n"
+        "   Нажмите кнопку «💰 Мои баллы» или отправьте команду /balance.\n\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         "🔙 /help — вернуться к помощи"
     )
@@ -490,7 +476,7 @@ async def regulations_command(message: Message):
         "➖➖➖➖➖➖➖➖➖➖\n\n"
         "Как узнать свой баланс?\n"
         "Вы всегда можете проверить количество баллов и историю начислений в этом боте.\n"
-        "Нажмите кнопку «🏠 Баланс» или отправьте команду /balance.\n\n"
+        "Нажмите кнопку «💰 Мои баллы» или отправьте команду /balance.\n\n"
         "➖➖➖➖➖➖➖➖➖➖\n\n"
         "Важно\n"
         "• Баллы не обмениваются на деньги.\n"
