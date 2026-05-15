@@ -81,7 +81,6 @@ async def calculate_monthly_rate(session: AsyncSession, user) -> int:
     base_monthly = 10
     max_monthly = 15
     
-    # Проверяем, есть ли активная месячная аренда
     result = await session.execute(
         select(Rental)
         .where(
@@ -137,44 +136,24 @@ async def get_cashback_info(session: AsyncSession, user) -> dict:
     has_rental_this_month = await has_rental_in_current_month(session, user)
     has_active_monthly = await has_active_monthly_rental(session, user)
     
-    now = datetime.utcnow()
-    current_month_name = now.strftime("%B").lower()
-    # Переводим на русский
-    months_ru = {
-        "january": "январе", "february": "феврале", "march": "марте",
-        "april": "апреле", "may": "мае", "june": "июне",
-        "july": "июле", "august": "августе", "september": "сентябре",
-        "october": "октябре", "november": "ноябре", "december": "декабре"
-    }
-    current_month_ru = months_ru.get(current_month_name, current_month_name)
-    
-    # Следующий месяц
-    next_month = now.month + 1
-    next_year = now.year
-    if next_month > 12:
-        next_month = 1
-        next_year += 1
-    next_month_names_ru = {
-        1: "январе", 2: "феврале", 3: "марте", 4: "апреле",
-        5: "мае", 6: "июне", 7: "июле", 8: "августе",
-        9: "сентябре", 10: "октябре", 11: "ноябре", 12: "декабре"
-    }
-    next_month_ru = next_month_names_ru.get(next_month, "")
-    
     # Расчёт ставок на следующий месяц
+    # Если аренда в этом месяце была: next_rate = rate + 1 (но не больше 10)
+    # Если аренды не было: сброс до 5%
     if has_rental_this_month:
         next_rate = min(rate + 1, 10)
-        next_monthly = min(monthly_rate + 1, 15) if has_active_monthly else monthly_rate
     else:
         next_rate = 5
+    
+    # Для месячной аренды
+    if has_active_monthly:
+        next_monthly = min(monthly_rate + 1, 15)
+    else:
         next_monthly = 10
     
     # Статус
     if rate == 10:
         status = "максимальная"
     elif rate >= 7:
-        status = "повышена"
-    elif rate > 5:
         status = "повышена"
     else:
         status = "базовая"
@@ -184,8 +163,6 @@ async def get_cashback_info(session: AsyncSession, user) -> dict:
         "monthly_rate": monthly_rate,
         "status": status,
         "months": rate - 5,
-        "current_month_ru": current_month_ru,
-        "next_month_ru": next_month_ru,
         "has_rental_this_month": has_rental_this_month,
         "has_active_monthly": has_active_monthly,
         "next_rate": next_rate,
