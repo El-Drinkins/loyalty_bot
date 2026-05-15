@@ -5,7 +5,7 @@ from app.config import settings
 def main_menu_keyboard(user_id: int = None):
     """Главное меню с кнопками, адаптированное под пользователя"""
     builder = ReplyKeyboardBuilder()
-    builder.button(text="🏠 Баланс")
+    builder.button(text="💰 Мои баллы")
     builder.button(text="👥 Мои друзья")
     builder.button(text="📜 История")
     builder.button(text="📸 Каталог")

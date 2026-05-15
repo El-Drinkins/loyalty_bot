@@ -210,7 +210,7 @@ async def send_history_page(message: Message, user_id: int, page: int = 1):
         await message.answer(text, reply_markup=keyboard, parse_mode="Markdown")
 
 
-@router.message(F.text == "🏠 Баланс")
+@router.message(F.text == "💰 Мои баллы")
 async def show_balance(message: Message):
     async with AsyncSessionLocal() as session:
         user = await session.execute(select(User).where(User.telegram_id == message.from_user.id))
@@ -229,10 +229,51 @@ async def show_balance(message: Message):
         await session.commit()
         
         expiry = user.points_expiry_date.strftime("%d.%m.%Y") if user.points_expiry_date else "не ограничен"
-        await message.answer(
+        
+        from app.cashback import get_cashback_info
+        cashback_info = await get_cashback_info(session, user)
+        
+        text = (
             f"💰 Ваш баланс: {format_number(user.balance)} баллов (лимит: 20 000 ⭐)\n"
-            f"⏳ Сгорают: {expiry}"
+            f"⏳ Сгорают: {expiry}\n\n"
+            f"📊 Ваши ставки кэшбэка в {cashback_info['current_month_ru']}:\n"
+            f"• Посуточная аренда: {cashback_info['rate']}%\n"
+            f"• Аренда на месяц: {cashback_info['monthly_rate']}%\n\n"
+            f"📊 Прогноз на {cashback_info['next_month_ru']}:\n"
         )
+        
+        # Посуточная аренда — прогноз
+        if cashback_info['has_rental_this_month']:
+            if cashback_info['is_max_daily']:
+                text += "🎉 Вы достигли максимальной ставки 10% за посуточную аренду!\n"
+                text += "   Поддерживайте её регулярными арендами каждый месяц.\n\n"
+            else:
+                text += f"• Вы совершили аренду в этом месяце, поэтому ваша ставка составит {cashback_info['next_rate']}%\n\n"
+        else:
+            if cashback_info['is_max_daily']:
+                text += "🎉 Вы достигли максимальной ставки 10% за посуточную аренду!\n"
+                text += "   Поддерживайте её регулярными арендами каждый месяц.\n\n"
+            else:
+                text += f"• Посуточная аренда: {cashback_info['next_rate']}% (если арендуете от 1000 ₽)\n"
+                text += f"  или 5% (если не арендуете)\n\n"
+        
+        # Месячная аренда — прогноз
+        if cashback_info['has_active_monthly']:
+            if cashback_info['is_max_monthly']:
+                text += "🎉 Вы достигли максимальной ставки 15% за аренду на месяц!\n"
+                text += "   Поддерживайте её регулярными продлениями.\n"
+            else:
+                text += f"📌 У вас действует аренда на месяц.\n"
+                text += f"   При продлении ставка повысится до {cashback_info['next_monthly']}%.\n"
+        else:
+            if cashback_info['is_max_monthly']:
+                text += "🎉 Вы достигли максимальной ставки 15% за аренду на месяц!\n"
+                text += "   Поддерживайте её регулярными продлениями.\n"
+            else:
+                text += "💡 Арендуйте на месяц — базовая ставка 10%.\n"
+                text += "   При продлении каждый месяц +1% (максимум 15%).\n"
+        
+        await message.answer(text)
 
 
 @router.message(F.text == "📜 История")
