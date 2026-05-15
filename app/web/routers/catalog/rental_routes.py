@@ -6,12 +6,12 @@ from sqlalchemy.orm import selectinload
 from datetime import datetime, timedelta
 
 from ...deps import get_db, templates, require_auth
-from ....models import User, Model, Brand, Category, Rental, Referral
+from ....models import User, Model, Brand, Category, Rental, Referral, Transaction, AdminLog
 from .base_routes import generate_rental_number
 from ....bonus_utils import update_referral_total_rentals, check_and_create_pending_bonuses
+from ....cashback import get_cashback_info, calculate_cashback_rate
 from ....notifications import send_telegram_notification
 from ....config import settings
-from datetime import timedelta
 
 router = APIRouter(prefix="/rentals", tags=["catalog"])
 
@@ -260,14 +260,13 @@ async def rental_detail(
     if not rental:
         raise HTTPException(404, "Аренда не найдена")
     
-    from ....cashback import get_cashback_info
-cashback_info = await get_cashback_info(db, rental.user)
-
-return templates.TemplateResponse("catalog/rental_detail.html", {
-    "request": request,
-    "rental": rental,
-    "cashback_info": cashback_info
-})
+    cashback_info = await get_cashback_info(db, rental.user)
+    
+    return templates.TemplateResponse("catalog/rental_detail.html", {
+        "request": request,
+        "rental": rental,
+        "cashback_info": cashback_info
+    })
 
 
 @router.put("/{rental_id}/status")
@@ -328,6 +327,9 @@ async def confirm_rental_status(
         await update_referral_for_user(db, rental.user_id)
         print(f"✅ Аренда {rental_id} завершена, бонусы обновлены")
     
+    return {"success": True, "old_status": old_status, "new_status": new_status}
+
+
 @router.post("/{rental_id}/add_cashback")
 async def add_cashback_from_rental(
     request: Request,
@@ -350,8 +352,6 @@ async def add_cashback_from_rental(
     if rental.status != "completed":
         raise HTTPException(400, "Кэшбэк начисляется только за завершённые аренды")
     
-    from ....cashback import calculate_cashback_rate
-    
     user = rental.user
     rate = await calculate_cashback_rate(db, user)
     cashback_amount = int(rental.total_price * rate / 100)
@@ -361,6 +361,7 @@ async def add_cashback_from_rental(
     
     model_name = f"{rental.model.brand.name} {rental.model.name}"
     
+    old_balance = user.balance
     user.balance += cashback_amount
     user.points_expiry_date = datetime.utcnow() + timedelta(days=settings.POINTS_VALID_DAYS)
     
@@ -376,7 +377,7 @@ async def add_cashback_from_rental(
         admin_id=1,
         action_type="add_points",
         user_id=user.id,
-        old_value=str(user.balance - cashback_amount),
+        old_value=str(old_balance),
         new_value=str(user.balance),
         reason=f"Кэшбэк {rate}% за аренду {model_name}"
     )
@@ -394,5 +395,3 @@ async def add_cashback_from_rental(
         print(f"Не удалось отправить уведомление: {e}")
     
     return RedirectResponse(url=f"/admin/catalog/rentals/{rental_id}", status_code=303)
-
-    return {"success": True, "old_status": old_status, "new_status": new_status}
