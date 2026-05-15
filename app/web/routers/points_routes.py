@@ -81,7 +81,7 @@ async def add_points(
             "request": request,
             "user": user,
             "action": "add_points",
-            "action_url": f"/admin/client/{user_id}/add_points",
+            "action_url": f"/admin/client/{user_id}/add_points_force",
             "amount": amount,
             "reason": reason,
             "current_balance": user.balance,
