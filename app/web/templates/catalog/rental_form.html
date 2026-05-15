@@ -76,6 +76,14 @@
     </div>
     
     <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Тип аренды:</label>
+        <label style="display: flex; align-items: center; gap: 8px; padding: 8px; background: #f9f9f9; border-radius: 4px;">
+            <input type="checkbox" name="is_monthly" value="true" {% if rental and rental.is_monthly %}checked{% endif %}>
+            📅 Аренда на месяц (от 30 дней)
+        </label>
+    </div>
+    
+    <div style="margin-bottom: 15px;">
         <label style="display: block; margin-bottom: 5px; font-weight: bold;">Статус:</label>
         <select name="status" style="width: 100%; padding: 8px;">
             <option value="active" {% if not rental or rental.status == 'active' %}selected{% endif %}>🟡 Активна</option>
@@ -89,7 +97,6 @@
         <textarea name="notes" rows="3" style="width: 100%; padding: 8px;">{{ rental.notes if rental else '' }}</textarea>
     </div>
     
-    <!-- Скрытое поле для ID администратора -->
     <input type="hidden" name="admin_id" value="{{ admin_id }}">
     
     <div style="margin-top: 20px; display: flex; gap: 10px;">
@@ -131,7 +138,6 @@ function updateTotalPrice() {
     const calculated = calculateTotal();
     document.getElementById('calculated_total').textContent = calculated;
     
-    // Если поле итоговой суммы пустое или равно старому расчёту, обновляем его
     const totalInput = document.getElementById('total_price');
     const currentValue = parseInt(totalInput.value) || 0;
     const oldCalculated = parseInt(totalInput.getAttribute('data-calculated') || '0');
@@ -148,7 +154,6 @@ function resetToCalculated() {
     document.getElementById('total_price').setAttribute('data-calculated', calculated);
 }
 
-// Сохраняем рассчитанное значение при изменении полей
 document.getElementById('price_per_day').addEventListener('change', function() {
     updateTotalPrice();
 });
@@ -159,7 +164,6 @@ document.getElementById('end_date').addEventListener('change', function() {
     updateTotalPrice();
 });
 
-// При загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
     updatePrice();
     updateTotalPrice();
