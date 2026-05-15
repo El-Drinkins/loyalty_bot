@@ -9,6 +9,9 @@ from ...deps import get_db, templates, require_auth
 from ....models import User, Model, Brand, Category, Rental, Referral
 from .base_routes import generate_rental_number
 from ....bonus_utils import update_referral_total_rentals, check_and_create_pending_bonuses
+from ....notifications import send_telegram_notification
+from ....config import settings
+from datetime import timedelta
 
 router = APIRouter(prefix="/rentals", tags=["catalog"])
 
@@ -257,10 +260,14 @@ async def rental_detail(
     if not rental:
         raise HTTPException(404, "Аренда не найдена")
     
-    return templates.TemplateResponse("catalog/rental_detail.html", {
-        "request": request,
-        "rental": rental
-    })
+    from ....cashback import get_cashback_info
+cashback_info = await get_cashback_info(db, rental.user)
+
+return templates.TemplateResponse("catalog/rental_detail.html", {
+    "request": request,
+    "rental": rental,
+    "cashback_info": cashback_info
+})
 
 
 @router.put("/{rental_id}/status")
@@ -321,4 +328,71 @@ async def confirm_rental_status(
         await update_referral_for_user(db, rental.user_id)
         print(f"✅ Аренда {rental_id} завершена, бонусы обновлены")
     
+@router.post("/{rental_id}/add_cashback")
+async def add_cashback_from_rental(
+    request: Request,
+    rental_id: int,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
+):
+    """Начисляет кэшбэк за завершённую аренду."""
+    rental = await db.get(
+        Rental, 
+        rental_id,
+        options=[
+            selectinload(Rental.user),
+            selectinload(Rental.model).selectinload(Model.brand)
+        ]
+    )
+    if not rental:
+        raise HTTPException(404, "Аренда не найдена")
+    
+    if rental.status != "completed":
+        raise HTTPException(400, "Кэшбэк начисляется только за завершённые аренды")
+    
+    from ....cashback import calculate_cashback_rate
+    
+    user = rental.user
+    rate = await calculate_cashback_rate(db, user)
+    cashback_amount = int(rental.total_price * rate / 100)
+    
+    if cashback_amount <= 0:
+        raise HTTPException(400, "Сумма кэшбэка равна нулю")
+    
+    model_name = f"{rental.model.brand.name} {rental.model.name}"
+    
+    user.balance += cashback_amount
+    user.points_expiry_date = datetime.utcnow() + timedelta(days=settings.POINTS_VALID_DAYS)
+    
+    transaction = Transaction(
+        user_id=user.id,
+        amount=cashback_amount,
+        reason=f"Кэшбэк за аренду {model_name}",
+        admin_id=1
+    )
+    db.add(transaction)
+    
+    log = AdminLog(
+        admin_id=1,
+        action_type="add_points",
+        user_id=user.id,
+        old_value=str(user.balance - cashback_amount),
+        new_value=str(user.balance),
+        reason=f"Кэшбэк {rate}% за аренду {model_name}"
+    )
+    db.add(log)
+    
+    await db.commit()
+    
+    try:
+        await send_telegram_notification(
+            user.telegram_id,
+            f"💰 Вам начислен кэшбэк {cashback_amount} баллов за аренду {model_name}.\n"
+            f"💳 Ваш баланс: {user.balance} ⭐"
+        )
+    except Exception as e:
+        print(f"Не удалось отправить уведомление: {e}")
+    
+    return RedirectResponse(url=f"/admin/catalog/rentals/{rental_id}", status_code=303)
+
     return {"success": True, "old_status": old_status, "new_status": new_status}
