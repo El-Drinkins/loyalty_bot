@@ -233,13 +233,34 @@ async def show_balance(message: Message):
         from app.cashback import get_cashback_info
         cashback_info = await get_cashback_info(session, user)
         
+        # Названия месяцев на русском
+        months_ru_gen = {
+            1: "января", 2: "февраля", 3: "марта", 4: "апреля",
+            5: "мая", 6: "июня", 7: "июля", 8: "августа",
+            9: "сентября", 10: "октября", 11: "ноября", 12: "декабря"
+        }
+        months_ru_nom = {
+            1: "январь", 2: "февраль", 3: "март", 4: "апрель",
+            5: "май", 6: "июнь", 7: "июль", 8: "август",
+            9: "сентябрь", 10: "октябрь", 11: "ноябрь", 12: "декабрь"
+        }
+        now = datetime.utcnow()
+        current_month_nom = months_ru_nom.get(now.month, "")
+        next_month = now.month + 1
+        next_year = now.year
+        if next_month > 12:
+            next_month = 1
+            next_year += 1
+        next_month_nom = months_ru_nom.get(next_month, "")
+        current_month_gen = months_ru_gen.get(now.month, "")
+        
         text = (
-            f"💰 Ваш баланс: {format_number(user.balance)} баллов (лимит: 20 000 ⭐)\n"
-            f"⏳ Сгорают: {expiry}\n\n"
-            f"📊 Ваши ставки кэшбэка в {cashback_info['current_month_ru']}:\n"
-            f"• Посуточная аренда: {cashback_info['rate']}%\n"
-            f"• Аренда на месяц: {cashback_info['monthly_rate']}%\n\n"
-            f"📊 Прогноз на {cashback_info['next_month_ru']}:\n"
+            f"💰 Ваш баланс: <b>{format_number(user.balance)} баллов</b> (лимит: 20 000 ⭐)\n"
+            f"⏳ Сгорают: <b>{expiry}</b>\n\n"
+            f"📊 <b>Ваши ставки кэшбэка в {current_month_nom}:</b>\n"
+            f"• Посуточная аренда: <b>{cashback_info['rate']}%</b>\n"
+            f"• Аренда на месяц: <b>{cashback_info['monthly_rate']}%</b>\n\n"
+            f"📊 <b>Прогноз ставки вашего кэшбэка на {next_month_nom}:</b>\n"
         )
         
         # Посуточная аренда — прогноз
@@ -248,14 +269,14 @@ async def show_balance(message: Message):
                 text += "🎉 Вы достигли максимальной ставки 10% за посуточную аренду!\n"
                 text += "   Поддерживайте её регулярными арендами каждый месяц.\n\n"
             else:
-                text += f"• Вы совершили аренду в этом месяце, поэтому ваша ставка составит {cashback_info['next_rate']}%\n\n"
+                text += f"• Посуточная аренда: <b>{cashback_info['next_rate']}%</b> (повышена за аренду в {current_month_nom})\n\n"
         else:
             if cashback_info['is_max_daily']:
                 text += "🎉 Вы достигли максимальной ставки 10% за посуточную аренду!\n"
                 text += "   Поддерживайте её регулярными арендами каждый месяц.\n\n"
             else:
-                text += f"• Посуточная аренда: {cashback_info['next_rate']}% (если арендуете от 1000 ₽)\n"
-                text += f"  или 5% (если не арендуете)\n\n"
+                text += f"• Посуточная аренда: <b>{cashback_info['next_rate']}%</b> (если совершите хотя бы одну аренду в {current_month_gen} от 1000 ₽)\n"
+                text += f"  или <b>5%</b> (если {current_month_nom} без аренд)\n\n"
         
         # Месячная аренда — прогноз
         if cashback_info['has_active_monthly']:
@@ -264,16 +285,16 @@ async def show_balance(message: Message):
                 text += "   Поддерживайте её регулярными продлениями.\n"
             else:
                 text += f"📌 У вас действует аренда на месяц.\n"
-                text += f"   При продлении ставка повысится до {cashback_info['next_monthly']}%.\n"
+                text += f"   При продлении ставка повысится до <b>{cashback_info['next_monthly']}%</b>.\n"
         else:
             if cashback_info['is_max_monthly']:
                 text += "🎉 Вы достигли максимальной ставки 15% за аренду на месяц!\n"
                 text += "   Поддерживайте её регулярными продлениями.\n"
             else:
-                text += "💡 Арендуйте на месяц — базовая ставка 10%.\n"
-                text += "   При продлении каждый месяц +1% (максимум 15%).\n"
+                text += f"• Аренда на месяц: базовая ставка <b>10%</b>.\n"
+                text += f"   При продлении каждый месяц +1% (максимум 15%).\n"
         
-        await message.answer(text)
+        await message.answer(text, parse_mode="HTML")
 
 
 @router.message(F.text == "📜 История")
