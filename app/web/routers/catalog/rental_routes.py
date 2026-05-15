@@ -317,12 +317,10 @@ async def confirm_rental_status(
     
     old_status = rental.status
     
-    # Меняем статус
     rental.status = new_status
     rental.updated_at = datetime.utcnow()
     await db.commit()
     
-    # Если статус изменился на "completed", обновляем реферала
     if old_status != "completed" and new_status == "completed":
         await update_referral_for_user(db, rental.user_id)
         print(f"✅ Аренда {rental_id} завершена, бонусы обновлены")
@@ -361,6 +359,21 @@ async def add_cashback_from_rental(
     
     model_name = f"{rental.model.brand.name} {rental.model.name}"
     
+    # Проверка лимита
+    if user.balance + cashback_amount > settings.MAX_BALANCE:
+        return templates.TemplateResponse("client/confirm_overlimit.html", {
+            "request": request,
+            "user": user,
+            "action": "cashback",
+            "action_url": f"/admin/catalog/rentals/{rental_id}/add_cashback_force",
+            "amount": cashback_amount,
+            "reason": f"Кэшбэк за аренду {model_name}",
+            "current_balance": user.balance,
+            "new_balance": user.balance + cashback_amount,
+            "max_balance": settings.MAX_BALANCE,
+            "message": f"После начисления кэшбэка (+{cashback_amount} ⭐) баланс составит {user.balance + cashback_amount} ⭐, что превышает лимит {settings.MAX_BALANCE} ⭐."
+        })
+    
     old_balance = user.balance
     user.balance += cashback_amount
     user.points_expiry_date = datetime.utcnow() + timedelta(days=settings.POINTS_VALID_DAYS)
@@ -380,6 +393,67 @@ async def add_cashback_from_rental(
         old_value=str(old_balance),
         new_value=str(user.balance),
         reason=f"Кэшбэк {rate}% за аренду {model_name}"
+    )
+    db.add(log)
+    
+    await db.commit()
+    
+    try:
+        await send_telegram_notification(
+            user.telegram_id,
+            f"💰 Вам начислен кэшбэк {cashback_amount} баллов за аренду {model_name}.\n"
+            f"💳 Ваш баланс: {user.balance} ⭐"
+        )
+    except Exception as e:
+        print(f"Не удалось отправить уведомление: {e}")
+    
+    return RedirectResponse(url=f"/admin/catalog/rentals/{rental_id}", status_code=303)
+
+
+@router.post("/{rental_id}/add_cashback_force")
+async def add_cashback_force(
+    request: Request,
+    rental_id: int,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
+):
+    """Принудительное начисление кэшбэка с превышением лимита."""
+    rental = await db.get(
+        Rental, 
+        rental_id,
+        options=[
+            selectinload(Rental.user),
+            selectinload(Rental.model).selectinload(Model.brand)
+        ]
+    )
+    if not rental:
+        raise HTTPException(404, "Аренда не найдена")
+    
+    user = rental.user
+    rate = await calculate_cashback_rate(db, user)
+    cashback_amount = int(rental.total_price * rate / 100)
+    
+    model_name = f"{rental.model.brand.name} {rental.model.name}"
+    
+    old_balance = user.balance
+    user.balance += cashback_amount
+    user.points_expiry_date = datetime.utcnow() + timedelta(days=settings.POINTS_VALID_DAYS)
+    
+    transaction = Transaction(
+        user_id=user.id,
+        amount=cashback_amount,
+        reason=f"Кэшбэк за аренду {model_name} (превышен лимит)",
+        admin_id=1
+    )
+    db.add(transaction)
+    
+    log = AdminLog(
+        admin_id=1,
+        action_type="add_points_force",
+        user_id=user.id,
+        old_value=str(old_balance),
+        new_value=str(user.balance),
+        reason=f"Кэшбэк {rate}% за аренду {model_name} (превышен лимит)"
     )
     db.add(log)
     
