@@ -23,6 +23,7 @@ class Rental(Base):
     end_date: Mapped[datetime] = mapped_column(DateTime)
     status: Mapped[str] = mapped_column(String(50), default="active")
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_monthly: Mapped[bool] = mapped_column(Boolean, default=False)
     created_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
