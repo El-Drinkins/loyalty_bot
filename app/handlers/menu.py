@@ -226,31 +226,36 @@ async def show_balance(message: Message):
         from app.cashback import get_cashback_info
         cashback_info = await get_cashback_info(session, user)
         
-        months_ru_gen = {
-            1: "января", 2: "февраля", 3: "марта", 4: "апреля",
-            5: "мая", 6: "июня", 7: "июля", 8: "августа",
-            9: "сентября", 10: "октября", 11: "ноября", 12: "декабря"
-        }
+        # Названия месяцев
         months_ru_nom = {
             1: "январь", 2: "февраль", 3: "март", 4: "апрель",
             5: "май", 6: "июнь", 7: "июль", 8: "август",
             9: "сентябрь", 10: "октябрь", 11: "ноябрь", 12: "декабрь"
         }
+        months_ru_loc = {
+            1: "январе", 2: "феврале", 3: "марте", 4: "апреле",
+            5: "мае", 6: "июне", 7: "июле", 8: "августе",
+            9: "сентябре", 10: "октябре", 11: "ноябре", 12: "декабре"
+        }
+        months_ru_gen = {
+            1: "января", 2: "февраля", 3: "марта", 4: "апреля",
+            5: "мая", 6: "июня", 7: "июля", 8: "августа",
+            9: "сентября", 10: "октября", 11: "ноября", 12: "декабря"
+        }
+        
         now = datetime.utcnow()
-        current_month_nom = months_ru_nom.get(now.month, "")
-        current_month_gen = months_ru_gen.get(now.month, "")
-        next_month = now.month + 1
+        current_month = now.month
+        next_month = current_month + 1
         if next_month > 12:
             next_month = 1
-        next_month_nom = months_ru_nom.get(next_month, "")
         
         text = (
             f"💰 Ваш баланс: <b>{format_number(user.balance)} баллов</b> (лимит: 20 000 ⭐)\n"
             f"⏳ Сгорают: <b>{expiry}</b>\n\n"
-            f"📊 <b>Ваши ставки кэшбэка в {current_month_nom}:</b>\n"
+            f"📊 <b>Ваши ставки кэшбэка в {months_ru_loc[current_month]}:</b>\n"
             f"• Посуточная аренда: <b>{cashback_info['rate']}%</b>\n"
             f"• Аренда на месяц: <b>{cashback_info['monthly_rate']}%</b>\n\n"
-            f"📊 <b>Прогноз ставки вашего кэшбэка на {next_month_nom}:</b>\n"
+            f"📊 <b>Прогноз ставки вашего кэшбэка на {months_ru_nom[next_month]}:</b>\n"
         )
         
         if cashback_info['has_rental_this_month']:
@@ -258,14 +263,14 @@ async def show_balance(message: Message):
                 text += "🎉 Вы достигли максимальной ставки 10% за посуточную аренду!\n"
                 text += "   Поддерживайте её регулярными арендами каждый месяц.\n\n"
             else:
-                text += f"• Посуточная аренда: <b>{cashback_info['next_rate_if_rental']}%</b> (повышена за аренду в {current_month_nom})\n\n"
+                text += f"• Посуточная аренда: <b>{cashback_info['next_rate_if_rental']}%</b> (повышена за аренду в {months_ru_loc[current_month]})\n\n"
         else:
             if cashback_info['is_max_daily']:
                 text += "🎉 Вы достигли максимальной ставки 10% за посуточную аренду!\n"
                 text += "   Поддерживайте её регулярными арендами каждый месяц.\n\n"
             else:
-                text += f"• Посуточная аренда: <b>{cashback_info['next_rate_if_rental']}%</b> (если совершите хотя бы одну аренду в {current_month_gen} от 1000 ₽)\n"
-                text += f"  или <b>{cashback_info['next_rate_if_no_rental']}%</b> (если {current_month_nom} без аренд)\n\n"
+                text += f"• Посуточная аренда: <b>{cashback_info['next_rate_if_rental']}%</b> (если совершите хотя бы одну аренду в {months_ru_gen[current_month]} от 1000 ₽)\n"
+                text += f"  или <b>{cashback_info['next_rate_if_no_rental']}%</b> (если {months_ru_nom[current_month]} без аренд)\n\n"
         
         if cashback_info['has_active_monthly']:
             if cashback_info['is_max_monthly']:
