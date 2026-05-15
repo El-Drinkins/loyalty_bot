@@ -13,10 +13,10 @@ async def calculate_cashback_rate(session: AsyncSession, user) -> int:
     
     Правила:
     - Базовая ставка: 5%
-    - +1% за каждый календарный месяц, в котором была хотя бы одна завершённая аренда
+    - +1% за каждый ЗАВЕРШЁННЫЙ календарный месяц, в котором была хотя бы одна аренда
+    - Текущий месяц не учитывается (ставка повышается со следующего месяца)
     - Максимум: 10%
     - Если пропущен месяц — сброс до базовой ставки
-    - Можно заморозить ставку на 1 месяц (1 раз в год)
     """
     base_rate = 5
     max_rate = 10
@@ -32,7 +32,7 @@ async def calculate_cashback_rate(session: AsyncSession, user) -> int:
     if not rentals:
         return base_rate
     
-    # Собираем уникальные месяцы с арендами
+    # Собираем уникальные месяцы с завершёнными арендами
     months_with_rentals = set()
     for rental in rentals:
         months_with_rentals.add((rental.end_date.year, rental.end_date.month))
@@ -40,15 +40,19 @@ async def calculate_cashback_rate(session: AsyncSession, user) -> int:
     if not months_with_rentals:
         return base_rate
     
-    # Определяем текущий месяц и год
+    # Текущий месяц
     now = datetime.utcnow()
     current_year = now.year
     current_month = now.month
     
-    # Считаем последовательные месяцы от текущего назад
+    # Считаем последовательные ЗАВЕРШЁННЫЕ месяцы от предыдущего назад
+    # Предыдущий месяц — первый, который может дать повышение
     consecutive = 0
     check_year = current_year
-    check_month = current_month
+    check_month = current_month - 1
+    if check_month == 0:
+        check_month = 12
+        check_year -= 1
     
     while True:
         if (check_year, check_month) in months_with_rentals:
@@ -63,7 +67,6 @@ async def calculate_cashback_rate(session: AsyncSession, user) -> int:
             else:
                 break
         
-        # Переходим к предыдущему месяцу
         check_month -= 1
         if check_month == 0:
             check_month = 12
@@ -106,5 +109,5 @@ async def get_cashback_info(session: AsyncSession, user) -> dict:
         "frozen": user.cashback_frozen,
         "frozen_month": user.cashback_frozen_month,
         "frozen_year": user.cashback_frozen_year,
-        "can_freeze": not user.cashback_frozen  # упрощённо
+        "can_freeze": not user.cashback_frozen
     }
