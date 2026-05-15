@@ -94,6 +94,20 @@ async def add_points(
     return RedirectResponse(url=f"/admin/client/{user_id}", status_code=303)
 
 
+@router.post("/client/{user_id}/add_points_force")
+async def add_points_force(
+    request: Request,
+    user_id: int,
+    amount: int = Form(...),
+    reason: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+    admin_id: int = Form(0),
+    _=Depends(require_auth)
+):
+    await add_points_to_user(db, user_id, amount, f"{reason} (превышен лимит)", admin_id)
+    return RedirectResponse(url=f"/admin/client/{user_id}", status_code=303)
+
+
 @router.post("/client/{user_id}/subtract_points")
 async def subtract_points(
     user_id: int,
@@ -139,8 +153,6 @@ async def confirm_referral(
 
     return RedirectResponse(url="/admin/", status_code=303)
 
-
-# ========== РЕФЕРАЛЬНЫЕ БОНУСЫ ==========
 
 @router.get("/referrals/{user_id}")
 async def referrals_page(
@@ -250,7 +262,6 @@ async def confirm_bonus_api(
     if not user:
         raise HTTPException(404, "Пользователь не найден")
     
-    # Проверка лимита
     if check_balance_limit(user, bonus.amount):
         bonus_name = get_bonus_type_name(bonus.bonus_type)
         return templates.TemplateResponse("client/confirm_overlimit.html", {
