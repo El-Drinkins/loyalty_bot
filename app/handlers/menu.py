@@ -269,7 +269,7 @@ async def show_balance(message: Message):
                 text += "🎉 Вы достигли максимальной ставки 10% за посуточную аренду!\n"
                 text += "   Поддерживайте её регулярными арендами каждый месяц.\n\n"
             else:
-                text += f"• Посуточная аренда: <b>{cashback_info['next_rate_if_rental']}%</b> (если совершите хотя бы одну аренду в {months_ru_gen[current_month]} от 1000 ₽)\n"
+                text += f"• Посуточная аренда: <b>{cashback_info['next_rate_if_rental']}%</b> (если совершите хотя бы одну аренду в {months_ru_loc[current_month]} от 1000 ₽)\n"
                 text += f"  или <b>{cashback_info['next_rate_if_no_rental']}%</b> (если {months_ru_nom[current_month]} без аренд)\n\n"
         
         if cashback_info['has_active_monthly']:
