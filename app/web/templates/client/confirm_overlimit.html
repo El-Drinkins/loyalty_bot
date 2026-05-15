@@ -20,6 +20,9 @@
         <input type="hidden" name="amount" value="{{ amount }}">
         <input type="hidden" name="reason" value="{{ reason }}">
         <input type="hidden" name="admin_id" value="1">
+        {% if custom_amount %}
+        <input type="hidden" name="custom_amount" value="{{ custom_amount }}">
+        {% endif %}
         
         <button type="submit" class="button" style="background-color: #ff9800;">
             ✅ Всё равно начислить

@@ -377,7 +377,8 @@ async def add_cashback_from_rental(
             "current_balance": user.balance,
             "new_balance": user.balance + cashback_amount,
             "max_balance": settings.MAX_BALANCE,
-            "message": f"После начисления кэшбэка (+{cashback_amount} ⭐) баланс составит {user.balance + cashback_amount} ⭐, что превышает лимит {settings.MAX_BALANCE} ⭐."
+            "message": f"После начисления кэшбэка (+{cashback_amount} ⭐) баланс составит {user.balance + cashback_amount} ⭐, что превышает лимит {settings.MAX_BALANCE} ⭐.",
+            "custom_amount": cashback_amount
         })
     
     old_balance = user.balance
