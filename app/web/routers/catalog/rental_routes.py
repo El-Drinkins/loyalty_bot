@@ -337,6 +337,7 @@ async def add_cashback_from_rental(
     request: Request,
     rental_id: int,
     custom_amount: int = Form(0),
+    admin_id: int = Form(...),
     db: AsyncSession = Depends(get_db),
     _=Depends(require_auth)
 ):
@@ -388,15 +389,15 @@ async def add_cashback_from_rental(
     user.points_expiry_date = datetime.utcnow() + timedelta(days=settings.POINTS_VALID_DAYS)
     
     transaction = Transaction(
-        user_id=user.id,
-        amount=cashback_amount,
-        reason=f"Кэшбэк за аренду {model_name}",
-        admin_id=1
-    )
-    db.add(transaction)
-    
-    log = AdminLog(
-        admin_id=1,
+            user_id=user.id,
+            amount=cashback_amount,
+            reason=f"Кэшбэк за аренду {model_name}",
+            admin_id=admin_id
+        )
+        db.add(transaction)
+
+        log = AdminLog(
+            admin_id=admin_id,
         action_type="add_points",
         user_id=user.id,
         old_value=str(old_balance),
@@ -424,6 +425,7 @@ async def add_cashback_force(
     request: Request,
     rental_id: int,
     custom_amount: int = Form(0),
+    admin_id: int = Form(...),
     db: AsyncSession = Depends(get_db),
     _=Depends(require_auth)
 ):
