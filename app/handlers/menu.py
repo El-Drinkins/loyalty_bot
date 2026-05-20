@@ -515,3 +515,6 @@ async def regulations_command(message: Message):
                 await message.answer(f"📋 Программа лояльности (часть {i}/{len(parts)})\n\n{part}", parse_mode="HTML")
             else:
                 await message.answer(part, parse_mode="HTML")
+                @router.message(Command("balance"))
+                async def cmd_balance(message: Message):
+             await show_balance(message)
