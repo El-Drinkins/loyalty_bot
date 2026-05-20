@@ -262,7 +262,7 @@ async def check_and_create_pending_bonuses(session, referral_id: int) -> list:
                 f"👤 Друг: {friend.full_name if friend else '?'} (ID: {referral.new_user_id})\n"
                 f"📞 Телефон: {friend.phone if friend else '?'}\n\n"
                 f"🎯 Условие: первая аренда\n"
-                f"💰 Бонус: +300 ⭐\n\n"
+                f"💰 Бонус: +200 ⭐\n\n"
                 f"➡️ Подтвердить в админке: /admin/referral_detail/{referral_id}"
             )
     
@@ -287,7 +287,7 @@ async def check_and_create_pending_bonuses(session, referral_id: int) -> list:
                 f"👤 Друг: {friend.full_name if friend else '?'} (ID: {referral.new_user_id})\n"
                 f"📞 Телефон: {friend.phone if friend else '?'}\n\n"
                 f"🎯 Условие: вторая аренда\n"
-                f"💰 Бонус: +700 ⭐\n\n"
+                f"💰 Бонус: +800 ⭐\n\n"
                 f"➡️ Подтвердить в админке: /admin/referral_detail/{referral_id}"
             )
     
