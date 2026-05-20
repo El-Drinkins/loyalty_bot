@@ -288,7 +288,10 @@ async def show_balance(message: Message):
                 text += f"   При продлении каждый месяц +1% (максимум 15%).\n"
         
         await message.answer(text, parse_mode="HTML")
-
+        
+@router.message(Command("balance"))
+async def cmd_balance(message: Message):
+    await show_balance(message)
 
 @router.message(F.text == "📜 История")
 async def show_history(message: Message):
