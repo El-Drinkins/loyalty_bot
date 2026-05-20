@@ -398,7 +398,7 @@ async def invite_friend(message: Message):
                 text="👥 Отправить другу в Telegram", 
                 url=f"https://t.me/share/url?url={link}&text=🎁 Присоединяйся к программе лояльности Проката Фототехники! Переходи по ссылке и получи бонусы!"
             )],
-            [InlineKeyboardButton(text="👥 Мои друзья", callback_data="show_friends_list")],
+            [InlineKeyboardButton(text="👥 Мои друзья", callback_data="back_to_friends_main")],
             [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_main")]
         ]
     )
