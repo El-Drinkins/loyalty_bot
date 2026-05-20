@@ -99,16 +99,16 @@ async def calculate_monthly_rate(session: AsyncSession, user) -> int:
 
 
 async def has_rental_in_current_month(session: AsyncSession, user) -> bool:
-    """Проверяет, была ли у пользователя хотя бы одна аренда в текущем месяце."""
+    """Проверяет, была ли у пользователя хотя бы одна аренда от 1000 руб. в текущем месяце."""
     now = datetime.utcnow()
     month_start = datetime(now.year, now.month, 1)
-    
     result = await session.execute(
         select(Rental)
         .where(
             Rental.user_id == user.id,
             Rental.status == "completed",
-            Rental.end_date >= month_start
+            Rental.end_date >= month_start,
+            Rental.total_price >= 1000
         )
         .limit(1)
     )
