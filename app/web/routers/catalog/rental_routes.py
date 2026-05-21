@@ -4,7 +4,6 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timedelta
-
 from ...deps import get_db, templates, require_auth
 from ....models import User, Model, Brand, Category, Rental, Referral, Transaction, AdminLog
 from .base_routes import generate_rental_number
@@ -43,26 +42,24 @@ async def rentals_list(
         selectinload(Rental.user),
         selectinload(Rental.model).selectinload(Model.brand)
     ).order_by(Rental.created_at.desc())
-    
+
     if status:
         query = query.where(Rental.status == status)
     if user_id:
         query = query.where(Rental.user_id == user_id)
     if model_id:
         query = query.where(Rental.model_id == model_id)
-    
+
     total_count = await db.scalar(select(func.count()).select_from(query.subquery()))
     offset = (page - 1) * per_page
     query = query.offset(offset).limit(per_page)
-    
     rentals = await db.execute(query)
     rentals = rentals.scalars().all()
-    
     total_pages = (total_count + per_page - 1) // per_page
-    
+
     active_count = await db.scalar(select(func.count()).where(Rental.status == "active"))
     completed_count = await db.scalar(select(func.count()).where(Rental.status == "completed"))
-    
+
     return templates.TemplateResponse("catalog/rentals.html", {
         "request": request,
         "rentals": rentals,
@@ -89,12 +86,9 @@ async def rental_add_form(
         .options(selectinload(Model.brand))
     )
     models = models.scalars().all()
-    
     users = await db.execute(select(User).order_by(User.full_name))
     users = users.scalars().all()
-    
     rental_number = generate_rental_number()
-    
     return templates.TemplateResponse("catalog/rental_form.html", {
         "request": request,
         "models": models,
@@ -123,7 +117,6 @@ async def rental_add(
     _=Depends(require_auth)
 ):
     admin = await db.get(User, admin_id)
-    
     rental = Rental(
         rental_number=rental_number,
         user_id=user_id,
@@ -138,18 +131,17 @@ async def rental_add(
         is_monthly=is_monthly,
         created_by=admin_id if admin else None
     )
-    
     db.add(rental)
-    
+
     user = await db.get(User, user_id)
     if user:
         user.points_expiry_date = datetime.utcnow() + timedelta(days=90)
-    
+
     await db.commit()
-    
+
     if status == "completed":
         await update_referral_for_user(db, user_id)
-    
+
     return RedirectResponse(url="/admin/catalog/rentals", status_code=303)
 
 @router.get("/{rental_id}/edit", response_class=HTMLResponse)
@@ -163,17 +155,16 @@ async def rental_edit_form(
     rental = await db.get(Rental, rental_id)
     if not rental:
         raise HTTPException(404, "Аренда не найдена")
-    
+
     models = await db.execute(
         select(Model)
         .where(Model.is_active == True)
         .options(selectinload(Model.brand))
     )
     models = models.scalars().all()
-    
     users = await db.execute(select(User).order_by(User.full_name))
     users = users.scalars().all()
-    
+
     return templates.TemplateResponse("catalog/rental_form.html", {
         "request": request,
         "models": models,
@@ -202,10 +193,10 @@ async def rental_edit(
     rental = await db.get(Rental, rental_id)
     if not rental:
         raise HTTPException(404, "Аренда не найдена")
-    
+
     old_status = rental.status
     new_status = status
-    
+
     rental.user_id = user_id
     rental.model_id = model_id
     rental.start_date = datetime.strptime(start_date, "%Y-%m-%d")
@@ -217,16 +208,16 @@ async def rental_edit(
     rental.status = new_status
     rental.is_monthly = is_monthly
     rental.updated_at = datetime.utcnow()
-    
+
     user = await db.get(User, user_id)
     if user:
         user.points_expiry_date = datetime.utcnow() + timedelta(days=90)
-    
+
     await db.commit()
-    
+
     if old_status != "completed" and new_status == "completed":
         await update_referral_for_user(db, user_id)
-    
+
     return RedirectResponse(url="/admin/catalog/rentals", status_code=303)
 
 @router.post("/{rental_id}/delete")
@@ -242,6 +233,7 @@ async def rental_delete(
         await db.delete(rental)
         await db.commit()
         await update_referral_for_user(db, user_id)
+
     return RedirectResponse(url="/admin/catalog/rentals", status_code=303)
 
 @router.get("/{rental_id}", response_class=HTMLResponse)
@@ -263,15 +255,14 @@ async def rental_detail(
     )
     if not rental:
         raise HTTPException(404, "Аренда не найдена")
-    
+
     cashback_info = await get_cashback_info(db, rental.user)
-    
+
     return templates.TemplateResponse("catalog/rental_detail.html", {
         "request": request,
         "rental": rental,
         "cashback_info": cashback_info
     })
-
 
 @router.put("/{rental_id}/status")
 async def update_rental_status(
@@ -282,24 +273,23 @@ async def update_rental_status(
 ):
     data = await request.json()
     new_status = data.get("status")
-    
     if new_status not in ["active", "completed", "cancelled"]:
         raise HTTPException(400, "Неверный статус")
-    
+
     rental = await db.get(Rental, rental_id)
     if not rental:
         raise HTTPException(404, "Аренда не найдена")
-    
+
     old_status = rental.status
     rental.status = new_status
     rental.updated_at = datetime.utcnow()
+
     await db.commit()
-    
+
     if old_status != "completed" and new_status == "completed":
         await update_referral_for_user(db, rental.user_id)
-    
-    return {"success": True}
 
+    return {"success": True}
 
 @router.post("/{rental_id}/confirm_status")
 async def confirm_rental_status(
@@ -311,26 +301,24 @@ async def confirm_rental_status(
     """Подтверждает статус аренды и обновляет бонусы"""
     data = await request.json()
     new_status = data.get("status")
-    
     if new_status not in ["active", "completed", "cancelled"]:
         raise HTTPException(400, "Неверный статус")
-    
+
     rental = await db.get(Rental, rental_id)
     if not rental:
         raise HTTPException(404, "Аренда не найдена")
-    
+
     old_status = rental.status
-    
     rental.status = new_status
     rental.updated_at = datetime.utcnow()
+
     await db.commit()
-    
+
     if old_status != "completed" and new_status == "completed":
         await update_referral_for_user(db, rental.user_id)
         print(f"✅ Аренда {rental_id} завершена, бонусы обновлены")
-    
-    return {"success": True, "old_status": old_status, "new_status": new_status}
 
+    return {"success": True, "old_status": old_status, "new_status": new_status}
 
 @router.post("/{rental_id}/add_cashback")
 async def add_cashback_from_rental(
@@ -352,23 +340,22 @@ async def add_cashback_from_rental(
     )
     if not rental:
         raise HTTPException(404, "Аренда не найдена")
-    
     if rental.status != "completed":
         raise HTTPException(400, "Кэшбэк начисляется только за завершённые аренды")
-    
+
     user = rental.user
     rate = await calculate_cashback_rate(db, user)
-    
+
     if custom_amount > 0:
         cashback_amount = custom_amount
     else:
         cashback_amount = int(rental.total_price * rate / 100)
-    
+
     if cashback_amount <= 0:
         raise HTTPException(400, "Сумма кэшбэка равна нулю")
-    
+
     model_name = f"{rental.model.brand.name} {rental.model.name}"
-    
+
     if user.balance + cashback_amount > settings.MAX_BALANCE:
         return templates.TemplateResponse("client/confirm_overlimit.html", {
             "request": request,
@@ -383,21 +370,21 @@ async def add_cashback_from_rental(
             "message": f"После начисления кэшбэка (+{cashback_amount} ⭐) баланс составит {user.balance + cashback_amount} ⭐, что превышает лимит {settings.MAX_BALANCE} ⭐.",
             "custom_amount": cashback_amount
         })
-    
+
     old_balance = user.balance
     user.balance += cashback_amount
     user.points_expiry_date = datetime.utcnow() + timedelta(days=settings.POINTS_VALID_DAYS)
-    
-    transaction = Transaction(
-            user_id=user.id,
-            amount=cashback_amount,
-            reason=f"Кэшбэк за аренду {model_name}",
-            admin_id=admin_id
-        )
-        db.add(transaction)
 
-        log = AdminLog(
-            admin_id=admin_id,
+    transaction = Transaction(
+        user_id=user.id,
+        amount=cashback_amount,
+        reason=f"Кэшбэк за аренду {model_name}",
+        admin_id=admin_id
+    )
+    db.add(transaction)
+
+    log = AdminLog(
+        admin_id=admin_id,
         action_type="add_points",
         user_id=user.id,
         old_value=str(old_balance),
@@ -405,9 +392,9 @@ async def add_cashback_from_rental(
         reason=f"Кэшбэк {rate}% за аренду {model_name}"
     )
     db.add(log)
-    
+
     await db.commit()
-    
+
     try:
         await send_telegram_notification(
             user.telegram_id,
@@ -416,9 +403,8 @@ async def add_cashback_from_rental(
         )
     except Exception as e:
         print(f"Не удалось отправить уведомление: {e}")
-    
-    return RedirectResponse(url=f"/admin/catalog/rentals/{rental_id}", status_code=303)
 
+    return RedirectResponse(url=f"/admin/catalog/rentals/{rental_id}", status_code=303)
 
 @router.post("/{rental_id}/add_cashback_force")
 async def add_cashback_force(
@@ -440,31 +426,31 @@ async def add_cashback_force(
     )
     if not rental:
         raise HTTPException(404, "Аренда не найдена")
-    
+
     user = rental.user
     rate = await calculate_cashback_rate(db, user)
-    
+
     if custom_amount > 0:
         cashback_amount = custom_amount
     else:
         cashback_amount = int(rental.total_price * rate / 100)
-    
+
     model_name = f"{rental.model.brand.name} {rental.model.name}"
-    
+
     old_balance = user.balance
     user.balance += cashback_amount
     user.points_expiry_date = datetime.utcnow() + timedelta(days=settings.POINTS_VALID_DAYS)
-    
+
     transaction = Transaction(
         user_id=user.id,
         amount=cashback_amount,
         reason=f"Кэшбэк за аренду {model_name} (превышен лимит)",
-        admin_id=1
+        admin_id=admin_id
     )
     db.add(transaction)
-    
+
     log = AdminLog(
-        admin_id=1,
+        admin_id=admin_id,
         action_type="add_points_force",
         user_id=user.id,
         old_value=str(old_balance),
@@ -472,9 +458,9 @@ async def add_cashback_force(
         reason=f"Кэшбэк {rate}% за аренду {model_name} (превышен лимит)"
     )
     db.add(log)
-    
+
     await db.commit()
-    
+
     try:
         await send_telegram_notification(
             user.telegram_id,
@@ -483,5 +469,5 @@ async def add_cashback_force(
         )
     except Exception as e:
         print(f"Не удалось отправить уведомление: {e}")
-    
+
     return RedirectResponse(url=f"/admin/catalog/rentals/{rental_id}", status_code=303)
