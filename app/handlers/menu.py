@@ -63,7 +63,6 @@ def format_transaction_message(transactions: list, current_page: int, total_page
         if idx > 0:
             lines.append("")
             lines.append("➖➖➖➖➖➖➖➖➖➖")
-            lines.append("")
         lines.append(f"📅 {date_str}")
         
         day_transactions = grouped[date_str]
