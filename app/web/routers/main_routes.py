@@ -95,6 +95,6 @@ async def client_card(
         "completed_invited": completed_invited,
         "transactions": transactions,
         "grouped_transactions": grouped,
-        "cashback_info": cashback_info
+        "cashback_info": cashback_info,
         "user_feedback": user_feedback
     })
