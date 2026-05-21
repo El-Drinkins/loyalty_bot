@@ -95,6 +95,8 @@ async def main():
     dp.include_router(admin_review.router)
     dp.include_router(admin_commands.router)
     dp.include_router(catalog.router)
+    dp.include_router(feedback.router)
+
 
     scheduler = AsyncIOScheduler()
     scheduler.add_job(check_expiring_points, 'cron', hour=9, minute=0)

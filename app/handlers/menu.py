@@ -317,7 +317,6 @@ async def help_message(message: Message):
     async with AsyncSessionLocal() as session:
         user = await session.execute(select(User).where(User.telegram_id == message.from_user.id))
         user = user.scalar_one_or_none()
-        
         if user:
             log = UserLog(
                 user_id=user.id,
@@ -326,32 +325,41 @@ async def help_message(message: Message):
             )
             session.add(log)
             await session.commit()
-    
+
     help_text = (
-        "❓ **Помощь по боту и программе лояльности**\n\n"
-        "📌 **Основные команды:**\n"
+        "❓ <b>Помощь по боту и программе лояльности</b>\n\n"
+        "📌 <b>Основные команды:</b>\n"
         "• /faq — часто задаваемые вопросы\n"
         "• /regulations — полные правила программы\n"
         "• /start — начать регистрацию / перезапустить бота\n"
         "• /help — показать это сообщение\n"
         "• /catalog — открыть каталог техники\n\n"
-        "📌 **Кнопки главного меню:**\n"
-        "• 🏠 Баланс — проверить количество баллов\n"
+        "📌 <b>Кнопки главного меню:</b>\n"
+        "• 💰 Мои баллы — проверить количество баллов\n"
         "• 👥 Мои друзья — список приглашённых\n"
         "• 📜 История — история операций\n"
         "• 📸 Каталог — посмотреть технику\n"
         "• 🎁 Пригласить друга — получить ссылку для приглашения\n\n"
-        "📌 **Для заказа техники напишите:**\n"
-        "- телеграм @el\\_Drinkins\n"
-        "- инста @fototehnika\\_arenda\\_ufa\n\n"
-        "📌 **Требования к соцсетям:**\n"
+        "📌 <b>Для заказа техники напишите:</b>\n"
+        "- телеграм @el_Drinkins\n"
+        "- инста @fototehnika_arenda_ufa\n\n"
+        "📌 <b>Требования к соцсетям:</b>\n"
         "• Аккаунт должен быть открытым (публичным)\n"
         "• Приватные аккаунты не принимаются\n\n"
-        "📞 **Связаться с поддержкой**\n"
-        "   @el\\_Drinkins"
+        "📞 <b>Связаться с поддержкой</b>\n"
+        " @el_Drinkins"
     )
     
-    await message.answer(help_text, parse_mode="Markdown")
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="⚠️ Сообщить об ошибке в боте", callback_data="feedback_bug")],
+            [InlineKeyboardButton(text="💡 Предложить улучшение", callback_data="feedback_improvement")],
+            [InlineKeyboardButton(text="📷 Какую технику добавить в прокат?", callback_data="feedback_equipment")],
+        ]
+    )
+    
+    await message.answer(help_text, reply_markup=keyboard, parse_mode="HTML")
 
 
 @router.message(Command("help"))
