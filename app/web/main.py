@@ -19,6 +19,7 @@ from .routers import (
     auth_router,
     web_client_router
 )
+from .routers.feedback_routes import router as feedback_router
 from .middleware import AuthMiddleware
 from ..models import AsyncSessionLocal
 from ..logger import web_logger as logger
@@ -50,7 +51,6 @@ templates = Jinja2Templates(directory="app/web/templates")
 # Подключаем все роутеры
 app.include_router(auth_router)
 app.include_router(web_client_router)
-
 app.include_router(main_router, prefix="/admin")
 app.include_router(points_router, prefix="/admin")
 app.include_router(stats_router, prefix="/admin")
@@ -61,7 +61,7 @@ app.include_router(search_router, prefix="/admin")
 app.include_router(mailing_router, prefix="/admin")
 app.include_router(catalog_router, prefix="/admin/catalog")
 app.include_router(admin_review_router, prefix="/admin/review")
-
+app.include_router(feedback_router)
 
 # ========== HEALTH CHECK ==========
 @app.get("/health")
@@ -70,12 +70,11 @@ async def health_check():
         async with AsyncSessionLocal() as session:
             result = await session.execute(text("SELECT 1"))
             result.scalar()
-        
-        return {
-            "status": "ok",
-            "server": "running",
-            "database": "connected"
-        }
+            return {
+                "status": "ok",
+                "server": "running",
+                "database": "connected"
+            }
     except Exception as e:
         logger.error(f"Health check: база данных недоступна — {e}")
         return {
@@ -85,8 +84,7 @@ async def health_check():
             "error": str(e)
         }
 
-
 logger.info("Маршруты зарегистрированы:")
 for route in app.routes:
     if hasattr(route, "methods"):
-        logger.debug(f"  {route.methods} {route.path}")
+        logger.debug(f" {route.methods} {route.path}")

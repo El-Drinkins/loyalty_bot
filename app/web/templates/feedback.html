@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>📬 Обратная связь</h1>
+
+<div style="margin-bottom: 20px;">
+    <p>Всего сообщений: <strong>{{ total_count }}</strong></p>
+</div>
+
+<div style="margin-bottom: 20px; display: flex; gap: 20px; flex-wrap: wrap;">
+    <div>
+        <label>Тема:</label>
+        <select onchange="window.location.href = '?feedback_type=' + this.value + '&page=1{% if user_search %}&user_search={{ user_search }}{% endif %}'">
+            <option value="">Все</option>
+            <option value="bug" {% if feedback_type == 'bug' %}selected{% endif %}>⚠️ Ошибка в боте</option>
+            <option value="improvement" {% if feedback_type == 'improvement' %}selected{% endif %}>💡 Улучшение</option>
+            <option value="equipment" {% if feedback_type == 'equipment' %}selected{% endif %}>📷 Запрос техники</option>
+        </select>
+    </div>
+    <div>
+        <label>Клиент:</label>
+        <input type="text" id="userSearch" placeholder="ID или имя" value="{{ user_search or '' }}">
+        <button onclick="window.location.href = '?user_search=' + document.getElementById('userSearch').value + '&page=1{% if feedback_type %}&feedback_type={{ feedback_type }}{% endif %}'" class="button button-small">Найти</button>
+    </div>
+    {% if feedback_type or user_search %}
+    <div>
+        <a href="/admin/feedback" class="button button-small">Сбросить фильтр</a>
+    </div>
+    {% endif %}
+</div>
+
+{% if feedbacks %}
+    {% set current_date = '' %}
+    {% for fb in feedbacks %}
+        {% set fb_date = fb.created_at.strftime('%d.%m.%Y') %}
+        {% if fb_date != current_date %}
+            {% set current_date = fb_date %}
+            <h3 style="color: #666; border-bottom: 2px solid #4CAF50; padding-bottom: 5px; margin-top: 30px;">📅 {{ fb_date }}</h3>
+        {% endif %}
+
+        {% set type_icon = '⚠️' if fb.feedback_type == 'bug' else '💡' if fb.feedback_type == 'improvement' else '📷' %}
+        {% set type_name = 'Ошибка в боте' if fb.feedback_type == 'bug' else 'Улучшение' if fb.feedback_type == 'improvement' else 'Запрос техники' %}
+
+        <div style="border-left: 4px solid {% if fb.feedback_type == 'bug' %}#f44336{% elif fb.feedback_type == 'improvement' %}#2196F3{% else %}#4CAF50{% endif %}; margin-bottom: 15px; padding: 10px; background-color: white; border-radius: 0 8px 8px 0;">
+            <div style="display: flex; justify-content: space-between; color: #666; font-size: 12px; margin-bottom: 5px;">
+                <span>⏱️ {{ fb.created_at.strftime('%H:%M') }}</span>
+                <span>{{ type_icon }} {{ type_name }}</span>
+            </div>
+            <div style="margin-bottom: 5px;">
+                <strong>👤 <a href="/admin/client/{{ fb.user_id }}">{{ fb.user.full_name }}</a></strong>
+                <span style="color: #999;">📱 {{ fb.user.phone }}</span>
+            </div>
+            <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; white-space: pre-wrap;">{{ fb.text }}</div>
+            <div style="margin-top: 8px; text-align: right;">
+                <a href="/admin/client/{{ fb.user_id }}" class="button button-small">Карточка</a>
+            </div>
+        </div>
+    {% endfor %}
+
+    {% if total_pages > 1 %}
+    <div style="margin-top: 20px; text-align: center;">
+        {% if page > 1 %}
+        <a href="?page=1{% if feedback_type %}&feedback_type={{ feedback_type }}{% endif %}{% if user_search %}&user_search={{ user_search }}{% endif %}" class="button button-small">« Первая</a>
+        <a href="?page={{ page-1 }}{% if feedback_type %}&feedback_type={{ feedback_type }}{% endif %}{% if user_search %}&user_search={{ user_search }}{% endif %}" class="button button-small">‹ Предыдущая</a>
+        {% endif %}
+        <span style="margin: 0 10px;">Страница {{ page }} из {{ total_pages }}</span>
+        {% if page < total_pages %}
+        <a href="?page={{ page+1 }}{% if feedback_type %}&feedback_type={{ feedback_type }}{% endif %}{% if user_search %}&user_search={{ user_search }}{% endif %}" class="button button-small">Следующая ›</a>
+        <a href="?page={{ total_pages }}{% if feedback_type %}&feedback_type={{ feedback_type }}{% endif %}{% if user_search %}&user_search={{ user_search }}{% endif %}" class="button button-small">Последняя »</a>
+        {% endif %}
+    </div>
+    {% endif %}
+{% else %}
+    <p style="text-align: center; padding: 40px; background: #f5f5f5; border-radius: 8px;">
+        📭 Нет сообщений обратной связи
+    </p>
+{% endif %}
+
+<div style="margin-top: 20px; text-align: center;">
+    <a href="/admin/" class="button">🏠 На главную</a>
+</div>
+{% endblock %}

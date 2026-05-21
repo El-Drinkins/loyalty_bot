@@ -1,0 +1,15 @@
+[Unit]
+Description=Telegram Loyalty Bot
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/loyalty_bot
+ExecStart=/root/loyalty_bot/venv/bin/python3 -m app.bot
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

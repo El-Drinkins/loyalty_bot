@@ -3,7 +3,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from sqlalchemy import select
-from ..models import AsyncSessionLocal, User
+from ..models import AsyncSessionLocal, User, Feedback
 from ..config import settings
 from ..notifications import send_telegram_notification
 
@@ -49,13 +49,24 @@ FEEDBACK_MESSAGES = {
 }
 
 async def send_to_admin(bot, user: User, feedback_type: str, text: str):
-    """Отправляет сообщение обратной связи админу"""
+    """Сохраняет в базу и отправляет сообщение обратной связи админу"""
     type_names = {
         "bug": "⚠️ Сообщить об ошибке в боте",
         "improvement": "💡 Предложить улучшение",
         "equipment": "📷 Какую технику добавить в прокат",
     }
-    
+
+    # Сохраняем в базу
+    async with AsyncSessionLocal() as session:
+        feedback = Feedback(
+            user_id=user.id,
+            feedback_type=feedback_type,
+            text=text
+        )
+        session.add(feedback)
+        await session.commit()
+
+    # Отправляем админу
     admin_msg = (
         f"📝 <b>Новое сообщение обратной связи</b>\n\n"
         f"👤 <b>От:</b> {user.full_name} (ID: {user.id})\n"
@@ -64,12 +75,21 @@ async def send_to_admin(bot, user: User, feedback_type: str, text: str):
         f"💬 <b>Текст сообщения:</b>\n"
         f"{text}"
     )
-    
+
     for admin_id in settings.ADMIN_IDS:
         try:
             await send_telegram_notification(admin_id, admin_msg)
         except Exception as e:
             print(f"Не удалось отправить уведомление админу {admin_id}: {e}")
+
+async def process_feedback(message: Message, state: FSMContext, feedback_type: str, success_text: str):
+    async with AsyncSessionLocal() as session:
+        user = await session.execute(select(User).where(User.telegram_id == message.from_user.id))
+        user = user.scalar_one_or_none()
+        if user:
+            await send_to_admin(message.bot, user, feedback_type, message.text)
+    await message.answer(success_text, parse_mode="HTML")
+    await state.clear()
 
 @router.callback_query(F.data == "feedback_bug")
 async def feedback_bug(callback: CallbackQuery, state: FSMContext):
@@ -91,30 +111,12 @@ async def feedback_equipment(callback: CallbackQuery, state: FSMContext):
 
 @router.message(FeedbackStates.waiting_for_bug_report)
 async def process_bug_report(message: Message, state: FSMContext):
-    async with AsyncSessionLocal() as session:
-        user = await session.execute(select(User).where(User.telegram_id == message.from_user.id))
-        user = user.scalar_one_or_none()
-        if user:
-            await send_to_admin(message.bot, user, "bug", message.text)
-    await message.answer("✅ Спасибо! Ваше сообщение об ошибке отправлено администратору.")
-    await state.clear()
+    await process_feedback(message, state, "bug", "✅ Спасибо! Ваше сообщение об ошибке отправлено администратору.")
 
 @router.message(FeedbackStates.waiting_for_improvement)
 async def process_improvement(message: Message, state: FSMContext):
-    async with AsyncSessionLocal() as session:
-        user = await session.execute(select(User).where(User.telegram_id == message.from_user.id))
-        user = user.scalar_one_or_none()
-        if user:
-            await send_to_admin(message.bot, user, "improvement", message.text)
-    await message.answer("✅ Спасибо! Ваше предложение отправлено администратору.")
-    await state.clear()
+    await process_feedback(message, state, "improvement", "✅ Спасибо! Ваше предложение отправлено администратору.")
 
 @router.message(FeedbackStates.waiting_for_equipment_request)
 async def process_equipment_request(message: Message, state: FSMContext):
-    async with AsyncSessionLocal() as session:
-        user = await session.execute(select(User).where(User.telegram_id == message.from_user.id))
-        user = user.scalar_one_or_none()
-        if user:
-            await send_to_admin(message.bot, user, "equipment", message.text)
-    await message.answer("✅ Спасибо! Ваш запрос на технику отправлен администратору.")
-    await state.clear()
+    await process_feedback(message, state, "equipment", "✅ Спасибо! Ваш запрос на технику отправлен администратору.")
