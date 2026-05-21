@@ -201,7 +201,7 @@ async def send_history_page(message: Message, user_id: int, page: int = 1):
         text = format_transaction_message(transactions, page, total_pages, user.balance)
         keyboard = get_navigation_keyboard(page, total_pages)
         
-        await message.answer(text, reply_markup=keyboard, parse_mode="Markdown")
+        await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
 
 
 @router.message(F.text == "💰 Мои баллы")
