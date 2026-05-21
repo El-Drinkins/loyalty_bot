@@ -5,7 +5,7 @@ from aiogram.enums import ParseMode
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from .config import settings
-from .handlers import start, menu, referral, admin_commands, referral_codes, invite, captcha, social_verification, admin_review, catalog
+from .handlers import start, menu, referral, admin_commands, referral_codes, invite, captcha, social_verification, admin_review, catalog, feedback
 from .middleware import BlacklistMiddleware, UserLoggingMiddleware
 from .models import init_db
 from .expiry_checker import check_expiring_points
