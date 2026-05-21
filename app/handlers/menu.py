@@ -63,7 +63,7 @@ def format_transaction_message(transactions: list, current_page: int, total_page
         if idx > 0:
             lines.append("")
             lines.append("➖➖➖➖➖➖➖➖➖➖")
-        lines.append(f"📅 {date_str}")
+        lines.append(f"📅 <b>{date_str}</b>")
         
         day_transactions = grouped[date_str]
         day_transactions.sort(key=lambda x: x.timestamp, reverse=True)
@@ -82,13 +82,13 @@ def format_transaction_message(transactions: list, current_page: int, total_page
             emoji = "🟢" if t.amount > 0 else "🔴"
             time_str = t.timestamp.strftime("%H:%M")
             
-            lines.append(f"{emoji} {amount_str} баллов {t.reason}")
+            lines.append(f"{emoji} <b>{amount_str}</b> баллов {t.reason}")
             lines.append(time_str)
             
             if t.amount > 0:
-                lines.append(f"💰 Баланс после начисления: {balance_after} ⭐")
+                lines.append(f"💰 Баланс после начисления: <b>{balance_after}</b> ⭐")
             else:
-                lines.append(f"💰 Баланс после списания: {balance_after} ⭐")
+                lines.append(f"💰 Баланс после списания: <b>{balance_after}</b> ⭐")
             
             if i < len(day_transactions) - 1:
                 lines.append("➖➖➖➖➖➖➖➖➖➖")
