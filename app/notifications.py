@@ -6,7 +6,8 @@ async def send_telegram_notification(chat_id: int, text: str):
     url = f"https://api.telegram.org/bot{settings.BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": chat_id,
-        "text": text
+        "text": text,
+        "parse_mode": "HTML"
         # Не включаем parse_mode, чтобы Telegram использовал обычный текст
     }
     async with httpx.AsyncClient() as client:
