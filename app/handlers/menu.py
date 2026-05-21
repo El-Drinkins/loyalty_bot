@@ -59,8 +59,12 @@ def format_transaction_message(transactions: list, current_page: int, total_page
     lines = ["📊 **История ваших операций**\n"]
     lines.append(f"Страница {current_page} из {total_pages}\n")
     
-    for date_str in grouped:
-        lines.append(f"📅 {date_str}")
+    for idx, date_str in enumerate(grouped):
+    if idx > 0:
+        lines.append("")
+        lines.append("➖➖➖➖➖➖➖➖➖➖")
+        lines.append("")
+    lines.append(f"📅 {date_str}")
         
         day_transactions = grouped[date_str]
         day_transactions.sort(key=lambda x: x.timestamp, reverse=True)
@@ -88,7 +92,7 @@ def format_transaction_message(transactions: list, current_page: int, total_page
                 lines.append(f"💰 Баланс после списания: {balance_after} ⭐")
             
             if i < len(day_transactions) - 1:
-                lines.append("---------------------------------")
+                lines.append("➖➖➖➖➖➖➖➖➖➖")
         
         lines.append("")
     
