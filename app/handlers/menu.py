@@ -60,11 +60,11 @@ def format_transaction_message(transactions: list, current_page: int, total_page
     lines.append(f"Страница {current_page} из {total_pages}\n")
     
     for idx, date_str in enumerate(grouped):
-    if idx > 0:
-        lines.append("")
-        lines.append("➖➖➖➖➖➖➖➖➖➖")
-        lines.append("")
-    lines.append(f"📅 {date_str}")
+        if idx > 0:
+            lines.append("")
+            lines.append("➖➖➖➖➖➖➖➖➖➖")
+            lines.append("")
+        lines.append(f"📅 {date_str}")
         
         day_transactions = grouped[date_str]
         day_transactions.sort(key=lambda x: x.timestamp, reverse=True)
