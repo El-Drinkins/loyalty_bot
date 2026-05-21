@@ -92,8 +92,6 @@ def format_transaction_message(transactions: list, current_page: int, total_page
             
             if i < len(day_transactions) - 1:
                 lines.append("➖➖➖➖➖➖➖➖➖➖")
-        
-        lines.append("")
     
     return "\n".join(lines)
 
