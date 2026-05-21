@@ -508,6 +508,24 @@
         <a href="/admin/" class="button">← На главную</a>
         <a href="/admin/users" class="button">👥 Все пользователи</a>
     </div>
+        <h2 style="margin-top: 30px;">📬 Обращения пользователя ({{ user_feedback|length }})</h2>
+    {% if user_feedback %}
+        {% for fb in user_feedback %}
+        {% set type_icon = '⚠️' if fb.feedback_type == 'bug' else '💡' if fb.feedback_type == 'improvement' else '📷' %}
+        {% set type_name = 'Ошибка в боте' if fb.feedback_type == 'bug' else 'Улучшение' if fb.feedback_type == 'improvement' else 'Запрос техники' %}
+        <div style="border-left: 4px solid {% if fb.feedback_type == 'bug' %}#f44336{% elif fb.feedback_type == 'improvement' %}#2196F3{% else %}#4CAF50{% endif %}; margin-bottom: 10px; padding: 10px; background-color: white; border-radius: 0 8px 8px 0;">
+            <div style="display: flex; justify-content: space-between; color: #666; font-size: 12px;">
+                <span>{{ type_icon }} {{ type_name }}</span>
+                <span>{{ fb.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+            </div>
+            <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-top: 5px; white-space: pre-wrap;">{{ fb.text }}</div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <p style="text-align: center; padding: 20px; background: #f5f5f5; border-radius: 8px;">📭 Нет обращений</p>
+    {% endif %}
+
+</div>
 </div>
 
 <style>

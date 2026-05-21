@@ -18,17 +18,27 @@ async def admin_index(
     _=Depends(require_auth)
 ):
     total_users = await db.scalar(select(func.count(User.id)))
-    
     total_balance = await db.scalar(select(func.sum(User.balance))) or 0
 
     from ...bonus_utils import get_all_pending_bonuses
     pending_bonuses = await get_all_pending_bonuses(db)
 
+    # Последние сообщения обратной связи
+    from ...models import Feedback
+    feedback_result = await db.execute(
+        select(Feedback)
+        .options(selectinload(Feedback.user))
+        .order_by(Feedback.created_at.desc())
+        .limit(5)
+    )
+    latest_feedback = feedback_result.scalars().all()
+
     return templates.TemplateResponse("index.html", {
         "request": request,
         "total_users": total_users,
         "total_balance": total_balance,
-        "pending_bonuses": pending_bonuses
+        "pending_bonuses": pending_bonuses,
+        "latest_feedback": latest_feedback
     })
 
 @router.get("/client/{user_id}", response_class=HTMLResponse)
@@ -68,6 +78,14 @@ async def client_card(
 
     # Загружаем информацию о кэшбэке
     cashback_info = await get_cashback_info(db, user)
+        # Сообщения обратной связи пользователя
+    from ...models import Feedback
+    feedback_result = await db.execute(
+        select(Feedback)
+        .where(Feedback.user_id == user_id)
+        .order_by(Feedback.created_at.desc())
+    )
+    user_feedback = feedback_result.scalars().all()
 
     return templates.TemplateResponse("client/base_client.html", {
         "request": request,
@@ -78,4 +96,5 @@ async def client_card(
         "transactions": transactions,
         "grouped_transactions": grouped,
         "cashback_info": cashback_info
+        "user_feedback": user_feedback
     })
