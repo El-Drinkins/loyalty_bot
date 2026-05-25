@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Request, Form, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from ..deps import get_db, templates
 from ...models import User, BackupCode
 from ...notifications import send_telegram_notification
 import hashlib
 import secrets
 import string
+from datetime import datetime
 
 router = APIRouter(tags=["telegram_2fa"])
 
@@ -48,11 +49,19 @@ async def verify_telegram_2fa(
 
     if code == stored_code:
         request.session["authenticated"] = True
+        # Уведомление о входе
+        admin = await db.get(User, user_id)
+        if admin and admin.telegram_id:
+            await send_telegram_notification(
+                admin.telegram_id,
+                f"🔔 Вход в админку\n\n"
+                f"🕐 {datetime.utcnow().strftime('%d.%m.%Y %H:%M')} UTC\n"
+                f"🌐 IP: {request.client.host}"
+            )
         request.session.pop("2fa_pending", None)
         request.session.pop("2fa_user_id", None)
         request.session.pop("2fa_code", None)
 
-        admin = await db.get(User, user_id)
         if admin and not admin.telegram_2fa_enabled:
             admin.telegram_2fa_enabled = True
             await db.commit()
@@ -83,10 +92,19 @@ async def verify_backup_code(
 
     if code:
         code.used = True
-        code.used_at = __import__('datetime').datetime.utcnow()
+        code.used_at = datetime.utcnow()
         await db.commit()
 
         request.session["authenticated"] = True
+        # Уведомление о входе
+        admin = await db.get(User, user_id)
+        if admin and admin.telegram_id:
+            await send_telegram_notification(
+                admin.telegram_id,
+                f"🔔 Вход в админку (по резервному коду)\n\n"
+                f"🕐 {datetime.utcnow().strftime('%d.%m.%Y %H:%M')} UTC\n"
+                f"🌐 IP: {request.client.host}"
+            )
         request.session.pop("2fa_pending", None)
         request.session.pop("2fa_user_id", None)
         request.session.pop("2fa_code", None)
@@ -108,7 +126,6 @@ async def generate_backup_codes_page(
         return RedirectResponse(url="/admin/", status_code=303)
 
     # Удаляем старые неиспользованные коды
-    from sqlalchemy import delete
     await db.execute(
         delete(BackupCode).where(
             BackupCode.user_id == admin.id,
