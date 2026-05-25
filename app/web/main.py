@@ -63,7 +63,7 @@ app.include_router(mailing_router, prefix="/admin")
 app.include_router(catalog_router, prefix="/admin/catalog")
 app.include_router(admin_review_router, prefix="/admin/review")
 app.include_router(feedback_router)
-app.include_router(totp_router)
+app.include_router(totp_router, prefix="/admin")
 
 # ========== HEALTH CHECK ==========
 @app.get("/health")
