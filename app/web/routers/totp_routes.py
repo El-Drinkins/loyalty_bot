@@ -32,11 +32,10 @@ async def setup_totp_page(request: Request, db: AsyncSession = Depends(get_db)):
     if not request.session.get("authenticated"):
         return RedirectResponse(url="/login", status_code=303)
     
-    admin_id = request.session.get("admin_id")
-    admin = await db.get(User, admin_id)
+    admin = await db.get(User, 1)
     
-    if not admin or not admin.is_admin:
-        return RedirectResponse(url="/login", status_code=303)
+    if not admin:
+        return RedirectResponse(url="/admin/", status_code=303)
     
     secret = admin.totp_secret
     if not secret:
@@ -44,7 +43,7 @@ async def setup_totp_page(request: Request, db: AsyncSession = Depends(get_db)):
         admin.totp_secret = secret
         await db.commit()
     
-    uri = get_totp_uri(secret, admin.phone or f"admin{admin.id}")
+    uri = get_totp_uri(secret, admin.phone or "admin")
     qr_code = generate_qr_code(uri)
     
     return templates.TemplateResponse("totp_setup.html", {
@@ -63,11 +62,10 @@ async def verify_totp_setup(
     if not request.session.get("authenticated"):
         return RedirectResponse(url="/login", status_code=303)
     
-    admin_id = request.session.get("admin_id")
-    admin = await db.get(User, admin_id)
+    admin = await db.get(User, 1)
     
     if not admin or not admin.totp_secret:
-        return RedirectResponse(url="/login", status_code=303)
+        return RedirectResponse(url="/admin/", status_code=303)
     
     totp = pyotp.TOTP(admin.totp_secret)
     if totp.verify(code):
