@@ -360,18 +360,21 @@ async def invite_friend(message: Message):
         code = await get_or_create_permanent_link(user.id, bot_username, session)
         referral_link = f"https://t.me/{bot_username}?start={code}"
 
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="🔗 Поделиться ссылкой", url=f"https://t.me/share/url?url={referral_link}")],
-            [InlineKeyboardButton(text="👥 Мои друзья", callback_data="back_to_friends_main")],
-            [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_main")]
-        ]
+    # Сообщение 1: заголовок и ссылка
+    await message.answer(
+        "🎁 <b>Пригласить друга в бот</b>\n\n"
+        f"🔗 <b>Ваша ссылка:</b>",
+        parse_mode="HTML"
+    )
+    
+    # Сообщение 2: ссылка
+    await message.answer(
+        f"{referral_link}",
+        disable_web_page_preview=True
     )
 
+    # Сообщение 3: инструкция и бонусы
     text = (
-        "🎁 <b>Пригласить друга в бот</b>\n\n"
-        f"🔗 <b>Ваша ссылка:</b>\n"
-        f"{referral_link}\n\n"
         "📱 <b>Как поделиться:</b>\n"
         "1️⃣ Нажмите на ссылку выше, чтобы выделить её\n"
         "2️⃣ Скопируйте ссылку\n"
@@ -386,8 +389,16 @@ async def invite_friend(message: Message):
         "   🏆 Общие аренды ВСЕХ друзей на 100 000 ₽ → +<b>5 000</b> ⭐"
     )
 
-    await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔗 Поделиться ссылкой", url=f"https://t.me/share/url?url={referral_link}")],
+            [InlineKeyboardButton(text="👥 Мои друзья", callback_data="back_to_friends_main")],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_main")]
+        ]
+    )
 
+    await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
+    
 @router.message(Command("referral"))
 async def cmd_referral(message: Message):
     await invite_friend(message)
