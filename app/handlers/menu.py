@@ -48,51 +48,35 @@ def format_transaction_message(transactions: list, current_page: int, total_page
     """Форматирует сообщение с транзакциями для страницы"""
     if not transactions:
         return "📭 У вас пока нет операций."
-    
-    grouped = OrderedDict()
-    for t in transactions:
-        date_str = t.timestamp.strftime("%d.%m.%Y")
-        if date_str not in grouped:
-            grouped[date_str] = []
-        grouped[date_str].append(t)
-    
+
     lines = ["📊 **История ваших операций**\n"]
     lines.append(f"Страница {current_page} из {total_pages}\n")
-    
-    for idx, date_str in enumerate(grouped):
-        if idx > 0:
-            lines.append("")
-            lines.append("➖➖➖➖➖➖➖➖➖➖")
+
+    running_balance = user_balance
+    for i, t in enumerate(transactions):
+        date_str = t.timestamp.strftime("%d.%m.%Y")
+        amount_str = f"+{t.amount}" if t.amount > 0 else str(t.amount)
+        emoji = "🟢" if t.amount > 0 else "🔴"
+        time_str = t.timestamp.strftime("%H:%M")
+
+        if i == 0:
+            balance_after = running_balance
+        else:
+            balance_after = balance_before
+        balance_before = balance_after - t.amount
+
         lines.append(f"📅 <b>{date_str}</b>")
-        
-        day_transactions = grouped[date_str]
-        day_transactions.sort(key=lambda x: x.timestamp, reverse=True)
-        
-        running_balance = user_balance
-        
-        for i, t in enumerate(day_transactions):
-            if i == 0:
-                balance_after = running_balance
-                balance_before = balance_after - t.amount
-            else:
-                balance_after = balance_before
-                balance_before = balance_after - t.amount
-            
-            amount_str = f"+{t.amount}" if t.amount > 0 else str(t.amount)
-            emoji = "🟢" if t.amount > 0 else "🔴"
-            time_str = t.timestamp.strftime("%H:%M")
-            
-            lines.append(f"{emoji} <b>{amount_str}</b> баллов {t.reason}")
-            lines.append(time_str)
-            
-            if t.amount > 0:
-                lines.append(f"💰 Баланс после начисления: <b>{balance_after}</b> ⭐")
-            else:
-                lines.append(f"💰 Баланс после списания: <b>{balance_after}</b> ⭐")
-            
-            if i < len(day_transactions) - 1:
-                lines.append("➖➖➖➖➖➖➖➖➖➖")
-    
+        lines.append(f"{emoji} <b>{amount_str}</b> баллов {t.reason}")
+        lines.append(time_str)
+        if t.amount > 0:
+            lines.append(f"💰 Баланс после начисления: <b>{balance_after}</b> ⭐")
+        else:
+            lines.append(f"💰 Баланс после списания: <b>{balance_after}</b> ⭐")
+
+        if i < len(transactions) - 1:
+            lines.append("➖➖➖➖➖➖➖➖➖➖")
+            lines.append("")
+
     return "\n".join(lines)
 
 
