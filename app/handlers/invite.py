@@ -284,6 +284,7 @@ async def send_friend_detail(message: Message, friend_id: int, user_telegram_id:
 
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
+                [InlineKeyboardButton(text="🎁 Пригласить ещё", callback_data="back_to_invite")],
                 [InlineKeyboardButton(text="◀️ Назад к списку друзей", callback_data="back_to_friends_choice")]
             ]
         )
