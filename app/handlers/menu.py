@@ -271,6 +271,8 @@ async def show_balance(message: Message):
             else:
                 text += f"• Аренда на месяц: базовая ставка <b>10%</b>.\n"
                 text += f"   При продлении каждый месяц +1% (максимум 15%).\n"
+
+        text += "\n📞 Для заказа техники напишите в Telegram: @el_drinkins"
         
         await message.answer(text, parse_mode="HTML")
 
