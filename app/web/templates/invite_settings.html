@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>⚙️ Настройки приглашений</h1>
+
+{% if saved %}
+<div style="background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; padding: 15px; margin-bottom: 20px; border-radius: 8px;">
+    ✅ Настройки сохранены
+</div>
+{% endif %}
+
+<div style="background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    <form action="/admin/invite-settings" method="post">
+        <div style="margin-bottom: 20px;">
+            <label style="font-weight: bold; font-size: 16px;">
+                <input type="checkbox" name="invitations_enabled" value="true" {% if settings.invitations_enabled %}checked{% endif %}>
+                Включить приглашения для всех пользователей
+            </label>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; font-weight: bold; margin-bottom: 5px;">
+                Текст, который видят пользователи, когда приглашения отключены:
+            </label>
+            <textarea name="disabled_text" rows="8" style="width: 100%; padding: 10px;">{{ settings.disabled_text }}</textarea>
+        </div>
+
+        <button type="submit" class="button">💾 Сохранить</button>
+    </form>
+</div>
+
+<div style="margin-top: 30px;">
+    <h2>Предпросмотр для пользователей</h2>
+    <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; white-space: pre-wrap;">
+        {{ settings.disabled_text }}
+    </div>
+</div>
+
+<div style="margin-top: 20px; text-align: center;">
+    <a href="/admin/" class="button">🏠 На главную</a>
+</div>
+{% endblock %}

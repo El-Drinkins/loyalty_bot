@@ -3,6 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import text
+from .routers.invite_settings_routes import router as invite_settings_router
 import os
 
 from .routers import (
@@ -66,6 +67,7 @@ app.include_router(admin_review_router, prefix="/admin/review")
 app.include_router(feedback_router)
 app.include_router(totp_router, prefix="/admin")
 app.include_router(telegram_2fa_router)
+app.include_router(invite_settings_router)
 
 # ========== HEALTH CHECK ==========
 @app.get("/health")

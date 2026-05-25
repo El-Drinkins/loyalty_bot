@@ -10,6 +10,7 @@ from .security import RegistrationRequest, SecuritySettings, Whitelist, StormLog
 from .web_auth import TelegramAuthCode, PasswordResetCode, UserSession
 from .feedback import Feedback
 from .backup_code import BackupCode
+from .invite_settings import InviteSettings
 
 # После импорта всех моделей добавляем связи, которые требуют двусторонней ссылки
 from .user import User
@@ -74,4 +75,5 @@ __all__ = [
     "TelegramAuthCode", "PasswordResetCode", "UserSession"
     "Feedback"
     "BackupCode"
+    "InviteSettings"
 ]

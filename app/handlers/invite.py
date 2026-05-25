@@ -5,7 +5,7 @@ from sqlalchemy import select, func
 from datetime import datetime
 import random
 import string
-from ..models import AsyncSessionLocal, User, Referral, ReferralCode, UserLog, Transaction
+from ..models import AsyncSessionLocal, User, Referral, ReferralCode, UserLog, Transaction, InviteSettings
 from ..config import settings
 from ..keyboards import main_menu_keyboard
 from ..bonus_utils import (
@@ -226,7 +226,6 @@ async def send_friend_detail(message: Message, friend_id: int, user_telegram_id:
         lines.append(f"💰 Аренды друга за всё время на: <b>{format_number(total_amount)}</b> ₽")
         lines.append(SEPARATOR)
 
-        # Бонус за первую аренду
         first = bonuses['first_rental']
         lines.append("🏆 <b>Бонус за первую аренду друга:</b>")
         if first['achieved'] and first['awarded']:
@@ -237,7 +236,6 @@ async def send_friend_detail(message: Message, friend_id: int, user_telegram_id:
             lines.append(f" ⏳ Ожидается первая аренда")
         lines.append(SEPARATOR)
 
-        # Бонус за вторую аренду
         second = bonuses['second_rental']
         lines.append("🏆 <b>Бонус за вторую аренду друга:</b>")
         if second['achieved'] and second['awarded']:
@@ -248,7 +246,6 @@ async def send_friend_detail(message: Message, friend_id: int, user_telegram_id:
             lines.append(f" ⏳ Друг еще не совершил вторую аренду")
         lines.append(SEPARATOR)
 
-        # Бонус за 10 000 ₽
         threshold_10k = bonuses['threshold_10k']
         lines.append("🏆 <b>Бонус за аренды друга на 10 000 ₽</b>")
         lines.append(f" (когда друг арендует суммарно на <b>10 000 ₽</b>, вы получите <b>+1 000</b> ⭐)")
@@ -264,7 +261,6 @@ async def send_friend_detail(message: Message, friend_id: int, user_telegram_id:
             lines.append(f" Осталось: <b>{format_number(remaining)}</b> ₽")
         lines.append(SEPARATOR)
 
-        # Бонус за 30 000 ₽
         threshold_30k = bonuses['threshold_30k']
         lines.append("🏆 <b>Бонус за аренды друга на 30 000 ₽</b>")
         lines.append(f" (когда друг арендует суммарно на <b>30 000 ₽</b>, вы получите <b>+1 000</b> ⭐)")
@@ -342,7 +338,18 @@ async def back_to_main_callback(callback: CallbackQuery):
 @router.message(F.text == "🎁 Пригласить друга")
 @router.message(Command("invite"))
 async def invite_friend(message: Message):
+    # Проверяем, включены ли приглашения
     async with AsyncSessionLocal() as session:
+        result = await session.execute(select(InviteSettings).where(InviteSettings.id == 1))
+        invite_settings = result.scalar_one_or_none()
+
+        if invite_settings and not invite_settings.invitations_enabled:
+            await message.answer(
+                invite_settings.disabled_text,
+                parse_mode="HTML"
+            )
+            return
+
         user = await session.execute(select(User).where(User.telegram_id == message.from_user.id))
         user = user.scalar_one_or_none()
 
@@ -366,7 +373,7 @@ async def invite_friend(message: Message):
         f"🔗 <b>Ваша ссылка:</b>",
         parse_mode="HTML"
     )
-    
+
     # Сообщение 2: ссылка
     await message.answer(
         f"{referral_link}",
@@ -398,7 +405,7 @@ async def invite_friend(message: Message):
     )
 
     await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
-    
+
 @router.message(Command("referral"))
 async def cmd_referral(message: Message):
     await invite_friend(message)
