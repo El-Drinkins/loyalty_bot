@@ -5,7 +5,6 @@ from sqlalchemy import select, func
 from datetime import datetime
 import random
 import string
-
 from ..models import AsyncSessionLocal, User, Referral, ReferralCode, UserLog, Transaction
 from ..config import settings
 from ..keyboards import main_menu_keyboard
@@ -39,10 +38,10 @@ async def get_or_create_permanent_link(user_id: int, bot_username: str, session)
         )
     )
     code_record = code_record.scalar_one_or_none()
-    
+
     if code_record:
         return code_record.code
-    
+
     code = generate_referral_code(user_id)
     new_code = ReferralCode(
         code=code,
@@ -63,12 +62,11 @@ async def get_friends_list_with_details(session, user_id: int) -> list:
         .order_by(Referral.registration_date.desc())
     )
     referrals = result.all()
-    
+
     friends = []
     for ref, friend in referrals:
         total_rentals = await get_friend_rentals_total(session, friend.id)
         rentals_count = await get_friend_rentals_count(session, friend.id)
-        
         friends.append({
             "id": friend.id,
             "full_name": friend.full_name,
@@ -78,34 +76,34 @@ async def get_friends_list_with_details(session, user_id: int) -> list:
             "rentals_count": rentals_count,
             "status_emoji": "✅" if ref.status == "completed" else "⏳"
         })
-    
+
     return friends
 
 async def send_friends_list(message: Message, user_id: int):
     async with AsyncSessionLocal() as session:
         user = await session.execute(select(User).where(User.telegram_id == user_id))
         user = user.scalar_one_or_none()
-        
+
         if not user:
             await message.answer("Пожалуйста, зарегистрируйтесь через /start")
             return
-        
+
         if user.blacklisted:
             await message.answer("⛔ Вы заблокированы в системе лояльности.")
             return
-        
+
         friends = await get_friends_list_with_details(session, user.id)
-        
+
         total_invited = len(friends)
         completed = sum(1 for f in friends if f["status"] == "completed")
         total_friends_rentals = await get_all_friends_total_rentals(session, user.id)
-        
+
         earned_result = await session.execute(
             select(func.coalesce(func.sum(Transaction.amount), 0))
             .where(Transaction.user_id == user.id, Transaction.amount > 0)
         )
         earned = earned_result.scalar() or 0
-        
+
         log = UserLog(
             user_id=user.id,
             action_type="view_friends",
@@ -113,74 +111,69 @@ async def send_friends_list(message: Message, user_id: int):
         )
         session.add(log)
         await session.commit()
-        
-        lines = []
-        
-        lines.append("👥 **Мои друзья**\n")
-        lines.append("📊 **Статистика:**")
-        lines.append(f"• Приглашено: {total_invited}")
-        lines.append(f"• Заработано баллов за всё время: {format_number(earned)} ⭐")
-        lines.append(f"• Баланс баллов в настоящее время: {format_number(user.balance)} ⭐\n")
-        
-        lines.append("💡 **Бонусы за друзей (суммируются):**")
-        lines.append("   📌 Первая аренда друга → 200 ⭐")
-        lines.append("   📌 Вторая аренда друга → 800 ⭐")
-        lines.append("   📌 Аренды друга на 10 000 ₽ → +1 000 ⭐")
-        lines.append("   📌 Аренды друга на 30 000 ₽ → +1 000 ⭐")
-        lines.append("   🏆 Общие аренды ВСЕХ друзей на 100 000 ₽ → +5 000 ⭐")
-        lines.append("")
-        lines.append(SEPARATOR)
-        lines.append("")
-        
-        lines.append("🏆 **Общий прогресс друзей**\n")
-        lines.append(f"• Сумма аренд всех ваших друзей: {format_number(total_friends_rentals)} ₽")
-        lines.append(f"• Цель: 100 000 ₽\n")
-        lines.append("🎁 Когда друзья суммарно арендуют на 100 000 ₽,")
-        lines.append("   вы получите +5 000 ⭐")
-        lines.append("")
-        lines.append(SEPARATOR)
-        
-        keyboard_buttons = []
-        
-        if total_invited > 0:
-            keyboard_buttons.append([
-                InlineKeyboardButton(
-                    text=f"📊 Статистика по друзьям ({total_invited})",
-                    callback_data="show_friends_list"
-                )
-            ])
-        else:
-            keyboard_buttons.append([
-                InlineKeyboardButton(text="🎁 Пригласить друга", callback_data="back_to_invite")
-            ])
-        
+
+    lines = []
+    lines.append("👥 <b>Мои друзья</b>\n")
+    lines.append("📊 <b>Статистика:</b>")
+    lines.append(f"• Приглашено: <b>{total_invited}</b>")
+    lines.append(f"• Заработано баллов за всё время: <b>{format_number(earned)}</b> ⭐")
+    lines.append(f"• Баланс баллов в настоящее время: <b>{format_number(user.balance)}</b> ⭐\n")
+    lines.append("💡 <b>Бонусы за друзей (суммируются):</b>")
+    lines.append(" 📌 Первая аренда друга → <b>200</b> ⭐")
+    lines.append(" 📌 Вторая аренда друга → <b>800</b> ⭐")
+    lines.append(" 📌 Аренды друга на 10 000 ₽ → +<b>1 000</b> ⭐")
+    lines.append(" 📌 Аренды друга на 30 000 ₽ → +<b>1 000</b> ⭐")
+    lines.append(" 🏆 Общие аренды ВСЕХ друзей на 100 000 ₽ → +<b>5 000</b> ⭐")
+    lines.append("")
+    lines.append(SEPARATOR)
+    lines.append("")
+    lines.append("🏆 <b>Общий прогресс друзей</b>\n")
+    lines.append(f"• Сумма аренд всех ваших друзей: <b>{format_number(total_friends_rentals)}</b> ₽")
+    lines.append(f"• Цель: <b>100 000</b> ₽\n")
+    lines.append("🎁 Когда друзья суммарно арендуют на 100 000 ₽,")
+    lines.append(" вы получите +<b>5 000</b> ⭐")
+    lines.append("")
+    lines.append(SEPARATOR)
+
+    keyboard_buttons = []
+    if total_invited > 0:
         keyboard_buttons.append([
-            InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_main")
+            InlineKeyboardButton(
+                text=f"📊 Статистика по друзьям ({total_invited})",
+                callback_data="show_friends_list"
+            )
         ])
-        
-        keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
-        
-        await message.answer(
-            "\n".join(lines),
-            reply_markup=keyboard,
-            parse_mode="Markdown"
-        )
+    else:
+        keyboard_buttons.append([
+            InlineKeyboardButton(text="🎁 Пригласить друга", callback_data="back_to_invite")
+        ])
+
+    keyboard_buttons.append([
+        InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_main")
+    ])
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+
+    await message.answer(
+        "\n".join(lines),
+        reply_markup=keyboard,
+        parse_mode="HTML"
+    )
 
 async def send_friends_choice(message: Message, user_id: int):
     async with AsyncSessionLocal() as session:
         user = await session.execute(select(User).where(User.telegram_id == user_id))
         user = user.scalar_one_or_none()
-        
         if not user:
             await message.answer("❌ Пользователь не найден")
             return
-        
+
         friends = await get_friends_list_with_details(session, user.id)
-        
+
         if not friends:
             await message.answer("👥 У вас пока нет приглашённых друзей.")
             return
-        
+
         buttons = []
         for friend in friends:
             total = format_number(friend["total_rentals"])
@@ -190,13 +183,12 @@ async def send_friends_choice(message: Message, user_id: int):
                     callback_data=f"friend_detail_{friend['id']}"
                 )
             ])
-        
+
         buttons.append([
             InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_friends_main")
         ])
-        
+
         keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
-        
         await message.answer(
             "🔍 **Выберите друга**\n\nЧтобы посмотреть подробную статистику по бонусам:",
             reply_markup=keyboard,
@@ -207,16 +199,15 @@ async def send_friend_detail(message: Message, friend_id: int, user_telegram_id:
     async with AsyncSessionLocal() as session:
         user = await session.execute(select(User).where(User.telegram_id == user_telegram_id))
         user = user.scalar_one_or_none()
-        
         if not user:
             await message.answer("❌ Пользователь не найден")
             return
-        
+
         friend = await session.get(User, friend_id)
         if not friend:
             await message.answer("❌ Друг не найден")
             return
-        
+
         referral = await session.execute(
             select(Referral).where(
                 Referral.old_user_id == user.id,
@@ -226,79 +217,77 @@ async def send_friend_detail(message: Message, friend_id: int, user_telegram_id:
         if not referral.scalar_one_or_none():
             await message.answer("❌ Этот пользователь не является вашим другом")
             return
-        
+
         bonuses = await get_friend_bonuses_status(session, user.id, friend_id)
         total_amount = await get_friend_rentals_total(session, friend_id)
-        
+
         lines = []
         lines.append(f"📊 **Бонусы по другу: {friend.full_name}**\n")
         lines.append(f"💰 Аренды друга на: {format_number(total_amount)} ₽")
         lines.append(SEPARATOR)
-        
+
         # Бонус за первую аренду
         first = bonuses['first_rental']
         lines.append("🏆 **За первую аренду:**")
         if first['achieved'] and first['awarded']:
-            lines.append(f"   ✅ Получен: {first['bonus']} ⭐")
+            lines.append(f" ✅ Получен: {first['bonus']} ⭐")
         elif first['achieved'] and not first['awarded']:
-            lines.append(f"   ⏳ Ожидает подтверждения администратора")
+            lines.append(f" ⏳ Ожидает подтверждения администратора")
         else:
-            lines.append(f"   ⏳ Ожидается первая аренда")
+            lines.append(f" ⏳ Ожидается первая аренда")
         lines.append(SEPARATOR)
-        
+
         # Бонус за вторую аренду
         second = bonuses['second_rental']
         lines.append("🏆 **За вторую аренду:**")
         if second['achieved'] and second['awarded']:
-            lines.append(f"   ✅ Получен: {second['bonus']} ⭐")
+            lines.append(f" ✅ Получен: {second['bonus']} ⭐")
         elif second['achieved'] and not second['awarded']:
-            lines.append(f"   ⏳ Ожидает подтверждения администратора")
+            lines.append(f" ⏳ Ожидает подтверждения администратора")
         else:
-            lines.append(f"   ⏳ Нужна вторая аренда")
+            lines.append(f" ⏳ Нужна вторая аренда")
         lines.append(SEPARATOR)
-        
+
         # Бонус за 10 000 ₽
         threshold_10k = bonuses['threshold_10k']
         lines.append("🏆 **За аренды на 10 000 ₽**")
-        lines.append("   (когда друг арендует на 10 000 ₽, вы получите +1 000 ⭐)")
+        lines.append(" (когда друг арендует на 10 000 ₽, вы получите +1 000 ⭐)")
         lines.append("")
-        lines.append(f"   Цель: {format_number(threshold_10k['target'])} ₽")
-        lines.append(f"   Заработано: {format_number(threshold_10k['progress'])} ₽")
-        
+        lines.append(f" Цель: {format_number(threshold_10k['target'])} ₽")
+        lines.append(f" Заработано: {format_number(threshold_10k['progress'])} ₽")
         if threshold_10k['achieved'] and threshold_10k['awarded']:
-            lines.append(f"   ✅ Бонус {threshold_10k['bonus']} ⭐ получен")
+            lines.append(f" ✅ Бонус {threshold_10k['bonus']} ⭐ получен")
         elif threshold_10k['achieved'] and not threshold_10k['awarded']:
-            lines.append(f"   ⏳ Бонус {threshold_10k['bonus']} ⭐ ожидает подтверждения администратора")
+            lines.append(f" ⏳ Бонус {threshold_10k['bonus']} ⭐ ожидает подтверждения администратора")
         else:
             remaining = threshold_10k['target'] - threshold_10k['progress']
-            lines.append(f"   Осталось: {format_number(remaining)} ₽")
+            lines.append(f" Осталось: {format_number(remaining)} ₽")
         lines.append(SEPARATOR)
-        
+
         # Бонус за 30 000 ₽
         threshold_30k = bonuses['threshold_30k']
         lines.append("🏆 **За аренды на 30 000 ₽**")
-        lines.append("   (когда друг арендует на 30 000 ₽, вы получите +1 000 ⭐)")
+        lines.append(" (когда друг арендует на 30 000 ₽, вы получите +1 000 ⭐)")
         lines.append("")
-        lines.append(f"   Цель: {format_number(threshold_30k['target'])} ₽")
-        lines.append(f"   Заработано: {format_number(threshold_30k['progress'])} ₽")
-        
+        lines.append(f" Цель: {format_number(threshold_30k['target'])} ₽")
+        lines.append(f" Заработано: {format_number(threshold_30k['progress'])} ₽")
         if threshold_30k['achieved'] and threshold_30k['awarded']:
-            lines.append(f"   ✅ Бонус {threshold_30k['bonus']} ⭐ получен")
+            lines.append(f" ✅ Бонус {threshold_30k['bonus']} ⭐ получен")
         elif threshold_30k['achieved'] and not threshold_30k['awarded']:
-            lines.append(f"   ⏳ Бонус {threshold_30k['bonus']} ⭐ ожидает подтверждения администратора")
+            lines.append(f" ⏳ Бонус {threshold_30k['bonus']} ⭐ ожидает подтверждения администратора")
         else:
             remaining = threshold_30k['target'] - threshold_30k['progress']
-            lines.append(f"   Осталось: {format_number(remaining)} ₽")
-        
+            lines.append(f" Осталось: {format_number(remaining)} ₽")
+
         total_friends_rentals = await get_all_friends_total_rentals(session, user.id)
         await award_team_bonus(session, user.id, total_friends_rentals)
-        
+
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text="◀️ Назад к списку друзей", callback_data="back_to_friends_choice")]
             ]
         )
-        
+
         await message.answer(
             "\n".join(lines),
             reply_markup=keyboard,
@@ -349,76 +338,60 @@ async def back_to_main_callback(callback: CallbackQuery):
     )
     await callback.answer()
 
-@router.callback_query(F.data == "back_to_invite")
-async def back_to_invite_callback(callback: CallbackQuery):
-    await callback.message.delete()
-    from .invite import invite_friend
-    await invite_friend(callback.message)
-    await callback.answer()
-
-@router.message(F.text == "🎁 Пригласить друга в бот")
+@router.message(F.text == "🎁 Пригласить друга")
+@router.message(Command("invite"))
 async def invite_friend(message: Message):
     async with AsyncSessionLocal() as session:
         user = await session.execute(select(User).where(User.telegram_id == message.from_user.id))
         user = user.scalar_one_or_none()
-        
+
         if not user:
             await message.answer("Пожалуйста, зарегистрируйтесь через /start")
             return
-        
+
         if user.blacklisted:
             await message.answer("⛔ Вы заблокированы в системе лояльности.")
             return
-        
-        bot_username = (await message.bot.get_me()).username
+
+        bot_info = await message.bot.get_me()
+        bot_username = bot_info.username
+
         code = await get_or_create_permanent_link(user.id, bot_username, session)
-        link = f"https://t.me/{bot_username}?start={code}"
-        
-        log = UserLog(
-            user_id=user.id,
-            action_type="invite_friend",
-            action_details="Открыл страницу приглашения"
-        )
-        session.add(log)
-        await session.commit()
-    
-    await message.answer(
-        "🎁 Пригласить друга в бот\n\n"
-        "🔗 Ваша ссылка:"
-    )
-    
-    await message.answer(
-        link,
-        disable_web_page_preview=True
-    )
-    
-    share_keyboard = InlineKeyboardMarkup(
+        referral_link = f"https://t.me/{bot_username}?start={code}"
+
+    keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(
-                text="👥 Отправить другу в Telegram", 
-                url=f"https://t.me/share/url?url={link}&text=🎁 Присоединяйся к программе лояльности Проката Фототехники! Переходи по ссылке и получи бонусы!"
-            )],
+            [InlineKeyboardButton(text="🔗 Поделиться ссылкой", url=f"https://t.me/share/url?url={referral_link}")],
             [InlineKeyboardButton(text="👥 Мои друзья", callback_data="back_to_friends_main")],
             [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_main")]
         ]
     )
-    
-    await message.answer(
-        "📱 Как поделиться:\n"
+
+    text = (
+        "🎁 <b>Пригласить друга в бот</b>\n\n"
+        f"🔗 <b>Ваша ссылка:</b>\n"
+        f"{referral_link}\n\n"
+        "📱 <b>Как поделиться:</b>\n"
         "1️⃣ Нажмите на ссылку выше, чтобы выделить её\n"
         "2️⃣ Скопируйте ссылку\n"
         "3️⃣ Отправьте другу\n\n"
         "Или нажмите кнопку под сообщением, чтобы отправить через Telegram.\n\n"
-        "➖➖➖➖➖➖➖➖➖➖\n\n"
-        "💡 **Бонусы за каждого друга:**\n"
-        "   📌 Первая аренда друга → 200 ⭐\n"
-        "   📌 Вторая аренда друга → 800 ⭐\n"
-        "   📌 Аренды друга на 10 000 ₽ → +1 000 ⭐\n"
-        "   📌 Аренды друга на 30 000 ₽ → +1 000 ⭐\n"
-        "   🏆 Общие аренды ВСЕХ друзей на 100 000 ₽ → +5 000 ⭐",
-        reply_markup=share_keyboard,
-        parse_mode="Markdown"
+        f"{SEPARATOR}\n\n"
+        "💡 <b>Бонусы за каждого друга:</b>\n"
+        "   📌 Первая аренда друга → <b>200</b> ⭐\n"
+        "   📌 Вторая аренда друга → <b>800</b> ⭐\n"
+        "   📌 Аренды друга на 10 000 ₽ → +<b>1 000</b> ⭐\n"
+        "   📌 Аренды друга на 30 000 ₽ → +<b>1 000</b> ⭐\n"
+        "   🏆 Общие аренды ВСЕХ друзей на 100 000 ₽ → +<b>5 000</b> ⭐"
     )
 
-async def show_friends_directly(message: Message):
-    await send_friends_list(message, message.from_user.id)
+    await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
+
+@router.message(Command("referral"))
+async def cmd_referral(message: Message):
+    await invite_friend(message)
+
+@router.message(Command("balance"))
+async def cmd_balance(message: Message):
+    from .menu import show_balance
+    await show_balance(message)
