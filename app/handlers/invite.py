@@ -245,7 +245,7 @@ async def send_friend_detail(message: Message, friend_id: int, user_telegram_id:
         elif second['achieved'] and not second['awarded']:
             lines.append(f" ⏳ Ожидает подтверждения администратора")
         else:
-            lines.append(f" ⏳ Нужна вторая аренда")
+            lines.append(f" ⏳ Друг еще не совершил вторую аренду")
         lines.append(SEPARATOR)
 
         # Бонус за 10 000 ₽
