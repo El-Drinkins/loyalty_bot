@@ -21,6 +21,7 @@ from .routers import (
 )
 from .routers.feedback_routes import router as feedback_router
 from .routers.totp_routes import router as totp_router
+from .routers.telegram_2fa_routes import router as telegram_2fa_router
 from .middleware import AuthMiddleware
 from ..models import AsyncSessionLocal
 from ..logger import web_logger as logger
@@ -64,6 +65,7 @@ app.include_router(catalog_router, prefix="/admin/catalog")
 app.include_router(admin_review_router, prefix="/admin/review")
 app.include_router(feedback_router)
 app.include_router(totp_router, prefix="/admin")
+app.include_router(telegram_2fa_router)
 
 # ========== HEALTH CHECK ==========
 @app.get("/health")

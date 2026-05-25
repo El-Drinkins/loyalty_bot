@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="max-width: 500px; margin: 0 auto;">
+    <h1>🔑 Резервные коды</h1>
+    <p style="color: red;">⚠️ Сохраните эти коды в надёжном месте. Каждый код можно использовать только один раз. Эта страница больше не будет показана.</p>
+
+    <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; font-family: monospace; font-size: 18px;">
+        {% for code in codes %}
+        <p style="margin: 10px 0;">{{ loop.index }}. {{ code }}</p>
+        {% endfor %}
+    </div>
+
+    <div style="margin-top: 20px; text-align: center;">
+        <a href="/admin/" class="button">В админку</a>
+    </div>
+</div>
+{% endblock %}

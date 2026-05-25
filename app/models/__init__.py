@@ -9,6 +9,7 @@ from .rental import Rental
 from .security import RegistrationRequest, SecuritySettings, Whitelist, StormLog
 from .web_auth import TelegramAuthCode, PasswordResetCode, UserSession
 from .feedback import Feedback
+from .backup_code import BackupCode
 
 # После импорта всех моделей добавляем связи, которые требуют двусторонней ссылки
 from .user import User
@@ -72,4 +73,5 @@ __all__ = [
     "RegistrationRequest", "SecuritySettings", "Whitelist", "StormLog",
     "TelegramAuthCode", "PasswordResetCode", "UserSession"
     "Feedback"
+    "BackupCode"
 ]

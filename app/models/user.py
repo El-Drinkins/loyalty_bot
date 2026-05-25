@@ -41,6 +41,7 @@ class User(Base):
     badge: Mapped[str] = mapped_column(String(10), default="🟢")
     totp_secret: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     totp_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    telegram_2fa_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     
     # Поля для веб-версии (пароль)
     password_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)

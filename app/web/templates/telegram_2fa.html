@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="max-width: 400px; margin: 50px auto;">
+    <h1>🔐 Двухфакторная аутентификация</h1>
+    <p>Код подтверждения отправлен в Telegram. Введите его ниже:</p>
+
+    {% if error %}
+    <p style="color: red;">❌ Неверный код. Попробуйте ещё раз.</p>
+    {% endif %}
+
+    <form action="/admin/2fa/verify" method="post">
+        <input type="text" name="code" placeholder="000000" maxlength="6" required
+               style="width: 100%; padding: 15px; font-size: 24px; text-align: center; letter-spacing: 10px; margin-bottom: 15px;">
+        <button type="submit" class="button" style="width: 100%;">Подтвердить</button>
+    </form>
+
+    <hr style="margin: 30px 0;">
+
+    <h2>Или используйте резервный код:</h2>
+    <form action="/admin/2fa/verify-backup" method="post">
+        <input type="text" name="backup_code" placeholder="XXXXXXXXXX" required
+               style="width: 100%; padding: 10px; font-family: monospace; margin-bottom: 15px;">
+        <button type="submit" class="button" style="width: 100%; background-color: #666;">Использовать резервный код</button>
+    </form>
+</div>
+{% endblock %}
