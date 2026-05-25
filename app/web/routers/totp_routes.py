@@ -27,7 +27,7 @@ def generate_qr_code(uri: str) -> str:
     buf.seek(0)
     return base64.b64encode(buf.getvalue()).decode()
 
-@router.get("/admin/setup-totp", response_class=HTMLResponse)
+@router.get("/setup-totp", response_class=HTMLResponse)
 async def setup_totp_page(request: Request, db: AsyncSession = Depends(get_db)):
     if not request.session.get("authenticated"):
         return RedirectResponse(url="/login", status_code=303)
@@ -54,7 +54,7 @@ async def setup_totp_page(request: Request, db: AsyncSession = Depends(get_db)):
         "uri": uri
     })
 
-@router.post("/admin/verify-totp-setup")
+@router.post("/verify-totp-setup")
 async def verify_totp_setup(
     request: Request,
     code: str = Form(...),
