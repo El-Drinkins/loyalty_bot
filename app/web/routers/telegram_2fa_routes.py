@@ -107,6 +107,15 @@ async def generate_backup_codes_page(
     if not admin or not admin.telegram_2fa_enabled:
         return RedirectResponse(url="/admin/", status_code=303)
 
+    # Удаляем старые неиспользованные коды
+    from sqlalchemy import delete
+    await db.execute(
+        delete(BackupCode).where(
+            BackupCode.user_id == admin.id,
+            BackupCode.used == False
+        )
+    )
+
     codes = generate_backup_codes()
     for code_str in codes:
         backup = BackupCode(
