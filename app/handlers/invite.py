@@ -222,15 +222,15 @@ async def send_friend_detail(message: Message, friend_id: int, user_telegram_id:
         total_amount = await get_friend_rentals_total(session, friend_id)
 
         lines = []
-        lines.append(f"📊 **Бонусы по другу: {friend.full_name}**\n")
-        lines.append(f"💰 Аренды друга на: {format_number(total_amount)} ₽")
+        lines.append(f"📊 <b>Бонусы по другу: {friend.full_name}</b>\n")
+        lines.append(f"💰 Аренды друга за всё время на: <b>{format_number(total_amount)}</b> ₽")
         lines.append(SEPARATOR)
 
         # Бонус за первую аренду
         first = bonuses['first_rental']
-        lines.append("🏆 **За первую аренду:**")
+        lines.append("🏆 <b>За первую аренду:</b>")
         if first['achieved'] and first['awarded']:
-            lines.append(f" ✅ Получен: {first['bonus']} ⭐")
+            lines.append(f" ✅ Получен: <b>{first['bonus']}</b> ⭐")
         elif first['achieved'] and not first['awarded']:
             lines.append(f" ⏳ Ожидает подтверждения администратора")
         else:
@@ -239,9 +239,9 @@ async def send_friend_detail(message: Message, friend_id: int, user_telegram_id:
 
         # Бонус за вторую аренду
         second = bonuses['second_rental']
-        lines.append("🏆 **За вторую аренду:**")
+        lines.append("🏆 <b>За вторую аренду:</b>")
         if second['achieved'] and second['awarded']:
-            lines.append(f" ✅ Получен: {second['bonus']} ⭐")
+            lines.append(f" ✅ Получен: <b>{second['bonus']}</b> ⭐")
         elif second['achieved'] and not second['awarded']:
             lines.append(f" ⏳ Ожидает подтверждения администратора")
         else:
@@ -250,34 +250,34 @@ async def send_friend_detail(message: Message, friend_id: int, user_telegram_id:
 
         # Бонус за 10 000 ₽
         threshold_10k = bonuses['threshold_10k']
-        lines.append("🏆 **За аренды на 10 000 ₽**")
-        lines.append(" (когда друг арендует на 10 000 ₽, вы получите +1 000 ⭐)")
+        lines.append("🏆 <b>За аренды на 10 000 ₽</b>")
+        lines.append(f" (когда друг арендует на <b>10 000 ₽</b>, вы получите <b>+1 000</b> ⭐)")
         lines.append("")
-        lines.append(f" Цель: {format_number(threshold_10k['target'])} ₽")
-        lines.append(f" Заработано: {format_number(threshold_10k['progress'])} ₽")
+        lines.append(f" Цель: <b>{format_number(threshold_10k['target'])}</b> ₽")
+        lines.append(f" Заработано: <b>{format_number(threshold_10k['progress'])}</b> ₽")
         if threshold_10k['achieved'] and threshold_10k['awarded']:
-            lines.append(f" ✅ Бонус {threshold_10k['bonus']} ⭐ получен")
+            lines.append(f" ✅ Бонус <b>{threshold_10k['bonus']}</b> ⭐ получен")
         elif threshold_10k['achieved'] and not threshold_10k['awarded']:
-            lines.append(f" ⏳ Бонус {threshold_10k['bonus']} ⭐ ожидает подтверждения администратора")
+            lines.append(f" ⏳ Бонус <b>{threshold_10k['bonus']}</b> ⭐ ожидает подтверждения администратора")
         else:
             remaining = threshold_10k['target'] - threshold_10k['progress']
-            lines.append(f" Осталось: {format_number(remaining)} ₽")
+            lines.append(f" Осталось: <b>{format_number(remaining)}</b> ₽")
         lines.append(SEPARATOR)
 
         # Бонус за 30 000 ₽
         threshold_30k = bonuses['threshold_30k']
-        lines.append("🏆 **За аренды на 30 000 ₽**")
-        lines.append(" (когда друг арендует на 30 000 ₽, вы получите +1 000 ⭐)")
+        lines.append("🏆 <b>За аренды на 30 000 ₽</b>")
+        lines.append(f" (когда друг арендует на <b>30 000 ₽</b>, вы получите <b>+1 000</b> ⭐)")
         lines.append("")
-        lines.append(f" Цель: {format_number(threshold_30k['target'])} ₽")
-        lines.append(f" Заработано: {format_number(threshold_30k['progress'])} ₽")
+        lines.append(f" Цель: <b>{format_number(threshold_30k['target'])}</b> ₽")
+        lines.append(f" Заработано: <b>{format_number(threshold_30k['progress'])}</b> ₽")
         if threshold_30k['achieved'] and threshold_30k['awarded']:
-            lines.append(f" ✅ Бонус {threshold_30k['bonus']} ⭐ получен")
+            lines.append(f" ✅ Бонус <b>{threshold_30k['bonus']}</b> ⭐ получен")
         elif threshold_30k['achieved'] and not threshold_30k['awarded']:
-            lines.append(f" ⏳ Бонус {threshold_30k['bonus']} ⭐ ожидает подтверждения администратора")
+            lines.append(f" ⏳ Бонус <b>{threshold_30k['bonus']}</b> ⭐ ожидает подтверждения администратора")
         else:
             remaining = threshold_30k['target'] - threshold_30k['progress']
-            lines.append(f" Осталось: {format_number(remaining)} ₽")
+            lines.append(f" Осталось: <b>{format_number(remaining)}</b> ₽")
 
         total_friends_rentals = await get_all_friends_total_rentals(session, user.id)
         await award_team_bonus(session, user.id, total_friends_rentals)
@@ -291,7 +291,7 @@ async def send_friend_detail(message: Message, friend_id: int, user_telegram_id:
         await message.answer(
             "\n".join(lines),
             reply_markup=keyboard,
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
 
 # ========== ОБРАБОТЧИКИ КОМАНД ==========
