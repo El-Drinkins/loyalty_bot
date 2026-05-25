@@ -228,7 +228,7 @@ async def send_friend_detail(message: Message, friend_id: int, user_telegram_id:
 
         # Бонус за первую аренду
         first = bonuses['first_rental']
-        lines.append("🏆 <b>За первую аренду:</b>")
+        lines.append("🏆 <b>Бонус за первую аренду друга:</b>")
         if first['achieved'] and first['awarded']:
             lines.append(f" ✅ Получен: <b>{first['bonus']}</b> ⭐")
         elif first['achieved'] and not first['awarded']:
@@ -239,7 +239,7 @@ async def send_friend_detail(message: Message, friend_id: int, user_telegram_id:
 
         # Бонус за вторую аренду
         second = bonuses['second_rental']
-        lines.append("🏆 <b>За вторую аренду:</b>")
+        lines.append("🏆 <b>Бонус за вторую аренду друга:</b>")
         if second['achieved'] and second['awarded']:
             lines.append(f" ✅ Получен: <b>{second['bonus']}</b> ⭐")
         elif second['achieved'] and not second['awarded']:
@@ -250,8 +250,8 @@ async def send_friend_detail(message: Message, friend_id: int, user_telegram_id:
 
         # Бонус за 10 000 ₽
         threshold_10k = bonuses['threshold_10k']
-        lines.append("🏆 <b>За аренды на 10 000 ₽</b>")
-        lines.append(f" (когда друг арендует на <b>10 000 ₽</b>, вы получите <b>+1 000</b> ⭐)")
+        lines.append("🏆 <b>Бонус за аренды друга на 10 000 ₽</b>")
+        lines.append(f" (когда друг арендует суммарно на <b>10 000 ₽</b>, вы получите <b>+1 000</b> ⭐)")
         lines.append("")
         lines.append(f" Цель: <b>{format_number(threshold_10k['target'])}</b> ₽")
         lines.append(f" Заработано: <b>{format_number(threshold_10k['progress'])}</b> ₽")
@@ -266,8 +266,8 @@ async def send_friend_detail(message: Message, friend_id: int, user_telegram_id:
 
         # Бонус за 30 000 ₽
         threshold_30k = bonuses['threshold_30k']
-        lines.append("🏆 <b>За аренды на 30 000 ₽</b>")
-        lines.append(f" (когда друг арендует на <b>30 000 ₽</b>, вы получите <b>+1 000</b> ⭐)")
+        lines.append("🏆 <b>Бонус за аренды друга на 30 000 ₽</b>")
+        lines.append(f" (когда друг арендует суммарно на <b>30 000 ₽</b>, вы получите <b>+1 000</b> ⭐)")
         lines.append("")
         lines.append(f" Цель: <b>{format_number(threshold_30k['target'])}</b> ₽")
         lines.append(f" Заработано: <b>{format_number(threshold_30k['progress'])}</b> ₽")
