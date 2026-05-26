@@ -350,30 +350,25 @@ async def show_models(callback: CallbackQuery, brand_id: int, brand_name: str, m
 
 async def show_model_detail(callback: CallbackQuery, model_id: int):
     model = await get_model_details(model_id)
-    
     if not model:
         await callback.answer("Модель не найдена", show_alert=True)
         return
-    
-    text = f"📷 **{model.name}**\n\n"
-    
-    text += "📸 **Характеристики:**\n"
+
+    text = f"📷 <b>{model.name}</b>\n\n"
+    text += "📸 <b>Характеристики:</b>\n"
     text += format_specs(model.specs) + "\n\n"
-    
-    text += f"💰 **Цена:** {format_price(model.price_per_day)} ₽/сутки\n\n"
-    
+    text += f"💰 <b>Цена:</b> {format_price(model.price_per_day)} ₽/сутки\n\n"
     if model.default_equipment:
-        text += "📦 **Комплектация:**\n"
+        text += "📦 <b>Комплектация:</b>\n"
         text += format_equipment(model.default_equipment) + "\n\n"
-    
+
     buttons = [
         [InlineKeyboardButton(text="📸 Заказать в Instagram", url=INSTAGRAM_URL)],
         [InlineKeyboardButton(text="📱 Заказать в Telegram", url=TELEGRAM_URL)],
         [InlineKeyboardButton(text="◀️ Назад к моделям", callback_data=f"back_to_models_{model.brand_id}")]
     ]
-    
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
-    
+
     if model.image_url:
         try:
             await callback.message.delete()
@@ -381,21 +376,14 @@ async def show_model_detail(callback: CallbackQuery, model_id: int):
                 photo=model.image_url,
                 caption=text,
                 reply_markup=keyboard,
-                parse_mode="Markdown"
+                parse_mode="HTML"
             )
         except Exception as e:
-            print(f"Ошибка отправки фото: {e}")
-            await callback.message.edit_text(
-                text + "\n⚠️ Фото временно недоступно",
-                reply_markup=keyboard,
-                parse_mode="Markdown"
-            )
+            print(f"Ошибка загрузки фото: {e}")
+            await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
     else:
-        await callback.message.edit_text(
-            text,
-            reply_markup=keyboard,
-            parse_mode="Markdown"
-        )
+        await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+    
     await callback.answer()
 
 
