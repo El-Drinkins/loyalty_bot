@@ -221,7 +221,8 @@ async def show_brands(callback: CallbackQuery, category_id: int):
     brands_with_count = await get_brands_by_category(category_id)
     
     if not brands_with_count:
-        await callback.message.edit_text(
+            await callback.message.delete()
+            await callback.message.answer(
             "📭 В этой категории пока нет техники.",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="◀️ Назад к категориям", callback_data="back_to_categories")]
@@ -527,7 +528,6 @@ async def back_to_models_callback(callback: CallbackQuery):
         if brand:
             brand_name = brand.name
             category_name = brand.category.name if brand.category else None
-            await callback.message.delete()
             await show_models(callback, brand_id, brand_name, category_name=category_name)
     await callback.answer()
 
