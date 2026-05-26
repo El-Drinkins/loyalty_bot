@@ -462,32 +462,15 @@ async def brand_callback(callback: CallbackQuery):
 
         category_name = brand.category.name if brand.category else None
 
+        await callback.message.delete()
+
         if category_name == "Объективы":
             mount_types = await get_mount_types_for_brand(brand_id)
             if mount_types:
-                await callback.message.delete()
                 await show_mount_filter(callback, brand_id, brand.name)
                 return
 
-        if category_name in ["Свет", "Освещение"]:
-            await callback.message.delete()
-            await show_models(callback, brand_id, brand.name, category_name=category_name)
-            return
-
-        if category_name == "Звук":
-            await callback.message.delete()
-            await show_models(callback, brand_id, brand.name, category_name=category_name)
-            return
-
-        if category_name == "Аксессуары":
-            await callback.message.delete()
-            await show_models(callback, brand_id, brand.name, category_name=category_name)
-            return
-
-        if category_name == "Экшен камеры":
-            await callback.message.delete()
-            await show_models(callback, brand_id, brand.name, category_name=category_name)
-            return
+        await show_models(callback, brand_id, brand.name, category_name=category_name)
 
     await callback.answer()
 
