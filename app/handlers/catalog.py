@@ -219,10 +219,9 @@ async def show_categories(message_or_callback):
 
 async def show_brands(callback: CallbackQuery, category_id: int):
     brands_with_count = await get_brands_by_category(category_id)
-    
+
     if not brands_with_count:
-            await callback.message.delete()
-            await callback.message.answer(
+        await callback.message.edit_text(
             "📭 В этой категории пока нет техники.",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="◀️ Назад к категориям", callback_data="back_to_categories")]
@@ -230,6 +229,38 @@ async def show_brands(callback: CallbackQuery, category_id: int):
         )
         await callback.answer()
         return
+
+    # Получаем название категории
+    category_name = brands_with_count[0][0].category.name
+    icon = get_category_icon(category_name)
+    prompt = get_prompt_text(category_name)
+    show_count = should_show_count(category_name)
+    button_icon = get_button_icon(category_name)
+
+    buttons = []
+    for brand, count in brands_with_count:
+        if show_count:
+            buttons.append([InlineKeyboardButton(
+                text=f"{button_icon} {brand.name} ({count})",
+                callback_data=f"brand_{brand.id}"
+            )])
+        else:
+            buttons.append([InlineKeyboardButton(
+                text=f"{button_icon} {brand.name}",
+                callback_data=f"brand_{brand.id}"
+            )])
+
+    buttons.append([InlineKeyboardButton(text="◀️ Назад к категориям", callback_data="back_to_categories")])
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
+
+    await callback.message.delete()
+    await callback.message.answer(
+        f"{icon} **{category_name}**\n\n{prompt}",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    await callback.answer()
     
     # Получаем название категории
     category_name = brands_with_count[0][0].category.name
