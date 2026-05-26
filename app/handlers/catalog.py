@@ -349,6 +349,9 @@ async def show_models(callback: CallbackQuery, brand_id: int, brand_name: str, m
 
 
 async def show_model_detail(callback: CallbackQuery, model_id: int):
+    from aiogram.types import FSInputFile
+    import os
+
     model = await get_model_details(model_id)
     if not model:
         await callback.answer("Модель не найдена", show_alert=True)
@@ -370,17 +373,36 @@ async def show_model_detail(callback: CallbackQuery, model_id: int):
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
 
     if model.image_url:
-        try:
-            await callback.message.delete()
-            await callback.message.answer_photo(
-                photo=model.image_url,
-                caption=text,
-                reply_markup=keyboard,
-                parse_mode="HTML"
-            )
-        except Exception as e:
-            print(f"Ошибка загрузки фото: {type(e).__name__}: {e}")
-            await callback.message.answer(text, reply_markup=keyboard, parse_mode="HTML")
+        # Пробуем отправить как файл с сервера
+        url_path = model.image_url.replace("http://85.137.251.207:8000", "")
+        local_path = f"app/web{url_path}"
+        
+        if os.path.exists(local_path):
+            try:
+                photo = FSInputFile(local_path)
+                await callback.message.delete()
+                await callback.message.answer_photo(
+                    photo=photo,
+                    caption=text,
+                    reply_markup=keyboard,
+                    parse_mode="HTML"
+                )
+            except Exception as e:
+                print(f"Ошибка отправки фото с сервера: {e}")
+                await callback.message.answer(text, reply_markup=keyboard, parse_mode="HTML")
+        else:
+            # Файл не найден локально, пробуем URL
+            try:
+                await callback.message.delete()
+                await callback.message.answer_photo(
+                    photo=model.image_url,
+                    caption=text,
+                    reply_markup=keyboard,
+                    parse_mode="HTML"
+                )
+            except Exception as e:
+                print(f"Ошибка загрузки фото по URL: {e}")
+                await callback.message.answer(text, reply_markup=keyboard, parse_mode="HTML")
     else:
         await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
     
