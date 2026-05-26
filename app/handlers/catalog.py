@@ -317,7 +317,7 @@ async def show_mount_filter(callback: CallbackQuery, brand_id: int, brand_name: 
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
 
-    await callback.message.answer(
+    await callback.message.edit_text(
         f"📷 **{brand_name}** ({total_count} объективов)\n\nВыберите тип байонета:",
         reply_markup=keyboard,
         parse_mode="Markdown"
@@ -462,14 +462,13 @@ async def brand_callback(callback: CallbackQuery):
 
         category_name = brand.category.name if brand.category else None
 
-        await callback.message.delete()
-
         if category_name == "Объективы":
             mount_types = await get_mount_types_for_brand(brand_id)
             if mount_types:
                 await show_mount_filter(callback, brand_id, brand.name)
                 return
 
+        await callback.message.delete()
         await show_models(callback, brand_id, brand.name, category_name=category_name)
 
     await callback.answer()
