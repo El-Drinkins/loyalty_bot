@@ -72,6 +72,11 @@
         </label>
     </div>
 
+    <input type="hidden" name="page" value="{{ request.query_params.get('page', '1') }}">
+    <input type="hidden" name="search" value="{{ request.query_params.get('search', '') }}">
+    <input type="hidden" name="filter_brand_id" value="{{ request.query_params.get('brand_id', '') }}">
+    <input type="hidden" name="filter_category_id" value="{{ request.query_params.get('category_id', '') }}">
+
     <button type="submit" class="button">💾 Сохранить</button>
     <a href="/admin/catalog/models" class="button" style="background-color: #666;">Отмена</a>
 </form>

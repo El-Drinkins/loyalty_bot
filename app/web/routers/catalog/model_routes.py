@@ -160,6 +160,10 @@ async def model_edit(
     mount_type: str = Form(""),
     is_active: bool = Form(False),
     photo: UploadFile = File(None),
+    page: int = Form(1),
+    search: str = Form(""),
+    filter_brand_id: int = Form(0),
+    filter_category_id: int = Form(0),
     db: AsyncSession = Depends(get_db),
     _=Depends(require_auth)
 ):
@@ -189,7 +193,16 @@ async def model_edit(
     model.is_active = is_active
     model.updated_at = datetime.utcnow()
     await db.commit()
-    return RedirectResponse(url="/admin/catalog/models", status_code=303)
+
+    params = f"?page={page}"
+    if search:
+        params += f"&search={search}"
+    if filter_brand_id:
+        params += f"&brand_id={filter_brand_id}"
+    if filter_category_id:
+        params += f"&category_id={filter_category_id}"
+
+    return RedirectResponse(url=f"/admin/catalog/models{params}", status_code=303)
 
 @router.post("/{model_id}/delete")
 async def model_delete(
