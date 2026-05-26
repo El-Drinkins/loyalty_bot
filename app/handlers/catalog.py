@@ -298,9 +298,9 @@ async def show_mount_filter(callback: CallbackQuery, brand_id: int, brand_name: 
 async def show_models(callback: CallbackQuery, brand_id: int, brand_name: str, mount_filter: str = None, category_name: str = None):
     """Показывает модели для выбранного бренда с фильтром"""
     models = await get_models_by_brand(brand_id, mount_filter)
-    
+
     if not models:
-        await callback.message.edit_text(
+        await callback.message.answer(
             f"📭 Нет моделей с фильтром '{mount_filter}'",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="◀️ Назад к выбору байонета", callback_data=f"back_to_mount_{brand_id}")]
@@ -308,39 +308,39 @@ async def show_models(callback: CallbackQuery, brand_id: int, brand_name: str, m
         )
         await callback.answer()
         return
-    
+
     # Получаем категорию для правильного слова, если не передана
     if not category_name:
         async with AsyncSessionLocal() as session:
             brand = await session.get(Brand, brand_id, options=[selectinload(Brand.category)])
             if brand and brand.category:
                 category_name = brand.category.name
-    
+
     category_word = get_category_word(category_name) if category_name else "моделей"
     icon = get_button_icon(category_name) if category_name else "📷"
-    
+
     if mount_filter and mount_filter != "all":
         title = f"{icon} **{brand_name} {mount_filter.upper()}** ({len(models)} {category_word})"
     else:
         title = f"{icon} **{brand_name}** ({len(models)} {category_word})"
-    
+
     buttons = []
     for model in models:
         buttons.append([InlineKeyboardButton(
             text=f"{icon} {model.name}",
             callback_data=f"model_{model.id}"
         )])
-    
+
     mount_types = await get_mount_types_for_brand(brand_id)
     if mount_types:
         filter_text = f"🔍 Фильтр: {mount_filter.upper() if mount_filter else 'Все'}"
         buttons.append([InlineKeyboardButton(text=filter_text, callback_data=f"change_filter_{brand_id}")])
-    
+
     buttons.append([InlineKeyboardButton(text="◀️ Назад к брендам", callback_data=f"back_to_brands_{brand_id}")])
-    
+
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
-    
-    await callback.message.edit_text(
+
+    await callback.message.answer(
         f"{title}\n\nВыберите модель:",
         reply_markup=keyboard,
         parse_mode="Markdown"
@@ -528,7 +528,6 @@ async def back_to_models_callback(callback: CallbackQuery):
             brand_name = brand.name
             category_name = brand.category.name if brand.category else None
             await callback.message.delete()
-            await callback.message.answer("Загрузка...")
             await show_models(callback, brand_id, brand_name, category_name=category_name)
     await callback.answer()
 
