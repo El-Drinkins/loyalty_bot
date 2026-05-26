@@ -84,6 +84,9 @@ async def model_add(
     name: str = Form(...),
     brand_id: int = Form(...),
     price_per_day: int = Form(...),
+    price_per_week: int = Form(0),
+    price_per_two_weeks: int = Form(0),
+    price_per_month: int = Form(0),
     deposit: int = Form(0),
     specs: str = Form(""),
     image_url: str = Form(""),
@@ -110,6 +113,9 @@ async def model_add(
         name=name,
         brand_id=brand_id,
         price_per_day=price_per_day,
+        price_per_week=price_per_week if price_per_week else None,
+        price_per_two_weeks=price_per_two_weeks if price_per_two_weeks else None,
+        price_per_month=price_per_month if price_per_month else None,
         deposit=deposit if deposit else None,
         specs=specs,
         image_url=photo_url,
@@ -152,6 +158,9 @@ async def model_edit(
     name: str = Form(...),
     brand_id: int = Form(...),
     price_per_day: int = Form(...),
+    price_per_week: int = Form(0),
+    price_per_two_weeks: int = Form(0),
+    price_per_month: int = Form(0),
     deposit: int = Form(0),
     specs: str = Form(""),
     image_url: str = Form(""),
@@ -185,6 +194,9 @@ async def model_edit(
     model.name = name
     model.brand_id = brand_id
     model.price_per_day = price_per_day
+    model.price_per_week = price_per_week if price_per_week else None
+    model.price_per_two_weeks = price_per_two_weeks if price_per_two_weeks else None
+    model.price_per_month = price_per_month if price_per_month else None
     model.deposit = deposit if deposit else None
     model.specs = specs
     model.review_url = review_url

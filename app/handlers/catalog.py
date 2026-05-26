@@ -387,9 +387,19 @@ async def show_model_detail(callback: CallbackQuery, model_id: int):
         return
 
     text = f"📷 <b>{model.name}</b>\n\n"
+
+    # Стоимость аренды
+    text += "💰 <b>Стоимость аренды:</b>\n"
+    if model.price_per_month:
+        text += f"• Месяц: {format_price(model.price_per_month)} ₽\n"
+    if model.price_per_two_weeks:
+        text += f"• 2 недели: {format_price(model.price_per_two_weeks)} ₽\n"
+    if model.price_per_week:
+        text += f"• Неделя: {format_price(model.price_per_week)} ₽\n"
+    text += f"• Сутки: {format_price(model.price_per_day)} ₽\n\n"
+
     text += "📸 <b>Характеристики:</b>\n"
     text += format_specs(model.specs) + "\n\n"
-    text += f"💰 <b>Цена:</b> {format_price(model.price_per_day)} ₽/сутки\n\n"
     if model.default_equipment:
         text += "📦 <b>Комплектация:</b>\n"
         text += format_equipment(model.default_equipment) + "\n\n"

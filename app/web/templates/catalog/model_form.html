@@ -27,6 +27,21 @@
     </div>
 
     <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Цена за неделю:</label>
+        <input type="number" name="price_per_week" value="{{ model.price_per_week if model else '' }}" style="width: 100%; padding: 10px;">
+    </div>
+
+    <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Цена за 2 недели:</label>
+        <input type="number" name="price_per_two_weeks" value="{{ model.price_per_two_weeks if model else '' }}" style="width: 100%; padding: 10px;">
+    </div>
+
+    <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Цена за месяц:</label>
+        <input type="number" name="price_per_month" value="{{ model.price_per_month if model else '' }}" style="width: 100%; padding: 10px;">
+    </div>
+
+    <div style="margin-bottom: 15px;">
         <label style="display: block; margin-bottom: 5px; font-weight: bold;">Залог:</label>
         <input type="number" name="deposit" value="{{ model.deposit if model else '0' }}" style="width: 100%; padding: 10px;">
     </div>
