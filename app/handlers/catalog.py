@@ -563,8 +563,8 @@ async def back_to_models_callback(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("model_"))
 async def model_callback(callback: CallbackQuery):
     model_id = int(callback.data.split("_")[1])
+    await callback.message.delete()
     await show_model_detail(callback, model_id)
-    await callback.answer()
 
 
 @router.callback_query(F.data == "back_to_main")
