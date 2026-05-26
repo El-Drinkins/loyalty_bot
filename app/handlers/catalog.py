@@ -379,7 +379,7 @@ async def show_model_detail(callback: CallbackQuery, model_id: int):
             )
             await callback.message.delete()
         except Exception as e:
-            print(f"Ошибка загрузки фото: {e}")
+            print(f"Ошибка загрузки фото: {type(e).__name__}: {e}")
             await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
     else:
         await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
