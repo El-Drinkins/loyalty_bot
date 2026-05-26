@@ -332,7 +332,6 @@ async def show_models(callback: CallbackQuery, brand_id: int, brand_name: str, m
     models = await get_models_by_brand(brand_id, mount_filter)
 
     if not models:
-        await callback.message.delete()
         await callback.message.answer(
             f"📭 Нет моделей с фильтром '{mount_filter}'",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
@@ -372,7 +371,6 @@ async def show_models(callback: CallbackQuery, brand_id: int, brand_name: str, m
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
 
-    await callback.message.delete()
     await callback.message.answer(
         f"{title}\n\nВыберите модель:",
         reply_markup=keyboard,
