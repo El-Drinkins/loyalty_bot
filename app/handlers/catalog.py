@@ -522,22 +522,14 @@ async def back_to_mount_callback(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("back_to_models_"))
 async def back_to_models_callback(callback: CallbackQuery):
     brand_id = int(callback.data.split("_")[3])
-    
     async with AsyncSessionLocal() as session:
         brand = await session.get(Brand, brand_id, options=[selectinload(Brand.category)])
-        brand_name = brand.name if brand else "Техника"
-        category_name = brand.category.name if brand and brand.category else None
-        category_id = brand.category_id if brand else None
-    
-    if category_id == 4:  # Объективы
-        mount_types = await get_mount_types_for_brand(brand_id, category_id)
-        if mount_types:
-            await show_mount_filter(callback, brand_id, brand_name)
-        else:
+        if brand:
+            brand_name = brand.name
+            category_name = brand.category.name if brand.category else None
+            await callback.message.delete()
+            await callback.message.answer("Загрузка...")
             await show_models(callback, brand_id, brand_name, category_name=category_name)
-    else:
-        await show_models(callback, brand_id, brand_name, category_name=category_name)
-    
     await callback.answer()
 
 
