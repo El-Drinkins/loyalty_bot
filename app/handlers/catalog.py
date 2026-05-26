@@ -498,6 +498,7 @@ async def mount_filter_callback(callback: CallbackQuery):
         brand_name = brand.name if brand else "Техника"
         category_name = brand.category.name if brand and brand.category else None
     
+    await callback.message.delete()
     await show_models(callback, brand_id, brand_name, mount_type, category_name)
     await callback.answer()
 
