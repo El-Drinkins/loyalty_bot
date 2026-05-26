@@ -406,14 +406,12 @@ async def show_model_detail(callback: CallbackQuery, model_id: int):
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
 
     if model.image_url:
-        # Пробуем отправить как файл с сервера
         url_path = model.image_url.replace("http://85.137.251.207:8000", "")
         local_path = f"app/web{url_path}"
         
         if os.path.exists(local_path):
             try:
                 photo = FSInputFile(local_path)
-                await callback.message.delete()
                 await callback.message.answer_photo(
                     photo=photo,
                     caption=text,
@@ -424,9 +422,7 @@ async def show_model_detail(callback: CallbackQuery, model_id: int):
                 print(f"Ошибка отправки фото с сервера: {e}")
                 await callback.message.answer(text, reply_markup=keyboard, parse_mode="HTML")
         else:
-            # Файл не найден локально, пробуем URL
             try:
-                await callback.message.delete()
                 await callback.message.answer_photo(
                     photo=model.image_url,
                     caption=text,
@@ -437,7 +433,7 @@ async def show_model_detail(callback: CallbackQuery, model_id: int):
                 print(f"Ошибка загрузки фото по URL: {e}")
                 await callback.message.answer(text, reply_markup=keyboard, parse_mode="HTML")
     else:
-        await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+        await callback.message.answer(text, reply_markup=keyboard, parse_mode="HTML")
     
     await callback.answer()
 
