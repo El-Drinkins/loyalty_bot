@@ -1,50 +1,49 @@
 {% extends "base.html" %}
+
 {% block content %}
-<h1>📷 Управление моделями</h1>
+<h1>📷 Модели</h1>
 
-<div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
-    <a href="/admin/catalog/models/add" class="button">➕ Добавить модель</a>
-    <a href="/admin/catalog" class="button">◀️ Назад</a>
+<div style="margin-bottom: 20px; display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end;">
+    <div>
+        <label>Категория:</label>
+        <select onchange="window.location.href = '?category_id=' + this.value + '&page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if brand_filter %}&brand_id={{ brand_filter }}{% endif %}'">
+            <option value="">Все</option>
+            {% for category in categories %}
+            <option value="{{ category.id }}" {% if category_filter == category.id %}selected{% endif %}>{{ category.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label>Бренд:</label>
+        <select onchange="window.location.href = '?brand_id=' + this.value + '&page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category_id={{ category_filter }}{% endif %}'">
+            <option value="">Все</option>
+            {% for brand in brands %}
+            <option value="{{ brand.id }}" {% if brand_filter == brand.id %}selected{% endif %}>{{ brand.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label>Поиск:</label>
+        <form action="/admin/catalog/models" method="get" style="display: inline;">
+            <input type="text" name="search" value="{{ search_query }}" placeholder="Название модели...">
+            <button type="submit" class="button button-small">Найти</button>
+        </form>
+    </div>
+    <div>
+        <a href="/admin/catalog/models/add" class="button">➕ Добавить модель</a>
+    </div>
 </div>
-
-<!-- Фильтры -->
-<form method="get" style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
-    <select name="category_id" style="padding: 8px;">
-        <option value="">Все категории</option>
-        {% for category in categories %}
-        <option value="{{ category.id }}" {% if category_filter == category.id %}selected{% endif %}>
-            {{ category.name }}
-        </option>
-        {% endfor %}
-    </select>
-    
-    <select name="brand_id" style="padding: 8px;">
-        <option value="">Все бренды</option>
-        {% for brand in brands %}
-        <option value="{{ brand.id }}" {% if brand_filter == brand.id %}selected{% endif %}>
-            {{ brand.name }}
-        </option>
-        {% endfor %}
-    </select>
-    
-    <input type="text" name="search" placeholder="Поиск по названию" value="{{ search_query or '' }}" style="padding: 8px; flex: 1;">
-    
-    <button type="submit" class="button">🔍 Применить</button>
-    <a href="/admin/catalog/models" class="button button-red">Сбросить</a>
-</form>
-
-<p>Всего моделей: {{ total_count }}</p>
 
 <table>
     <thead>
         <tr>
             <th>ID</th>
-            <th>Модель</th>
+            <th>Фото</th>
+            <th>Название</th>
             <th>Бренд</th>
-            <th>Категория</th>
-            <th>Цена/день</th>
+            <th>Цена/сутки</th>
             <th>Залог</th>
-            <th>Статус</th>
+            <th>Активна</th>
             <th>Действия</th>
         </tr>
     </thead>
@@ -52,17 +51,23 @@
         {% for model in models %}
         <tr>
             <td>{{ model.id }}</td>
-            <td>{{ model.name }}</td>
-            <td>{{ model.brand.name }}</td>
-            <td>{{ model.brand.category.name }}</td>
-            <td>{{ model.price_per_day }} ₽</td>
-            <td>{% if model.deposit %}{{ model.deposit }} ₽{% else %}—{% endif %}</td>
-            <td>{% if model.is_active %}✅ Активна{% else %}❌ Неактивна{% endif %}</td>
             <td>
-                <a href="/admin/catalog/models/{{ model.id }}/edit" class="button button-small">✏️</a>
+                {% if model.image_url %}
+                <img src="{{ model.image_url }}" style="max-width: 50px; max-height: 50px;">
+                {% else %}
+                —
+                {% endif %}
+            </td>
+            <td>{{ model.name }}</td>
+            <td>{{ model.brand.name if model.brand else '—' }}</td>
+            <td>{{ model.price_per_day }} ₽</td>
+            <td>{{ model.deposit or '—' }} ₽</td>
+            <td>{{ '✅' if model.is_active else '❌' }}</td>
+            <td>
+                <a href="/admin/catalog/models/{{ model.id }}/edit?page={{ page }}&search={{ search_query }}&brand_id={{ brand_filter or '' }}&category_id={{ category_filter or '' }}" class="button button-small">✏️</a>
                 <a href="/admin/catalog/models/{{ model.id }}/stats" class="button button-small">📊</a>
                 <form action="/admin/catalog/models/{{ model.id }}/delete" method="post" style="display: inline;">
-                    <button type="submit" class="button button-small button-red" onclick="return confirm('Удалить модель? Это действие нельзя отменить.')">🗑️</button>
+                    <button type="submit" class="button button-small button-red" onclick="return confirm('Удалить модель?')">🗑️</button>
                 </form>
             </td>
         </tr>
@@ -70,21 +75,16 @@
     </tbody>
 </table>
 
-<!-- Пагинация -->
 {% if total_pages > 1 %}
 <div style="margin-top: 20px; text-align: center;">
     {% if page > 1 %}
-        <a href="?page=1&category={{ category_filter or '' }}&brand={{ brand_filter or '' }}&search={{ search_query or '' }}" class="button button-small">« Первая</a>
-        <a href="?page={{ page-1 }}&category={{ category_filter or '' }}&brand={{ brand_filter or '' }}&search={{ search_query or '' }}" class="button button-small">‹ Предыдущая</a>
+    <a href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category_id={{ category_filter }}{% endif %}{% if brand_filter %}&brand_id={{ brand_filter }}{% endif %}" class="button button-small">« Первая</a>
+    <a href="?page={{ page-1 }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category_id={{ category_filter }}{% endif %}{% if brand_filter %}&brand_id={{ brand_filter }}{% endif %}" class="button button-small">‹ Предыдущая</a>
     {% endif %}
-    
-    <span style="margin: 0 10px;">
-        Страница {{ page }} из {{ total_pages }}
-    </span>
-    
+    <span style="margin: 0 10px;">Страница {{ page }} из {{ total_pages }}</span>
     {% if page < total_pages %}
-        <a href="?page={{ page+1 }}&category={{ category_filter or '' }}&brand={{ brand_filter or '' }}&search={{ search_query or '' }}" class="button button-small">Следующая ›</a>
-        <a href="?page={{ total_pages }}&category={{ category_filter or '' }}&brand={{ brand_filter or '' }}&search={{ search_query or '' }}" class="button button-small">Последняя »</a>
+    <a href="?page={{ page+1 }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category_id={{ category_filter }}{% endif %}{% if brand_filter %}&brand_id={{ brand_filter }}{% endif %}" class="button button-small">Следующая ›</a>
+    <a href="?page={{ total_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category_id={{ category_filter }}{% endif %}{% if brand_filter %}&brand_id={{ brand_filter }}{% endif %}" class="button button-small">Последняя »</a>
     {% endif %}
 </div>
 {% endif %}
