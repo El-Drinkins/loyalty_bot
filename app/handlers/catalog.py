@@ -317,8 +317,7 @@ async def show_mount_filter(callback: CallbackQuery, brand_id: int, brand_name: 
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
 
-    await callback.message.delete()
-    await callback.message.answer(
+    await callback.message.edit_text(
         f"📷 **{brand_name}** ({total_count} объективов)\n\nВыберите тип байонета:",
         reply_markup=keyboard,
         parse_mode="Markdown"
