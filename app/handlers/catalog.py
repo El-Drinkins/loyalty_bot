@@ -297,29 +297,27 @@ async def show_brands(callback: CallbackQuery, category_id: int):
 async def show_mount_filter(callback: CallbackQuery, brand_id: int, brand_name: str):
     """Показывает выбор байонета для объективов"""
     mount_types = await get_mount_types_for_brand(brand_id)
-    
     models = await get_models_by_brand(brand_id)
     total_count = len(models)
-    
+
     buttons = []
-    
     buttons.append([InlineKeyboardButton(
         text=f"🔘 Все ({total_count})",
         callback_data=f"mount_all_{brand_id}"
     )])
-    
+
     for mount_type, count in mount_types:
         display_name = mount_type.upper()
         buttons.append([InlineKeyboardButton(
             text=f"🔘 {display_name} ({count})",
             callback_data=f"mount_{mount_type}_{brand_id}"
         )])
-    
+
     buttons.append([InlineKeyboardButton(text="◀️ Назад к брендам", callback_data=f"back_to_brands_{brand_id}")])
-    
+
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
-    
-    await callback.message.edit_text(
+
+    await callback.message.answer(
         f"📷 **{brand_name}** ({total_count} объективов)\n\nВыберите тип байонета:",
         reply_markup=keyboard,
         parse_mode="Markdown"
@@ -455,26 +453,42 @@ async def category_callback(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("brand_"))
 async def brand_callback(callback: CallbackQuery):
     brand_id = int(callback.data.split("_")[1])
-    
+
     async with AsyncSessionLocal() as session:
         brand = await session.get(Brand, brand_id, options=[selectinload(Brand.category)])
         if not brand:
             await callback.answer("Бренд не найден", show_alert=True)
             return
-        
-        brand_name = brand.name
-        category_id = brand.category_id
+
         category_name = brand.category.name if brand.category else None
-    
-    if category_id == 4:  # 4 - ID категории Объективы
-        mount_types = await get_mount_types_for_brand(brand_id, category_id)
-        if mount_types:
-            await show_mount_filter(callback, brand_id, brand_name)
-        else:
-            await show_models(callback, brand_id, brand_name, category_name=category_name)
-    else:
-        await show_models(callback, brand_id, brand_name, category_name=category_name)
-    
+
+        if category_name == "Объективы":
+            mount_types = await get_mount_types_for_brand(brand_id)
+            if mount_types:
+                await callback.message.delete()
+                await show_mount_filter(callback, brand_id, brand.name)
+                return
+
+        if category_name in ["Свет", "Освещение"]:
+            await callback.message.delete()
+            await show_models(callback, brand_id, brand.name, category_name=category_name)
+            return
+
+        if category_name == "Звук":
+            await callback.message.delete()
+            await show_models(callback, brand_id, brand.name, category_name=category_name)
+            return
+
+        if category_name == "Аксессуары":
+            await callback.message.delete()
+            await show_models(callback, brand_id, brand.name, category_name=category_name)
+            return
+
+        if category_name == "Экшен камеры":
+            await callback.message.delete()
+            await show_models(callback, brand_id, brand.name, category_name=category_name)
+            return
+
     await callback.answer()
 
 
