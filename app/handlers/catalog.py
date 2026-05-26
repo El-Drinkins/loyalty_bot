@@ -371,13 +371,13 @@ async def show_model_detail(callback: CallbackQuery, model_id: int):
 
     if model.image_url:
         try:
-            await callback.message.delete()
             await callback.message.answer_photo(
                 photo=model.image_url,
                 caption=text,
                 reply_markup=keyboard,
                 parse_mode="HTML"
             )
+            await callback.message.delete()
         except Exception as e:
             print(f"Ошибка загрузки фото: {e}")
             await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
