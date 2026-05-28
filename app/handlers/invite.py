@@ -278,6 +278,9 @@ async def send_friend_detail(message: Message, friend_id: int, user_telegram_id:
         total_friends_rentals = await get_all_friends_total_rentals(session, user.id)
         await award_team_bonus(session, user.id, total_friends_rentals)
 
+        lines.append("")
+        lines.append("📋 Полные правила: /regulations")
+
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text="🎁 Пригласить ещё", callback_data="back_to_invite")],
@@ -338,7 +341,6 @@ async def back_to_main_callback(callback: CallbackQuery):
 @router.message(F.text == "🎁 Пригласить друга")
 @router.message(Command("invite"))
 async def invite_friend(message: Message):
-    # Проверяем, включены ли приглашения
     async with AsyncSessionLocal() as session:
         result = await session.execute(select(InviteSettings).where(InviteSettings.id == 1))
         invite_settings = result.scalar_one_or_none()
@@ -367,20 +369,17 @@ async def invite_friend(message: Message):
         code = await get_or_create_permanent_link(user.id, bot_username, session)
         referral_link = f"https://t.me/{bot_username}?start={code}"
 
-    # Сообщение 1: заголовок и ссылка
     await message.answer(
         "🎁 <b>Пригласить друга в бот</b>\n\n"
         f"🔗 <b>Ваша ссылка:</b>",
         parse_mode="HTML"
     )
 
-    # Сообщение 2: ссылка
     await message.answer(
         f"{referral_link}",
         disable_web_page_preview=True
     )
 
-    # Сообщение 3: инструкция и бонусы
     text = (
         "📱 <b>Как поделиться:</b>\n"
         "1️⃣ Нажмите на ссылку выше, чтобы выделить её\n"
@@ -393,7 +392,8 @@ async def invite_friend(message: Message):
         "   📌 Вторая аренда друга → <b>800</b> ⭐\n"
         "   📌 Аренды друга на 10 000 ₽ → +<b>1 000</b> ⭐\n"
         "   📌 Аренды друга на 30 000 ₽ → +<b>1 000</b> ⭐\n"
-        "   🏆 Общие аренды ВСЕХ друзей на 100 000 ₽ → +<b>5 000</b> ⭐"
+        "   🏆 Общие аренды ВСЕХ друзей на 100 000 ₽ → +<b>5 000</b> ⭐\n\n"
+        "📋 Полные правила: /regulations"
     )
 
     keyboard = InlineKeyboardMarkup(

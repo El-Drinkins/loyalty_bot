@@ -273,7 +273,7 @@ async def show_balance(message: Message):
                 text += f"   При продлении каждый месяц +1% (максимум 15%).\n"
 
         text += "\n📞 Для заказа техники напишите в Telegram: @el_drinkins"
-        
+        text += "\n📋 Полные правила: /regulations"
         await message.answer(text, parse_mode="HTML")
 
 @router.message(Command("balance"))
