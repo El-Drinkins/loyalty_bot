@@ -19,7 +19,7 @@ def check_balance_limit(user: User, amount: int) -> bool:
     return amount > 0 and (user.balance + amount) > settings.MAX_BALANCE
 
 
-async def add_points_to_user(db: AsyncSession, user_id: int, amount: int, reason: str, admin_id: int):
+async def add_points_to_user(db: AsyncSession, user_id: int, amount: int, reason: str, admin_id: int, extend_expiry: bool = False):
     """Начисляет баллы пользователю. Возвращает пользователя после начисления."""
     user = await db.get(User, user_id)
     if not user:
@@ -28,7 +28,7 @@ async def add_points_to_user(db: AsyncSession, user_id: int, amount: int, reason
     old_balance = user.balance
     user.balance += amount
     
-    if amount > 0:
+    if amount > 0 and extend_expiry:
         user.points_expiry_date = calculate_expiry_date()
     
     transaction = Transaction(
@@ -68,6 +68,7 @@ async def add_points(
     user_id: int,
     amount: int = Form(...),
     reason: str = Form(...),
+    extend_expiry: bool = Form(False),
     db: AsyncSession = Depends(get_db),
     admin_id: int = Form(0),
     _=Depends(require_auth)
@@ -90,9 +91,8 @@ async def add_points(
             "message": f"После начисления баланс составит {user.balance + amount} ⭐, что превышает лимит {settings.MAX_BALANCE} ⭐."
         })
     
-    await add_points_to_user(db, user_id, amount, reason, admin_id)
+    await add_points_to_user(db, user_id, amount, reason, admin_id, extend_expiry)
     return RedirectResponse(url=f"/admin/client/{user_id}", status_code=303)
-
 
 @router.post("/client/{user_id}/add_points_force")
 async def add_points_force(
@@ -100,11 +100,12 @@ async def add_points_force(
     user_id: int,
     amount: int = Form(...),
     reason: str = Form(...),
+    extend_expiry: bool = Form(False),
     db: AsyncSession = Depends(get_db),
     admin_id: int = Form(0),
     _=Depends(require_auth)
 ):
-    await add_points_to_user(db, user_id, amount, f"{reason} (превышен лимит)", admin_id)
+    await add_points_to_user(db, user_id, amount, f"{reason} (превышен лимит)", admin_id, extend_expiry)
     return RedirectResponse(url=f"/admin/client/{user_id}", status_code=303)
 
 
