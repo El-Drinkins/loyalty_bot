@@ -134,7 +134,7 @@ async def rental_add(
     db.add(rental)
 
     user = await db.get(User, user_id)
-    if user:
+    if user and total_price >= 1000:
         user.points_expiry_date = datetime.utcnow() + timedelta(days=90)
 
     await db.commit()
@@ -210,7 +210,7 @@ async def rental_edit(
     rental.updated_at = datetime.utcnow()
 
     user = await db.get(User, user_id)
-    if user:
+    if user and total_price >= 1000:
         user.points_expiry_date = datetime.utcnow() + timedelta(days=90)
 
     await db.commit()
