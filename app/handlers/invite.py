@@ -133,6 +133,8 @@ async def send_friends_list(message: Message, user_id: int):
     lines.append("🎁 Когда друзья суммарно арендуют на 100 000 ₽,")
     lines.append(" вы получите +<b>5 000</b> ⭐")
     lines.append("")
+    lines.append("📋 Полные правила: /regulations")
+    lines.append("")
     lines.append(SEPARATOR)
 
     keyboard_buttons = []
