@@ -78,6 +78,24 @@ async def update_real_name(
     
     return RedirectResponse(url="/admin/users", status_code=303)
 
+@router.post("/client/{user_id}/update_expiry")
+async def update_expiry_date(
+    user_id: int,
+    expiry_date: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
+):
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(404, "Пользователь не найден")
+
+    if expiry_date:
+        user.points_expiry_date = datetime.strptime(expiry_date, "%Y-%m-%d")
+    else:
+        user.points_expiry_date = None
+
+    await db.commit()
+    return RedirectResponse(url=f"/admin/client/{user_id}", status_code=303)
 
 @router.post("/client/{user_id}/delete")
 async def delete_user(

@@ -29,10 +29,14 @@
     <p><strong>📅 Дата регистрации:</strong> {{ user.registration_date.strftime('%d.%m.%Y %H:%M') }}</p>
     <p><strong>💰 Баланс:</strong> {{ user.balance }} ⭐</p>
     <p><strong>⏳ Срок действия баллов:</strong> 
+        <form action="/admin/client/{{ user.id }}/update_expiry" method="post" style="display: inline;">
+            <input type="date" name="expiry_date" value="{{ user.points_expiry_date.strftime('%Y-%m-%d') if user.points_expiry_date else '' }}" style="padding: 5px;">
+            <button type="submit" class="button button-small">💾</button>
+        </form>
         {% if user.points_expiry_date %}
-            {{ user.points_expiry_date.strftime('%d.%m.%Y') }}
+            ({{ user.points_expiry_date.strftime('%d.%m.%Y') }})
         {% else %}
-            бессрочно
+            (не ограничено)
         {% endif %}
     </p>
 
