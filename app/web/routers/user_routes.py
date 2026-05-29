@@ -97,6 +97,34 @@ async def update_expiry_date(
     await db.commit()
     return RedirectResponse(url=f"/admin/client/{user_id}", status_code=303)
 
+    @router.post("/user/{user_id}/update_real_name")
+async def update_real_name(
+    user_id: int,
+    real_name: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+    admin_id: int = Form(0),
+    _=Depends(require_auth)
+):
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(404, "Пользователь не найден")
+
+    old_value = user.full_name_real
+    user.full_name_real = real_name.strip() if real_name.strip() else None
+
+    log = AdminLog(
+        admin_id=admin_id,
+        action_type="update_real_name",
+        user_id=user_id,
+        old_value=old_value or "",
+        new_value=user.full_name_real or "",
+        reason="Обновление ФИО вручную"
+    )
+    db.add(log)
+    await db.commit()
+
+    return RedirectResponse(url=f"/admin/users", status_code=303)
+
 @router.post("/client/{user_id}/delete")
 async def delete_user(
     user_id: int,
