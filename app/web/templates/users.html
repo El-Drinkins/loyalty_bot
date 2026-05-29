@@ -42,7 +42,7 @@
             <td>{{ user.full_name }}</td>  <!-- Ник из Telegram -->
             <td>
                 <!-- Форма для редактирования реального имени -->
-                <form action="/user/{{ user.id }}/update_real_name" method="post" style="display: flex; gap: 5px;">
+                <form action="/admin/user/{{ user.id }}/update_real_name" method="post" style="display: flex; gap: 5px;">
                     <input type="text" name="real_name" value="{{ user.full_name_real or '' }}" 
                            placeholder="Введите ФИО" style="width: 150px; padding: 4px;">
                     <button type="submit" class="button button-small" style="padding: 4px 8px;">💾</button>
