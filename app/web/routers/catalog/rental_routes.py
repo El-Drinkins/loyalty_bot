@@ -22,7 +22,8 @@ async def update_referral_for_user(db: AsyncSession, user_id: int):
     referral = referral.scalar_one_or_none()
     if referral:
         # Не начисляем бонусы, если пригласивший — админ
-        if referral.old_user_id in settings.ADMIN_IDS:
+        old_user = await db.get(User, referral.old_user_id)
+        if old_user and old_user.telegram_id in settings.ADMIN_IDS:
             print(f"⚠️ Пропуск бонусов для админа {referral.old_user_id}")
             return
         print(f"🔄 Updating referral {referral.id} for user {user_id}")

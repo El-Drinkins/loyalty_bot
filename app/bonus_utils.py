@@ -208,13 +208,15 @@ async def check_and_create_pending_bonuses(session, referral_id: int) -> list:
     """
     from .models import Referral, Rental, ReferralBonus
     
-    referral = await session.get(Referral, referral_id)
+        referral = await session.get(Referral, referral_id)
     if not referral:
         print(f"❌ Referral {referral_id} not found")
         return []
-    if referral.old_user_id in settings.ADMIN_IDS:
+    
+    old_user = await session.get(User, referral.old_user_id)
+    if old_user and old_user.telegram_id in settings.ADMIN_IDS:
         print(f"⚠️ Пропуск бонусов для админа {referral.old_user_id}")
-        return []    
+        return []  
     
     total_result = await session.execute(
         select(func.coalesce(func.sum(Rental.total_price), 0))
