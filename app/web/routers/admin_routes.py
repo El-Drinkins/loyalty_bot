@@ -262,25 +262,21 @@ async def assign_referrer(
     if referrer_id == user_id:
         raise HTTPException(400, "Нельзя назначить самого себя")
 
-    old_inviter_id = user.invited_by_id
     user.invited_by_id = referrer_id
-    await db.commit()
 
-    existing = await db.execute(
-        select(Referral).where(
-            Referral.new_user_id == user_id,
-            Referral.old_user_id == referrer_id
-        )
+    # Удаляем старую реферальную связь
+    from sqlalchemy import delete
+    await db.execute(delete(Referral).where(Referral.new_user_id == user_id))
+
+    # Создаём новую
+    referral = Referral(
+        new_user_id=user_id,
+        old_user_id=referrer_id,
+        status=ReferralStatus.pending,
+        registration_date=datetime.utcnow()
     )
-    if not existing.scalar_one_or_none():
-        referral = Referral(
-            new_user_id=user_id,
-            old_user_id=referrer_id,
-            status=ReferralStatus.pending,
-            registration_date=datetime.utcnow()
-        )
-        db.add(referral)
-        await db.commit()
+    db.add(referral)
+    await db.commit()
 
     return RedirectResponse(url=f"/admin/client/{user_id}", status_code=303)
 
