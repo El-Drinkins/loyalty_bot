@@ -71,6 +71,8 @@
         </div>
         
         <form id="cashback_form" action="/admin/catalog/rentals/{{ rental.id }}/add_cashback" method="post" onsubmit="return confirm('Начислить кэшбэк за эту аренду?')">
+                    <form id="cashback_form" action="/admin/catalog/rentals/{{ rental.id }}/add_cashback" method="post" onsubmit="return confirm('Начислить кэшбэк за эту аренду?')">
+            <input type="hidden" name="admin_id" value="1">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
                 <div>
                     <label style="display: block; margin-bottom: 5px; font-weight: bold;">Сумма аренды:</label>
