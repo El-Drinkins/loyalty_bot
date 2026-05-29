@@ -202,7 +202,7 @@ async def reject_request(callback: CallbackQuery):
                 req.telegram_id,
                 "❌ **Регистрация отклонена**\n\n"
                 "К сожалению, ваша заявка была отклонена.\n\n"
-                "Если вы считаете, что произошла ошибка, свяжитесь с поддержкой: @admin_support",
+                "Если вы считаете, что произошла ошибка, свяжитесь с поддержкой: @el_drinkins",
                 parse_mode="Markdown"
             )
         except Exception as e:
