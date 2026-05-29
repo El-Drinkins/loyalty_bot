@@ -52,7 +52,7 @@ async def add_points_to_user(db: AsyncSession, user_id: int, amount: int, reason
     await db.commit()
     
     try:
-         if amount > 0:
+        if amount > 0:
             await send_telegram_notification(
                 user.telegram_id,
                 f"💰 Вам начислено {amount} баллов.\nПричина: {reason}"
