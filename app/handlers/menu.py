@@ -314,7 +314,7 @@ async def help_message(message: Message):
             await session.commit()
 
     help_text = (
-        "❓ <b>Помощь по боту и программе лояльности</b>\n\n"
+        "❓ <b>Помощь по боту и бонусной программе</b>\n\n"
         "📌 <b>Основные команды:</b>\n"
         "• /faq — часто задаваемые вопросы\n"
         "• /regulations — полные правила программы\n"
@@ -424,7 +424,7 @@ async def back_to_main(callback: CallbackQuery):
 @router.message(Command("regulations"))
 async def regulations_command(message: Message):
     regulations_text = (
-        "📋 <b>Программа лояльности</b>\n\n"
+        "📋 <b>Бонусная программа</b>\n\n"
         "<b>Что такое баллы?</b>\n"
         "Баллы — это ваш кэшбэк за аренду.\n"
         "1 балл = 1 рубль.\n\n"
@@ -486,7 +486,7 @@ async def regulations_command(message: Message):
         "<b>Важно</b>\n"
         "• Баллы не обмениваются на деньги.\n"
         "• Баллы за приглашение друзей начисляются только после того, как друг вернул технику в целости.\n"
-        "• Программа лояльности может быть изменена или закрыта, но мы всегда уведомим вас заранее.\n\n"
+        "• Бонусная программа может быть изменена или закрыта, но мы всегда уведомим вас заранее.\n\n"
         "Арендуйте чаще, приглашайте друзей, копите и тратьте баллы!"
     )
     
@@ -512,7 +512,7 @@ async def regulations_command(message: Message):
         
         for i, part in enumerate(parts, 1):
             if len(parts) > 1:
-                await message.answer(f"📋 Программа лояльности (часть {i}/{len(parts)})\n\n{part}", parse_mode="HTML")
+                await message.answer(f"📋 Бонусная программа (часть {i}/{len(parts)})\n\n{part}", parse_mode="HTML")
             else:
                 await message.answer(part, parse_mode="HTML")
 
