@@ -9,7 +9,7 @@ import secrets
 import string
 import hashlib
 from ..deps import get_db, templates, require_auth
-from ...models import User, Referral, Transaction, AdminLog, UserLog, Rental, Model, Brand
+from ...models import User, Referral, Transaction, AdminLog, UserLog, Rental, Model, Brand, RegistrationRequest
 
 router = APIRouter()
 
