@@ -8,6 +8,7 @@ import string
 from ..deps import templates, get_db
 from ...models import User
 from ...notifications import send_telegram_notification
+from ...config import settings
 
 router = APIRouter(tags=["auth"])
 
