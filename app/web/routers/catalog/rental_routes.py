@@ -354,7 +354,7 @@ async def add_cashback_from_rental(
     if cashback_amount <= 0:
         raise HTTPException(400, "Сумма кэшбэка равна нулю")
 
-    model_name = f"{rental.model.brand.name} {rental.model.name}"
+    model_name = rental.model.name
 
     if user.balance + cashback_amount > settings.MAX_BALANCE:
         return templates.TemplateResponse("client/confirm_overlimit.html", {
@@ -435,7 +435,7 @@ async def add_cashback_force(
     else:
         cashback_amount = int(rental.total_price * rate / 100)
 
-    model_name = f"{rental.model.brand.name} {rental.model.name}"
+    model_name = rental.model.name
 
     old_balance = user.balance
     user.balance += cashback_amount
