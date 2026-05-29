@@ -130,6 +130,13 @@ async def delete_user(
             .values(invited_by_id=None)
         )
 
+        # Очищаем пригласившего в заявках на регистрацию
+        await db.execute(
+            RegistrationRequest.__table__.update()
+            .where(RegistrationRequest.invited_by_id == user_id)
+            .values(invited_by_id=None)
+        )
+
         await db.execute(Transaction.__table__.delete().where(Transaction.user_id == user_id))
         await db.execute(Referral.__table__.delete().where(Referral.old_user_id == user_id))
         await db.execute(Referral.__table__.delete().where(Referral.new_user_id == user_id))
