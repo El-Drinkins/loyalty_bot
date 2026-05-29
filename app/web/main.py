@@ -31,7 +31,7 @@ app = FastAPI()
 
 app.add_middleware(
     SessionMiddleware,
-    secret_key="your-secret-key-here-change-this-in-production",
+    secret_key="8KWL6he109Md7GHk3l4o57ggg1Dffc1m",
     session_cookie="loyalty_session",
     max_age=3600 * 24,
     same_site="lax"
@@ -39,7 +39,7 @@ app.add_middleware(
 
 app.add_middleware(
     AuthMiddleware,
-    secret_key="your-secret-key-here-change-this-in-production"
+    secret_key="8KWL6he109Md7GHk3l4o57ggg1Dffc1m"
 )
 
 public_dir = os.path.join(os.path.dirname(__file__), "public")
