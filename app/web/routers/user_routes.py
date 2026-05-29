@@ -123,11 +123,19 @@ async def delete_user(
         )
         db.add(log)
 
+        # Очищаем пригласившего у всех друзей
+        await db.execute(
+            User.__table__.update()
+            .where(User.invited_by_id == user_id)
+            .values(invited_by_id=None)
+        )
+
         await db.execute(Transaction.__table__.delete().where(Transaction.user_id == user_id))
         await db.execute(Referral.__table__.delete().where(Referral.old_user_id == user_id))
         await db.execute(Referral.__table__.delete().where(Referral.new_user_id == user_id))
         await db.execute(AdminLog.__table__.delete().where(AdminLog.user_id == user_id))
         await db.execute(UserLog.__table__.delete().where(UserLog.user_id == user_id))
+        await db.execute(RegistrationRequest.__table__.delete().where(RegistrationRequest.user_id == user_id))
         await db.execute(User.__table__.delete().where(User.id == user_id))
 
         await db.commit()
