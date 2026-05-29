@@ -1,4 +1,5 @@
 import os
+
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 
@@ -12,6 +13,7 @@ class Settings(BaseSettings):
     REFERRAL_BONUS: int = 100
     POINTS_VALID_DAYS: int = 90
     MAX_BALANCE: int = 20000
+    ADMIN_PASSWORD: str = ""
     PROXY_URL: str = ""
 
     class Config:

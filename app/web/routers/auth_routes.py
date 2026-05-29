@@ -11,7 +11,7 @@ from ...notifications import send_telegram_notification
 
 router = APIRouter(tags=["auth"])
 
-ADMIN_PASSWORD_HASH = hashlib.sha256("4Ue768k3u!".encode()).hexdigest()
+ADMIN_PASSWORD_HASH = hashlib.sha256(settings.ADMIN_PASSWORD.encode()).hexdigest()
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request, error: str = None):
