@@ -3,7 +3,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import text
-from .routers.invite_settings_routes import router as invite_settings_router
 import os
 
 from .routers import (
@@ -23,6 +22,7 @@ from .routers import (
 from .routers.feedback_routes import router as feedback_router
 from .routers.totp_routes import router as totp_router
 from .routers.telegram_2fa_routes import router as telegram_2fa_router
+from .routers.invite_settings_routes import router as invite_settings_router
 from .middleware import AuthMiddleware
 from ..models import AsyncSessionLocal
 from ..logger import web_logger as logger
@@ -31,7 +31,7 @@ app = FastAPI()
 
 app.add_middleware(
     SessionMiddleware,
-    secret_key="8KWL6he109Md7GHk3l4o57ggg1Dffc1m",
+    secret_key="your-secret-key-here-change-this-in-production",
     session_cookie="loyalty_session",
     max_age=3600 * 24,
     same_site="lax"
@@ -39,7 +39,7 @@ app.add_middleware(
 
 app.add_middleware(
     AuthMiddleware,
-    secret_key="8KWL6he109Md7GHk3l4o57ggg1Dffc1m"
+    secret_key="your-secret-key-here-change-this-in-production"
 )
 
 public_dir = os.path.join(os.path.dirname(__file__), "public")
