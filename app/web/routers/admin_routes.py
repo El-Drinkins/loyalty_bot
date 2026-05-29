@@ -241,6 +241,49 @@ async def remove_from_blacklist(
     
     return RedirectResponse(url=f"/admin/client/{user_id}", status_code=303)
 
+
+@router.post("/admin/client/{user_id}/assign_referrer")
+async def assign_referrer(
+    user_id: int,
+    referrer_id: int = Form(...),
+    reason: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+    admin_id: int = Form(0),
+    _=Depends(require_auth)
+):
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(404, "Пользователь не найден")
+
+    referrer = await db.get(User, referrer_id)
+    if not referrer:
+        raise HTTPException(404, "Пригласивший не найден")
+
+    if referrer_id == user_id:
+        raise HTTPException(400, "Нельзя назначить самого себя")
+
+    old_inviter_id = user.invited_by_id
+    user.invited_by_id = referrer_id
+    await db.commit()
+
+    existing = await db.execute(
+        select(Referral).where(
+            Referral.new_user_id == user_id,
+            Referral.old_user_id == referrer_id
+        )
+    )
+    if not existing.scalar_one_or_none():
+        referral = Referral(
+            new_user_id=user_id,
+            old_user_id=referrer_id,
+            status=ReferralStatus.pending,
+            registration_date=datetime.utcnow()
+        )
+        db.add(referral)
+        await db.commit()
+
+    return RedirectResponse(url=f"/admin/client/{user_id}", status_code=303)
+
 @router.get("/blacklist", response_class=HTMLResponse)
 async def blacklist_page(
     request: Request, 
