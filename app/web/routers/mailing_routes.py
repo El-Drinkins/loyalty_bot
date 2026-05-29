@@ -68,7 +68,7 @@ async def send_mailing(
     if preview:
         admin_id = 271186601
         await send_telegram_notification(admin_id, full_message)
-        return RedirectResponse(url="/mailing?preview_sent=1", status_code=303)
+        return RedirectResponse(url="/admin/mailing?preview_sent=1", status_code=303)
     
     sent_count = 0
     for user in users:
@@ -79,4 +79,4 @@ async def send_mailing(
             except Exception as e:
                 print(f"Failed to send to {user.telegram_id}: {e}")
     
-    return RedirectResponse(url=f"/mailing?sent={sent_count}&total={len(users)}", status_code=303)
+    return RedirectResponse(url=f"/admin/mailing?sent={sent_count}&total={len(users)}", status_code=303)
