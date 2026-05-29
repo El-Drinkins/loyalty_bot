@@ -34,7 +34,7 @@ async def send_mailing(
     recipient_type: str = Form(...),
     subject: str = Form(...),
     message: str = Form(...),
-    preview: bool = Form(True),
+    preview: bool = Form(False),
     db: AsyncSession = Depends(get_db),
     _=Depends(require_auth)
 ):
