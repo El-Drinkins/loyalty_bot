@@ -16,8 +16,8 @@ async def stats_page(
     db: AsyncSession = Depends(get_db),
     _=Depends(require_auth)
 ):
-    total_users = await db.scalar(select(func.count(User.id)))
-    total_balance = await db.scalar(select(func.sum(User.balance))) or 0
+    total_users = await db.scalar(select(func.count(User.id)).where(User.is_admin == False))
+    total_balance = await db.scalar(select(func.sum(User.balance)).where(User.is_admin == False)) or 0
     avg_balance = total_balance // total_users if total_users else 0
     
     referral_users = await db.scalar(
