@@ -87,8 +87,7 @@ async def process_instagram(message: Message, state: FSMContext):
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="✅ Да, добавить", callback_data="social_confirm_instagram")],
-            [InlineKeyboardButton(text="❌ Изменить", callback_data="add_instagram")],
-            [InlineKeyboardButton(text="⏭️ Пропустить", callback_data="social_skip_instagram")]
+            [InlineKeyboardButton(text="❌ Изменить", callback_data="add_instagram")]
         ]
     )
     
