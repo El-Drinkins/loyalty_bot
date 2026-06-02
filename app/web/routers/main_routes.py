@@ -17,7 +17,7 @@ async def admin_index(
     db: AsyncSession = Depends(get_db),
     _=Depends(require_auth)
 ):
-    total_users = await db.scalar(select(func.count(User.id)))
+    total_users = await db.scalar(select(func.count(User.id)).where(User.is_admin == False))
     total_balance = await db.scalar(select(func.sum(User.balance))) or 0
 
     from ...bonus_utils import get_all_pending_bonuses
