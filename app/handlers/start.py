@@ -82,7 +82,7 @@ async def cmd_start(message: Message, state: FSMContext):
                 return
             
             await message.answer(
-                f"С возвращением, {user.full_name}!\nВаш баланс: {user.balance} ⭐",
+                "👇 Главное меню:",
                 reply_markup=main_menu_keyboard(message.from_user.id)
             )
             return
