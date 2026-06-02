@@ -99,7 +99,7 @@ async def main():
 
 
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(check_expiring_points, 'cron', hour=9, minute=0)
+    scheduler.add_job(check_expiring_points, 'cron', hour=15, minute=0)
     scheduler.add_job(check_bot_identity, 'interval', hours=1, args=[bot])
     scheduler.start()
     logger.info("Планировщик запущен (проверка баллов: 9:00, проверка бота: каждый час)")
