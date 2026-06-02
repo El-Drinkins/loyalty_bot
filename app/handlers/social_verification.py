@@ -166,8 +166,7 @@ async def process_vkontakte(message: Message, state: FSMContext):
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="✅ Да, добавить", callback_data="social_confirm_vkontakte")],
-            [InlineKeyboardButton(text="❌ Изменить", callback_data="add_vkontakte")],
-            [InlineKeyboardButton(text="⏭️ Завершить регистрацию", callback_data="social_finish")]
+            [InlineKeyboardButton(text="❌ Изменить", callback_data="add_vkontakte")]
         ]
     )
     
