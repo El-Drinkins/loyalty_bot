@@ -96,19 +96,19 @@ async def cmd_start(message: Message, state: FSMContext):
             
             if code_record and code_record.is_active:
                 if code_record.expires_at and code_record.expires_at < datetime.utcnow():
-                    await message.answer("⏰ Срок действия кода истек. Регистрация без кода.")
-                    ref_code = None
+                    await message.answer("⏰ Срок действия кода истек. Попросите новую ссылку у пригласившего.")
+                    return
                 elif code_record.max_uses > 0 and code_record.used_count >= code_record.max_uses:
-                    await message.answer("⚠️ Лимит ссылки исчерпан. Регистрация без кода.")
-                    ref_code = None
+                    await message.answer("⚠️ Лимит ссылки исчерпан. Попросите новую ссылку у пригласившего.")
+                    return
                 else:
                     await state.update_data(ref_code=ref_code, referrer_id=code_record.owner_id)
                     referrer = await session.get(User, code_record.owner_id)
                     if referrer:
                         await message.answer(f"🎉 Вас пригласил: {referrer.full_name}")
             else:
-                await message.answer("❌ Недействительная ссылка. Регистрация без кода.")
-                ref_code = None
+                await message.answer("❌ Недействительная ссылка. Попросите новую ссылку у пригласившего.")
+                return
         
         await state.update_data(ref_code=ref_code)
     
