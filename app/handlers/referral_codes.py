@@ -1,6 +1,8 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 from sqlalchemy import select, func
 from datetime import datetime, timedelta
 import random
@@ -12,6 +14,9 @@ from ..config import settings
 router = Router()
 
 ADMIN_IDS = settings.ADMIN_IDS
+
+class LinkCreation(StatesGroup):
+    waiting_for_note = State()
 
 def generate_referral_code(owner_id: int) -> str:
     """Генерирует уникальный реферальный код"""
@@ -61,23 +66,19 @@ async def show_my_links(telegram_id: int, message: Message):
         
         bot_username = (await message.bot.get_me()).username
         
-        # Переменная для отслеживания, была ли уже отправлена первая ссылка
         first_link = True
         
         for code in codes:
-            # Добавляем разделитель между блоками ссылок (кроме первого)
             if not first_link:
                 await message.answer("——————————")
             
             link = f"https://t.me/{bot_username}?start={code.code}"
             
-            # Сообщение 1: только ссылка (чистый текст)
             await message.answer(
                 link,
                 disable_web_page_preview=True
             )
             
-            # Сообщение 2: тип ссылки, статистика, кнопки
             if code.is_permanent:
                 link_type = "🔵 **Постоянная (основная)**"
             elif code.max_uses == 1:
@@ -98,6 +99,8 @@ async def show_my_links(telegram_id: int, message: Message):
                 f"📊 Использовано: {code.used_count}/{limit}\n"
                 f"⏰ Действует до: {expires}\n"
             )
+            if code.note:
+                link_text += f"📝 Для: {code.note}\n"
             
             keyboard_buttons = []
             
@@ -309,18 +312,36 @@ async def admin_create_temp(callback: CallbackQuery):
     await callback.answer()
 
 @router.callback_query(F.data == "admin_create_single")
-async def admin_create_single(callback: CallbackQuery):
+async def admin_create_single(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
         return
     
+    await callback.message.edit_text(
+        "📝 **Для кого эта ссылка?**\n\n"
+        "Введите имя или описание (или отправьте `-`, чтобы пропустить):",
+        parse_mode="Markdown"
+    )
+    await state.set_state(LinkCreation.waiting_for_note)
+    await callback.answer()
+
+@router.message(LinkCreation.waiting_for_note)
+async def process_note(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+    
+    note = message.text.strip()
+    if note == "-":
+        note = None
+    
     async with AsyncSessionLocal() as session:
         user = await session.execute(
-            select(User).where(User.telegram_id == callback.from_user.id)
+            select(User).where(User.telegram_id == message.from_user.id)
         )
         user = user.scalar_one_or_none()
         
         if not user:
-            await callback.message.edit_text("❌ Ошибка: пользователь не найден")
+            await message.answer("❌ Ошибка: пользователь не найден")
+            await state.clear()
             return
         
         code = generate_referral_code(user.id)
@@ -330,26 +351,30 @@ async def admin_create_single(callback: CallbackQuery):
             owner_id=user.id,
             max_uses=1,
             expires_at=None,
-            is_permanent=False
+            is_permanent=False,
+            note=note
         )
         session.add(new_code)
         await session.commit()
         
-        bot_username = (await callback.message.bot.get_me()).username
+        bot_username = (await message.bot.get_me()).username
         link = f"https://t.me/{bot_username}?start={code}"
         
-        await callback.message.edit_text(
-            f"✅ **Одноразовая ссылка создана!**\n"
+        note_text = f"\n📝 Для: {note}" if note else ""
+        
+        await message.answer(
+            f"✅ **Одноразовая ссылка создана!**{note_text}\n"
             f"⚠️ Ссылка сгорит после первого использования.\n\n"
             f"👇 **Ссылка в следующем сообщении:**",
             parse_mode="Markdown"
         )
         
-        await callback.message.answer(
+        await message.answer(
             f"{link}",
             disable_web_page_preview=True
         )
-    await callback.answer()
+    
+    await state.clear()
 
 @router.callback_query(F.data.startswith("delete_code_"))
 async def delete_code(callback: CallbackQuery):
@@ -374,7 +399,6 @@ async def delete_code(callback: CallbackQuery):
             await session.commit()
             await callback.answer("✅ Ссылка удалена", show_alert=True)
     
-    # Показываем обновлённый список ссылок
     await show_my_links(callback.from_user.id, callback.message)
 
 @router.callback_query(F.data.startswith("code_stats_"))
