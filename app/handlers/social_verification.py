@@ -219,6 +219,7 @@ async def social_finish(callback: CallbackQuery, state: FSMContext):
     phone = data.get("phone")
     full_name = callback.from_user.full_name or "Имя не указано"
     referrer_id = data.get("referrer_id")
+    ref_code = data.get("ref_code")
     ip_address = data.get("ip_address", str(callback.from_user.id))
     captcha_passed = data.get("captcha_passed", False)
     instagram = data.get("instagram")
@@ -235,6 +236,15 @@ async def social_finish(callback: CallbackQuery, state: FSMContext):
             await state.clear()
             await callback.answer()
             return
+
+        # Увеличиваем счётчик использований реферального кода
+        if ref_code:
+            code_record = await session.execute(
+                select(ReferralCode).where(ReferralCode.code == ref_code)
+            )
+            code_record = code_record.scalar_one_or_none()
+            if code_record and code_record.is_active:
+                code_record.used_count += 1
 
         request = RegistrationRequest(
             telegram_id=callback.from_user.id,

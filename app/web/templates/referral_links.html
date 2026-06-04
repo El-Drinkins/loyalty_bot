@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Управление ссылками{% endblock %}
+
+{% block content %}
+<h1>🔗 Управление ссылками</h1>
+
+<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+    <h3>➕ Создать новую ссылку</h3>
+    <form method="POST" action="/admin/referral-links/create">
+        <div style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+            <div>
+                <label>Тип ссылки:</label>
+                <select name="link_type" required>
+                    <option value="permanent">🔵 Постоянная</option>
+                    <option value="single">🟡 Одноразовая</option>
+                    <option value="temp_7">🟢 Временная (7 дней)</option>
+                    <option value="temp_14">🟢 Временная (14 дней)</option>
+                    <option value="temp_30">🟢 Временная (30 дней)</option>
+                    <option value="extra">⚪ Дополнительная бессрочная</option>
+                </select>
+            </div>
+            <div>
+                <label>Для кого:</label>
+                <input type="text" name="note" placeholder="Имя или описание" style="width: 200px;">
+            </div>
+            <div>
+                <button type="submit">Создать</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th>Тип</th>
+            <th>Код</th>
+            <th>Для кого</th>
+            <th>Использовано</th>
+            <th>Действует до</th>
+            <th>Действия</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for code in codes %}
+        <tr>
+            <td>
+                {% if code.is_permanent %}
+                    🔵 Постоянная
+                {% elif code.max_uses == 1 %}
+                    🟡 Одноразовая
+                {% elif code.expires_at %}
+                    🟢 Временная
+                {% else %}
+                    ⚪ Бессрочная
+                {% endif %}
+            </td>
+            <td><code>https://t.me/{{ request.app.extra.get('bot_username', 'PhotoTech_TestBot') }}?start={{ code.code }}</code></td>
+            <td>{{ code.note or '—' }}</td>
+            <td>
+                {{ code.used_count }}/{{ '∞' if code.max_uses == 0 else code.max_uses }}
+            </td>
+            <td>{{ code.expires_at.strftime('%d.%m.%Y') if code.expires_at else 'бессрочно' }}</td>
+            <td>
+                {% if not code.is_permanent %}
+                <form method="POST" action="/admin/referral-links/{{ code.id }}/delete" style="display:inline;">
+                    <button type="submit" onclick="return confirm('Удалить ссылку?')">🗑️</button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
