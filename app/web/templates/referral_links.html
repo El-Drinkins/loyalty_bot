@@ -56,7 +56,7 @@
                     ⚪ Бессрочная
                 {% endif %}
             </td>
-            <td><code>https://t.me/{{ request.app.extra.get('bot_username', 'PhotoTech_TestBot') }}?start={{ code.code }}</code></td>
+            <td><code>https://t.me/{{ bot_username }}?start={{ code.code }}</code></td>
             <td>{{ code.note or '—' }}</td>
             <td>
                 {{ code.used_count }}/{{ '∞' if code.max_uses == 0 else code.max_uses }}
