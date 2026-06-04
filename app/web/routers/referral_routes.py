@@ -29,7 +29,7 @@ async def referral_links_page(
     )
     codes = codes.scalars().all()
     
-    bot_username = "PhotoTech_TestBot"  # тестовый бот
+    bot_username = "Take_a_picBot"
 
     return templates.TemplateResponse("referral_links.html", {
         "request": request,
