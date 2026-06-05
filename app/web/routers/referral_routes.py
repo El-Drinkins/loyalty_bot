@@ -1,3 +1,5 @@
+# app/web/routers/referral_routes.py
+
 from fastapi import APIRouter, Request, Form, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -85,3 +87,16 @@ async def delete_referral_link(
         await db.commit()
     
     return RedirectResponse(url="/admin/referral-links", status_code=303)
+
+@router.post("/admin/backup")
+async def run_backup(
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
+):
+    import subprocess
+    try:
+        subprocess.run(["bash", "/root/loyalty_bot/backup/backup.sh"], capture_output=True, timeout=30)
+        subprocess.run(["bash", "/root/loyalty_bot/backup/upload_to_yandex.sh"], capture_output=True, timeout=30)
+        return RedirectResponse(url="/admin/referral-links?backup=ok", status_code=303)
+    except Exception:
+        return RedirectResponse(url="/admin/referral-links?backup=error", status_code=303)

@@ -1,3 +1,5 @@
+# app/handlers/admin_review.py
+
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
@@ -250,3 +252,18 @@ async def ban_request(callback: CallbackQuery):
         
         await callback.message.edit_text(f"🚫 Пользователь заблокирован, заявка #{request_id} отклонена.")
     await callback.answer()
+
+@router.message(Command("backup"))
+async def cmd_backup(message: Message):
+    if not is_admin(message.from_user.id):
+        await message.answer("❌ Эта команда только для администраторов.")
+        return
+    
+    await message.answer("📦 Запускаю бэкап...")
+    
+    try:
+        subprocess.run(["bash", "/root/loyalty_bot/backup/backup.sh"], capture_output=True, text=True, timeout=30)
+        subprocess.run(["bash", "/root/loyalty_bot/backup/upload_to_yandex.sh"], capture_output=True, text=True, timeout=30)
+        await message.answer("✅ Бэкап создан и отправлен на Яндекс.Диск!")
+    except Exception as e:
+        await message.answer(f"❌ Ошибка бэкапа: {e}")

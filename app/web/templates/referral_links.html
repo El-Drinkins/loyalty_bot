@@ -1,9 +1,20 @@
+{# app/web/templates/referral_links.html #}
 {% extends "base.html" %}
 
 {% block title %}Управление ссылками{% endblock %}
 
 {% block content %}
 <h1>🔗 Управление ссылками</h1>
+
+{% if request.query_params.get('backup') == 'ok' %}
+    <div class="alert alert-success">✅ Бэкап создан и отправлен на Яндекс.Диск!</div>
+{% elif request.query_params.get('backup') == 'error' %}
+    <div class="alert alert-error">❌ Ошибка создания бэкапа</div>
+{% endif %}
+
+<form method="POST" action="/admin/backup" style="margin-bottom: 20px;">
+    <button type="submit" class="button">📦 Сделать бэкап сейчас</button>
+</form>
 
 <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
     <h3>➕ Создать новую ссылку</h3>
