@@ -13,6 +13,25 @@ BACKUP_FILE="$BACKUP_DIR/loyalty_$DATE.sql.gz"
 LOG_FILE="$BACKUP_DIR/backup.log"
 DAYS_TO_KEEP=30
 
+# Читаем токен бота и ID админа из .env
+ENV_FILE="/root/loyalty_bot/.env"
+if [ -f "$ENV_FILE" ]; then
+    export $(grep -v '^#' "$ENV_FILE" | xargs)
+fi
+
+# Функция отправки уведомления в Telegram
+send_alert() {
+    local message="$1"
+    if [ -n "$BOT_TOKEN" ] && [ -n "$ADMIN_IDS" ]; then
+        # ADMIN_IDS может быть списком, берём первый
+        ADMIN_ID=$(echo "$ADMIN_IDS" | tr -d '[]' | cut -d',' -f1)
+        curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" \
+            -d "chat_id=$ADMIN_ID" \
+            -d "text=$message" \
+            -d "parse_mode=HTML" > /dev/null 2>&1
+    fi
+}
+
 # Создаём папку для бэкапов, если её нет
 mkdir -p "$BACKUP_DIR"
 
@@ -38,6 +57,7 @@ if [ -f "$BACKUP_FILE" ] && [ -s "$BACKUP_FILE" ]; then
     
 else
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] ❌ Ошибка: бэкап не создан!" >> "$LOG_FILE"
+    send_alert "🚨 ВНИМАНИЕ! Бэкап базы данных loyalty не создался! Проверьте сервер."
     exit 1
 fi
 
