@@ -31,7 +31,7 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] Отправляем $BACKUP_NAME на Ян
 
 # Получаем URL для загрузки
 UPLOAD_URL=$(curl -s -H "Authorization: OAuth $YANDEX_TOKEN" \
-    "https://cloud-api.yandex.net/v1/disk/resources/upload?path=app:/Take_a_picBackup/$BACKUP_NAME&overwrite=true" \
+    "https://cloud-api.yandex.net/v1/disk/resources/upload?path=Take_a_picBackup/$BACKUP_NAME&overwrite=true" \
     | python3 -c "import sys,json; print(json.load(sys.stdin).get('href',''))" 2>/dev/null)
 
 if [ -n "$UPLOAD_URL" ]; then
@@ -40,7 +40,7 @@ if [ -n "$UPLOAD_URL" ]; then
     
     # Проверяем, что файл появился на диске
     CHECK=$(curl -s -H "Authorization: OAuth $YANDEX_TOKEN" \
-        "https://cloud-api.yandex.net/v1/disk/resources?path=app:/Take_a_picBackup/$BACKUP_NAME")
+        "https://cloud-api.yandex.net/v1/disk/resources?path=Take_a_picBackup/$BACKUP_NAME")
     
     if echo "$CHECK" | grep -q '"name"'; then
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✅ Бэкап отправлен: $BACKUP_NAME" >> "$LOG_FILE"
