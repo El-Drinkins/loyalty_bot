@@ -3,6 +3,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.filters import Command
 from sqlalchemy import select
 from datetime import datetime, timedelta
+import subprocess
 
 from ..models import AsyncSessionLocal, User, RegistrationRequest, UserLog, Referral
 from ..config import settings
@@ -139,6 +140,13 @@ async def approve_request(callback: CallbackQuery):
         session.add(log)
         
         await session.commit()
+        
+        # Запускаем бэкап после регистрации
+        try:
+            subprocess.run(["bash", "/root/loyalty_bot/backup/backup.sh"], capture_output=True, timeout=30)
+            subprocess.run(["bash", "/root/loyalty_bot/backup/upload_to_yandex.sh"], capture_output=True, timeout=30)
+        except Exception as e:
+            print(f"Ошибка бэкапа: {e}")
         
         # Уведомление новому пользователю
         try:
