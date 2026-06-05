@@ -1,4 +1,6 @@
 import asyncio
+import os
+from datetime import datetime, timedelta
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -14,6 +16,37 @@ from .logger import bot_logger as logger
 # Глобальные переменные для хранения эталонных данных бота
 _bot_initial_name = None
 _bot_initial_photo_id = None
+
+
+async def check_backup_watchdog(bot: Bot):
+    """
+    Проверяет, есть ли бэкап за последние 12 часов.
+    Если нет — отправляет тревогу админу.
+    """
+    backup_dir = "/root/loyalty_bot/backups"
+    cutoff = datetime.utcnow() - timedelta(hours=12)
+    
+    try:
+        files = [f for f in os.listdir(backup_dir) if f.startswith("loyalty_") and f.endswith(".sql.gz")]
+        recent = [f for f in files if datetime.fromtimestamp(os.path.getmtime(os.path.join(backup_dir, f))) > cutoff]
+        
+        if not recent:
+            alert = (
+                "🚨 ВНИМАНИЕ! ПРОБЛЕМА С БЭКАПАМИ!\n\n"
+                f"За последние 12 часов нет ни одного бэкапа.\n"
+                f"Последний бэкап: {max(files) if files else 'отсутствует'}\n\n"
+                "Проверьте сервер и cron!"
+            )
+            for admin_id in settings.ADMIN_IDS:
+                try:
+                    await bot.send_message(admin_id, alert)
+                    logger.warning(f"Отправлена тревога о бэкапах админу {admin_id}")
+                except Exception as e:
+                    logger.error(f"Не удалось отправить тревогу админу {admin_id}: {e}")
+        else:
+            logger.info(f"Watchdog бэкапов: всё в порядке, последний бэкап {recent[0]}")
+    except Exception as e:
+        logger.error(f"Ошибка в watchdog бэкапов: {e}")
 
 
 async def check_bot_identity(bot: Bot):
@@ -101,8 +134,9 @@ async def main():
     scheduler = AsyncIOScheduler()
     scheduler.add_job(check_expiring_points, 'cron', hour=15, minute=0)
     scheduler.add_job(check_bot_identity, 'interval', hours=1, args=[bot])
+    scheduler.add_job(check_backup_watchdog, 'interval', hours=6, args=[bot])
     scheduler.start()
-    logger.info("Планировщик запущен (проверка баллов: 15:00, проверка бота: каждый час)")
+    logger.info("Планировщик запущен (проверка баллов: 15:00, бот: каждый час, бэкапы: каждые 6 часов)")
 
     logger.info("Бот запущен и готов к работе!")
     
