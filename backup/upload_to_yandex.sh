@@ -29,28 +29,24 @@ fi
 BACKUP_NAME=$(basename "$LATEST_BACKUP")
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Отправляем $BACKUP_NAME на Яндекс.Диск..." >> "$LOG_FILE"
 
-# Отправляем файл на Яндекс.Диск
-curl -s -X PUT \
-    -H "Authorization: OAuth $YANDEX_TOKEN" \
-    --upload-file "$LATEST_BACKUP" \
-    "https://cloud-api.yandex.net/v1/disk/resources/upload?path=app:/$BACKUP_NAME&overwrite=true" \
-    | grep -q "error"
+# Получаем URL для загрузки
+UPLOAD_URL=$(curl -s -H "Authorization: OAuth $YANDEX_TOKEN" \
+    "https://cloud-api.yandex.net/v1/disk/resources/upload?path=app:/Take_a_picBackup/$BACKUP_NAME&overwrite=true" \
+    | python3 -c "import sys,json; print(json.load(sys.stdin).get('href',''))" 2>/dev/null)
 
-if [ $? -eq 0 ]; then
-    # Если есть ошибка, пробуем создать папку
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Создаём папку на Яндекс.Диске..." >> "$LOG_FILE"
-    curl -s -X PUT \
-        -H "Authorization: OAuth $YANDEX_TOKEN" \
-        "https://cloud-api.yandex.net/v1/disk/resources?path=app:/&overwrite=false"
+if [ -n "$UPLOAD_URL" ]; then
+    # Загружаем файл
+    curl -s -T "$LATEST_BACKUP" "$UPLOAD_URL"
     
-    # Повторная отправка
-    curl -s -X PUT \
-        -H "Authorization: OAuth $YANDEX_TOKEN" \
-        --upload-file "$LATEST_BACKUP" \
-        "https://cloud-api.yandex.net/v1/disk/resources/upload?path=app:/$BACKUP_NAME&overwrite=true" \
-        > /dev/null 2>&1
+    # Проверяем, что файл появился на диске
+    CHECK=$(curl -s -H "Authorization: OAuth $YANDEX_TOKEN" \
+        "https://cloud-api.yandex.net/v1/disk/resources?path=app:/Take_a_picBackup/$BACKUP_NAME")
     
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✅ Бэкап отправлен на Яндекс.Диск: $BACKUP_NAME" >> "$LOG_FILE"
+    if echo "$CHECK" | grep -q '"name"'; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✅ Бэкап отправлен: $BACKUP_NAME" >> "$LOG_FILE"
+    else
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] ❌ Ошибка отправки: $BACKUP_NAME" >> "$LOG_FILE"
+    fi
 else
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✅ Бэкап отправлен на Яндекс.Диск: $BACKUP_NAME" >> "$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ❌ Не удалось получить URL для загрузки" >> "$LOG_FILE"
 fi
