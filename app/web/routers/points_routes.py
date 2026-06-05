@@ -60,7 +60,7 @@ async def add_points_to_user(db: AsyncSession, user_id: int, amount: int, reason
         else:
             await send_telegram_notification(
                 user.telegram_id,
-                f"💸 С вас списано {abs(amount)} баллов.\nПричина: {reason}"
+                f"💸 С баланса списано {abs(amount)} баллов.\nПричина: {reason}"
             )
     except Exception as e:
         print(f"Не удалось отправить уведомление пользователю {user.telegram_id}: {e}")
