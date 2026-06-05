@@ -27,14 +27,44 @@ async def check_backup_watchdog(bot: Bot):
     cutoff = datetime.utcnow() - timedelta(hours=12)
     
     try:
+        if not os.path.exists(backup_dir):
+            alert = (
+                "🚨 ВНИМАНИЕ! ПРОБЛЕМА С БЭКАПАМИ!\n\n"
+                "Папка с бэкапами не найдена!\n"
+                f"Путь: {backup_dir}\n\n"
+                "Проверьте сервер!"
+            )
+            for admin_id in settings.ADMIN_IDS:
+                try:
+                    await bot.send_message(admin_id, alert)
+                    logger.warning(f"Отправлена тревога о бэкапах админу {admin_id}")
+                except Exception as e:
+                    logger.error(f"Не удалось отправить тревогу админу {admin_id}: {e}")
+            return
+        
         files = [f for f in os.listdir(backup_dir) if f.startswith("loyalty_") and f.endswith(".sql.gz")]
+        
+        if not files:
+            alert = (
+                "🚨 ВНИМАНИЕ! ПРОБЛЕМА С БЭКАПАМИ!\n\n"
+                "В папке с бэкапами нет ни одного файла!\n\n"
+                "Проверьте сервер и cron!"
+            )
+            for admin_id in settings.ADMIN_IDS:
+                try:
+                    await bot.send_message(admin_id, alert)
+                    logger.warning(f"Отправлена тревога о бэкапах админу {admin_id}")
+                except Exception as e:
+                    logger.error(f"Не удалось отправить тревогу админу {admin_id}: {e}")
+            return
+        
         recent = [f for f in files if datetime.fromtimestamp(os.path.getmtime(os.path.join(backup_dir, f))) > cutoff]
         
         if not recent:
             alert = (
                 "🚨 ВНИМАНИЕ! ПРОБЛЕМА С БЭКАПАМИ!\n\n"
                 f"За последние 12 часов нет ни одного бэкапа.\n"
-                f"Последний бэкап: {max(files) if files else 'отсутствует'}\n\n"
+                f"Последний бэкап: {max(files)}\n\n"
                 "Проверьте сервер и cron!"
             )
             for admin_id in settings.ADMIN_IDS:
