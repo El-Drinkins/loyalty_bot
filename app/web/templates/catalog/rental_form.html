@@ -23,16 +23,14 @@
     
     <div style="margin-bottom: 15px;">
         <label style="display: block; margin-bottom: 5px; font-weight: bold;">Техника:</label>
-        <select name="model_id" id="model_id" required style="width: 100%; padding: 8px;" onchange="updatePrice()">
-            {% for model in models %}
-            <option value="{{ model.id }}" 
-                    data-price="{{ model.price_per_day }}"
-                    data-deposit="{{ model.deposit or 0 }}"
-                    {% if rental and rental.model_id == model.id %}selected{% endif %}>
-                {{ model.brand.name }} {{ model.name }} - {{ model.price_per_day }} ₽/день
-            </option>
-            {% endfor %}
-        </select>
+        <input type="text" id="model_search" name="model_search" autocomplete="off"
+               placeholder="Введите название техники..."
+               value="{% if rental %}{{ rental.model.brand.name }} {{ rental.model.name }}{% endif %}"
+               style="width: 100%; padding: 8px;">
+        <input type="hidden" name="model_id" id="model_id" value="{% if rental %}{{ rental.model_id }}{% endif %}">
+        <input type="hidden" id="model_price" value="{% if rental %}{{ rental.price_per_day }}{% endif %}">
+        <input type="hidden" id="model_deposit" value="{% if rental %}{{ rental.deposit or 0 }}{% endif %}">
+        <div id="model_suggestions" style="border: 1px solid #ddd; border-top: none; max-height: 300px; overflow-y: auto; display: none; background: white; position: absolute; z-index: 1000;"></div>
     </div>
     
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
@@ -107,19 +105,69 @@
 </form>
 
 <script>
-function updatePrice() {
-    const select = document.getElementById('model_id');
-    const option = select.options[select.selectedIndex];
+let searchTimeout;
+
+document.getElementById('model_search').addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    const query = this.value.trim();
+    const suggestionsDiv = document.getElementById('model_suggestions');
     
-    if (option) {
-        const price = option.getAttribute('data-price');
-        const deposit = option.getAttribute('data-deposit');
-        
-        document.getElementById('price_per_day').value = price;
-        document.getElementById('deposit').value = deposit;
-        
-        updateTotalPrice();
+    if (query.length < 1) {
+        suggestionsDiv.style.display = 'none';
+        return;
     }
+    
+    searchTimeout = setTimeout(() => {
+        fetch(`/admin/api/search_models?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(models => {
+                suggestionsDiv.innerHTML = '';
+                
+                if (models.length === 0) {
+                    suggestionsDiv.innerHTML = '<div style="padding: 10px; color: #999;">Ничего не найдено</div>';
+                } else {
+                    models.forEach(model => {
+                        const div = document.createElement('div');
+                        div.style.padding = '10px';
+                        div.style.cursor = 'pointer';
+                        div.style.borderBottom = '1px solid #eee';
+                        div.innerHTML = `
+                            <strong>${model.brand_name} ${model.name}</strong> - ${model.price_per_day} ₽/день
+                            ${model.mount_type ? '<br><small style="color: #666;">Байонет: ' + model.mount_type + '</small>' : ''}
+                        `;
+                        div.onmouseover = function() { this.style.backgroundColor = '#e8f5e8'; };
+                        div.onmouseout = function() { this.style.backgroundColor = ''; };
+                        div.onclick = function() {
+                            document.getElementById('model_search').value = `${model.brand_name} ${model.name}`;
+                            document.getElementById('model_id').value = model.id;
+                            document.getElementById('model_price').value = model.price_per_day;
+                            document.getElementById('model_deposit').value = model.deposit || 0;
+                            document.getElementById('price_per_day').value = model.price_per_day;
+                            document.getElementById('deposit').value = model.deposit || 0;
+                            suggestionsDiv.innerHTML = '';
+                            suggestionsDiv.style.display = 'none';
+                            updateTotalPrice();
+                        };
+                        suggestionsDiv.appendChild(div);
+                    });
+                }
+                suggestionsDiv.style.display = 'block';
+            });
+    }, 300);
+});
+
+document.addEventListener('click', function(e) {
+    if (!document.getElementById('model_search').contains(e.target)) {
+        document.getElementById('model_suggestions').style.display = 'none';
+    }
+});
+
+function updatePrice() {
+    const price = document.getElementById('model_price').value;
+    const deposit = document.getElementById('model_deposit').value;
+    document.getElementById('price_per_day').value = price;
+    document.getElementById('deposit').value = deposit;
+    updateTotalPrice();
 }
 
 function calculateTotal() {
@@ -154,18 +202,11 @@ function resetToCalculated() {
     document.getElementById('total_price').setAttribute('data-calculated', calculated);
 }
 
-document.getElementById('price_per_day').addEventListener('change', function() {
-    updateTotalPrice();
-});
-document.getElementById('start_date').addEventListener('change', function() {
-    updateTotalPrice();
-});
-document.getElementById('end_date').addEventListener('change', function() {
-    updateTotalPrice();
-});
+document.getElementById('price_per_day').addEventListener('change', updateTotalPrice);
+document.getElementById('start_date').addEventListener('change', updateTotalPrice);
+document.getElementById('end_date').addEventListener('change', updateTotalPrice);
 
 document.addEventListener('DOMContentLoaded', function() {
-    updatePrice();
     updateTotalPrice();
 });
 </script>
@@ -176,6 +217,11 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 .button-secondary:hover {
     background-color: #555;
+}
+#model_suggestions {
+    width: calc(100% - 2px);
+    position: absolute;
+    z-index: 1000;
 }
 </style>
 {% endblock %}

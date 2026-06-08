@@ -2,10 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, Form, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from datetime import datetime
 
 from ..deps import get_db, require_auth
-from ...models import User, Referral, RegistrationRequest, Rental
+from ...models import User, Referral, RegistrationRequest, Rental, Model
 
 router = APIRouter()
 
@@ -47,6 +48,34 @@ async def search_users(
         })
     
     return response
+
+
+@router.get("/api/search_models")
+async def search_models(
+    q: str,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
+):
+    """API для поиска моделей техники"""
+    if len(q) < 1:
+        return []
+    
+    result = await db.execute(
+        select(Model)
+        .where(Model.is_active == True, Model.name.ilike(f"%{q}%"))
+        .options(selectinload(Model.brand))
+        .limit(15)
+    )
+    models = result.scalars().all()
+    
+    return [{
+        "id": m.id,
+        "name": m.name,
+        "brand_name": m.brand.name,
+        "price_per_day": m.price_per_day,
+        "deposit": m.deposit,
+        "mount_type": m.mount_type
+    } for m in models]
 
 
 @router.post("/user/{user_id}/update_notes")
