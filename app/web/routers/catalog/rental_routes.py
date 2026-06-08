@@ -241,6 +241,35 @@ async def rental_delete(
 
     return RedirectResponse(url="/admin/catalog/rentals", status_code=303)
 
+@router.get("/models/search")
+async def search_models(
+    request: Request,
+    q: str = "",
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
+):
+    from fastapi.responses import JSONResponse
+    
+    if len(q) < 1:
+        return JSONResponse([])
+    
+    result = await db.execute(
+        select(Model)
+        .where(Model.is_active == True, Model.name.ilike(f"%{q}%"))
+        .options(selectinload(Model.brand))
+        .limit(15)
+    )
+    models = result.scalars().all()
+    
+    return JSONResponse([{
+        "id": m.id,
+        "name": m.name,
+        "brand_name": m.brand.name,
+        "price_per_day": m.price_per_day,
+        "deposit": m.deposit,
+        "mount_type": m.mount_type
+    } for m in models])
+
 @router.get("/{rental_id}", response_class=HTMLResponse)
 async def rental_detail(
     request: Request,
@@ -378,6 +407,8 @@ async def add_cashback_from_rental(
 
     old_balance = user.balance
     user.balance += cashback_amount
+    rental.cashback_awarded = True
+    rental.cashback_amount = cashback_amount
     user.points_expiry_date = datetime.utcnow() + timedelta(days=settings.POINTS_VALID_DAYS)
 
     transaction = Transaction(
@@ -445,6 +476,8 @@ async def add_cashback_force(
 
     old_balance = user.balance
     user.balance += cashback_amount
+    rental.cashback_awarded = True
+    rental.cashback_amount = cashback_amount
     user.points_expiry_date = datetime.utcnow() + timedelta(days=settings.POINTS_VALID_DAYS)
 
     transaction = Transaction(

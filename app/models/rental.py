@@ -24,6 +24,8 @@ class Rental(Base):
     status: Mapped[str] = mapped_column(String(50), default="active")
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     is_monthly: Mapped[bool] = mapped_column(Boolean, default=False)
+    cashback_awarded: Mapped[bool] = mapped_column(Boolean, default=False)
+    cashback_amount: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     created_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
