@@ -383,6 +383,7 @@ async def add_cashback_from_rental(
     transaction = Transaction(
         user_id=user.id,
         amount=cashback_amount,
+        balance_after=user.balance,
         reason=f"Кэшбэк за аренду {model_name}",
         admin_id=admin_id
     )
@@ -449,6 +450,7 @@ async def add_cashback_force(
     transaction = Transaction(
         user_id=user.id,
         amount=cashback_amount,
+        balance_after=user.balance,
         reason=f"Кэшбэк за аренду {model_name} (превышен лимит)",
         admin_id=admin_id
     )

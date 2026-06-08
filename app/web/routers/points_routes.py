@@ -34,6 +34,7 @@ async def add_points_to_user(db: AsyncSession, user_id: int, amount: int, reason
     transaction = Transaction(
         user_id=user_id,
         amount=amount,
+        balance_after=user.balance,
         reason=reason,
         admin_id=admin_id
     )

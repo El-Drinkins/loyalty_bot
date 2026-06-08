@@ -11,6 +11,7 @@ class Transaction(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     amount: Mapped[int]
+    balance_after: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     reason: Mapped[str] = mapped_column(String(200))
     admin_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
