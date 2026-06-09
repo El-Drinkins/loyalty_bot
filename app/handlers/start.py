@@ -133,9 +133,9 @@ async def start_registration(callback: CallbackQuery, state: FSMContext):
     # Логируем начало регистрации
     async with AsyncSessionLocal() as session:
         log = UserLog(
-            user_id=callback.from_user.id,
+            user_id=0,
             action_type="registration_started",
-            action_details=f"Начало регистрации с кодом: {ref_code}"
+            action_details=f"Начало регистрации с кодом: {ref_code} (tg_id={callback.from_user.id})"
         )
         session.add(log)
         await session.commit()
@@ -144,9 +144,9 @@ async def start_registration(callback: CallbackQuery, state: FSMContext):
         # Логируем попытку регистрации без кода
         async with AsyncSessionLocal() as session:
             log = UserLog(
-                user_id=callback.from_user.id,
+                user_id=0,
                 action_type="registration_no_code",
-                action_details=f"Попытка регистрации без пригласительного кода"
+                action_details=f"Попытка регистрации без пригласительного кода (tg_id={callback.from_user.id})"
             )
             session.add(log)
             await session.commit()
