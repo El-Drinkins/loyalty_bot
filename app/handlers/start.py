@@ -131,6 +131,16 @@ async def start_registration(callback: CallbackQuery, state: FSMContext):
     print(f"🔍 start_registration вызван, ref_code = {ref_code}")
     
     if not ref_code:
+        # Логируем попытку регистрации без кода
+        async with AsyncSessionLocal() as session:
+            log = UserLog(
+                user_id=callback.from_user.id,
+                action_type="registration_no_code",
+                action_details=f"Попытка регистрации без пригласительного кода"
+            )
+            session.add(log)
+            await session.commit()
+        
         await callback.message.answer(
             "🔒 Регистрация только по приглашениям\n\n"
             "К сожалению, регистрация в боте возможна только по пригласительным ссылкам.\n\n"
