@@ -130,6 +130,16 @@ async def start_registration(callback: CallbackQuery, state: FSMContext):
     
     print(f"🔍 start_registration вызван, ref_code = {ref_code}")
     
+    # Логируем начало регистрации
+    async with AsyncSessionLocal() as session:
+        log = UserLog(
+            user_id=callback.from_user.id,
+            action_type="registration_started",
+            action_details=f"Начало регистрации с кодом: {ref_code}"
+        )
+        session.add(log)
+        await session.commit()
+    
     if not ref_code:
         # Логируем попытку регистрации без кода
         async with AsyncSessionLocal() as session:
