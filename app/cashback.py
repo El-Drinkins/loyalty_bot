@@ -75,27 +75,59 @@ async def calculate_cashback_rate(session: AsyncSession, user) -> int:
 async def calculate_monthly_rate(session: AsyncSession, user) -> int:
     """
     Рассчитывает ставку для аренды на месяц.
-    Базовая: 10%. +1% если есть активная месячная аренда (продление).
+    Базовая: 10%. +1% за каждый предыдущий календарный месяц,
+    в котором была активная аренда на месяц.
+    Текущий месяц не учитывается.
     Максимум: 15%.
     """
     base_monthly = 10
     max_monthly = 15
-    
+
     result = await session.execute(
         select(Rental)
         .where(
             Rental.user_id == user.id,
-            Rental.status == "active",
             Rental.is_monthly == True
         )
-        .limit(1)
+        .order_by(Rental.end_date.desc())
     )
-    active_monthly = result.scalar_one_or_none()
-    
-    if active_monthly:
-        return min(base_monthly + 1, max_monthly)
-    
-    return base_monthly
+    monthly_rentals = result.scalars().all()
+
+    if not monthly_rentals:
+        return base_monthly
+
+    months_with_monthly = set()
+    for rental in monthly_rentals:
+        if rental.status in ("active", "completed"):
+            months_with_monthly.add((rental.end_date.year, rental.end_date.month))
+
+    now = datetime.utcnow()
+    current_year = now.year
+    current_month = now.month
+
+    consecutive = 0
+    check_year = current_year
+    check_month = current_month - 1
+    if check_month == 0:
+        check_month = 12
+        check_year -= 1
+
+    while True:
+        if (check_year, check_month) in months_with_monthly:
+            consecutive += 1
+        else:
+            break
+
+        check_month -= 1
+        if check_month == 0:
+            check_month = 12
+            check_year -= 1
+
+    rate = base_monthly + consecutive
+    if rate > max_monthly:
+        rate = max_monthly
+
+    return rate
 
 
 async def has_rental_in_current_month(session: AsyncSession, user) -> bool:
@@ -141,11 +173,8 @@ async def get_cashback_info(session: AsyncSession, user) -> dict:
     # Ставка на следующий месяц, если не будет аренды: сброс до базовой
     next_rate_if_no_rental = 5
     
-    # Для месячной аренды
-    if has_active_monthly:
-        next_monthly = min(monthly_rate + 1, 15)
-    else:
-        next_monthly = 10
+    # Для месячной аренды — прогноз на следующий месяц
+    next_monthly = min(monthly_rate + 1, 15) if has_active_monthly else 10
     
     # Статус
     if rate == 10:
