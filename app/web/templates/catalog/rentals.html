@@ -85,8 +85,7 @@
         {% for item in rentals %}
         {% set rental = item.rental %}
         {% set cashback_paid = item.cashback_paid %}
-        <tr id="rental-{{ rental.id }}" class="rental-row" style="background-color: {% if rental.status == 'completed' and cashback_paid %}#e8f5e8{% elif rental.status == 'completed' and not cashback_paid %}#fff3e0{% endif %};">
-            <td>{{ rental.rental_number }}</td>
+<tr id="rental-{{ rental.id }}" class="rental-row" style="background-color: {% if rental.is_monthly %}#e6e6fa{% elif rental.status == 'completed' and cashback_paid %}#e8f5e8{% elif rental.status == 'completed' and not cashback_paid %}#fff3e0{% endif %};">            <td>{{ rental.rental_number }}</td>
             <td><a href="/admin/client/{{ rental.user.id }}">{{ rental.user.full_name }}</a></td>
             <td>{{ rental.model.brand.name }} {{ rental.model.name }}</td>
             <td>{{ rental.start_date.strftime('%d.%m.%Y') }}<br><small>{{ rental.end_date.strftime('%d.%m.%Y') }}</small></td>
