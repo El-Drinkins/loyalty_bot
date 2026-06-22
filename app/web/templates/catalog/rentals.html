@@ -85,7 +85,8 @@
         {% for item in rentals %}
         {% set rental = item.rental %}
         {% set cashback_paid = item.cashback_paid %}
-<tr id="rental-{{ rental.id }}" class="rental-row" style="background-color: {% if rental.is_monthly %}#e6e6fa{% elif rental.status == 'completed' and cashback_paid %}#e8f5e8{% elif rental.status == 'completed' and not cashback_paid %}#fff3e0{% endif %};">            <td>{{ rental.rental_number }}</td>
+        <tr id="rental-{{ rental.id }}" class="rental-row" style="background-color: {% if rental.is_monthly %}#e6e6fa{% elif rental.status == 'completed' and cashback_paid %}#e8f5e8{% elif rental.status == 'completed' and not cashback_paid %}#fff3e0{% endif %};">
+            <td>{{ rental.rental_number }}</td>
             <td><a href="/admin/client/{{ rental.user.id }}">{{ rental.user.full_name }}</a></td>
             <td>{{ rental.model.brand.name }} {{ rental.model.name }}</td>
             <td>{{ rental.start_date.strftime('%d.%m.%Y') }}<br><small>{{ rental.end_date.strftime('%d.%m.%Y') }}</small></td>
@@ -188,8 +189,8 @@ async function confirmStatus(rentalId) {
 {% if total_pages > 1 %}
 <div style="margin-top: 20px; text-align: center;">
     {% if page > 1 %}
-        <a href="?page=1&status={{ status_filter or '' }}&user_id={{ user_filter or '' }}" class="button button-small">« Первая</a>
-        <a href="?page={{ page-1 }}&status={{ status_filter or '' }}&user_id={{ user_filter or '' }}" class="button button-small">‹ Предыдущая</a>
+        <a href="?page=1&status={{ status_filter or '' }}{% if user_filter %}&user_id={{ user_filter }}{% endif %}" class="button button-small">« Первая</a>
+        <a href="?page={{ page-1 }}&status={{ status_filter or '' }}{% if user_filter %}&user_id={{ user_filter }}{% endif %}" class="button button-small">‹ Предыдущая</a>
     {% endif %}
     
     <span style="margin: 0 10px;">
@@ -197,8 +198,8 @@ async function confirmStatus(rentalId) {
     </span>
     
     {% if page < total_pages %}
-        <a href="?page={{ page+1 }}&status={{ status_filter or '' }}&user_id={{ user_filter or '' }}" class="button button-small">Следующая ›</a>
-        <a href="?page={{ total_pages }}&status={{ status_filter or '' }}&user_id={{ user_filter or '' }}" class="button button-small">Последняя »</a>
+        <a href="?page={{ page+1 }}&status={{ status_filter or '' }}{% if user_filter %}&user_id={{ user_filter }}{% endif %}" class="button button-small">Следующая ›</a>
+        <a href="?page={{ total_pages }}&status={{ status_filter or '' }}{% if user_filter %}&user_id={{ user_filter }}{% endif %}" class="button button-small">Последняя »</a>
     {% endif %}
 </div>
 {% endif %}
