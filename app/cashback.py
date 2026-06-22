@@ -102,6 +102,9 @@ async def calculate_monthly_rate(session: AsyncSession, user) -> int:
             months_with_monthly.add((rental.end_date.year, rental.end_date.month))
 
     now = datetime.utcnow()
+    # Исключаем текущий месяц
+    months_with_monthly.discard((now.year, now.month))
+
     current_year = now.year
     current_month = now.month
 
