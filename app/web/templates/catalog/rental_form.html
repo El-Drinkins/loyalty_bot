@@ -12,7 +12,8 @@
     
     <div style="margin-bottom: 15px;">
         <label style="display: block; margin-bottom: 5px; font-weight: bold;">Клиент:</label>
-        <select name="user_id" id="user_id" required style="width: 100%; padding: 8px;">
+        <select name="user_id" id="user_id" style="width: 100%; padding: 8px;">
+            <option value="0" {% if not rental or not rental.user_id %}selected{% endif %}>Без клиента (незарегистрированный)</option>
             {% for user in users %}
             <option value="{{ user.id }}" {% if rental and rental.user_id == user.id %}selected{% endif %}>
                 {{ user.full_name }} (ID: {{ user.id }})

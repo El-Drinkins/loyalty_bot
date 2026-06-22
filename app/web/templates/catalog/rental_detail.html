@@ -6,12 +6,19 @@
 
 <div style="background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+        {% if rental.user %}
         <div>
             <h3>Информация о клиенте</h3>
             <p><strong>Имя:</strong> <a href="/admin/client/{{ rental.user.id }}">{{ rental.user.full_name }}</a></p>
             <p><strong>Телефон:</strong> {{ rental.user.phone }}</p>
             <p><strong>Telegram ID:</strong> {{ rental.user.telegram_id }}</p>
         </div>
+        {% else %}
+        <div>
+            <h3>Информация о клиенте</h3>
+            <p><strong>Без клиента</strong> (незарегистрированный)</p>
+        </div>
+        {% endif %}
         
         <div>
             <h3>Информация о технике</h3>
@@ -59,7 +66,7 @@
         {% endif %}
     </div>
     
-    {% if rental.status == 'completed' and cashback_info %}
+    {% if rental.status == 'completed' and rental.user and cashback_info %}
     <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #4CAF50;">
         <h3>💰 Начисление кэшбэка</h3>
         
@@ -102,7 +109,7 @@
         <form action="/admin/catalog/rentals/{{ rental.id }}/delete" method="post" style="display: inline;">
             <button type="submit" class="button button-red" onclick="return confirm('Удалить аренду?')">🗑️ Удалить</button>
         </form>
-        <a href="/admin/client/{{ rental.user.id }}" class="button">👤 Карточка клиента</a>
+        {% if rental.user %}<a href="/admin/client/{{ rental.user.id }}" class="button">👤 Карточка клиента</a>{% endif %}
     </div>
 </div>
 {% endblock %}

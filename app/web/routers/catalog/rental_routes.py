@@ -67,7 +67,7 @@ async def rentals_list(
     rentals_with_cashback = []
     for rental in rentals:
         cashback_paid = False
-        if rental.status == "completed" and rental.model:
+        if rental.status == "completed" and rental.model and rental.user_id:
             model_name = rental.model.name
             tx_result = await db.execute(
                 select(Transaction).where(
@@ -128,7 +128,7 @@ async def rental_add_form(
 async def rental_add(
     request: Request,
     rental_number: str = Form(...),
-    user_id: int = Form(...),
+    user_id: int = Form(0),
     model_id: int = Form(...),
     start_date: str = Form(...),
     end_date: str = Form(...),
@@ -145,7 +145,7 @@ async def rental_add(
     admin = await db.get(User, admin_id)
     rental = Rental(
         rental_number=rental_number,
-        user_id=user_id,
+        user_id=user_id if user_id > 0 else None,
         model_id=model_id,
         price_per_day=price_per_day,
         total_price=total_price,
@@ -159,13 +159,14 @@ async def rental_add(
     )
     db.add(rental)
 
-    user = await db.get(User, user_id)
-    if user and total_price >= 1000:
-        user.points_expiry_date = datetime.utcnow() + timedelta(days=90)
+    if user_id > 0:
+        user = await db.get(User, user_id)
+        if user and total_price >= 1000:
+            user.points_expiry_date = datetime.utcnow() + timedelta(days=90)
 
     await db.commit()
 
-    if status == "completed":
+    if status == "completed" and user_id > 0:
         await update_referral_for_user(db, user_id)
 
     return RedirectResponse(url="/admin/catalog/rentals", status_code=303)
@@ -203,7 +204,7 @@ async def rental_edit_form(
 async def rental_edit(
     request: Request,
     rental_id: int,
-    user_id: int = Form(...),
+    user_id: int = Form(0),
     model_id: int = Form(...),
     start_date: str = Form(...),
     end_date: str = Form(...),
@@ -223,7 +224,7 @@ async def rental_edit(
     old_status = rental.status
     new_status = status
 
-    rental.user_id = user_id
+    rental.user_id = user_id if user_id > 0 else None
     rental.model_id = model_id
     rental.start_date = datetime.strptime(start_date, "%Y-%m-%d")
     rental.end_date = datetime.strptime(end_date, "%Y-%m-%d")
@@ -235,13 +236,14 @@ async def rental_edit(
     rental.is_monthly = is_monthly
     rental.updated_at = datetime.utcnow()
 
-    user = await db.get(User, user_id)
-    if user and total_price >= 1000:
-        user.points_expiry_date = datetime.utcnow() + timedelta(days=90)
+    if user_id > 0:
+        user = await db.get(User, user_id)
+        if user and total_price >= 1000:
+            user.points_expiry_date = datetime.utcnow() + timedelta(days=90)
 
     await db.commit()
 
-    if old_status != "completed" and new_status == "completed":
+    if old_status != "completed" and new_status == "completed" and user_id > 0:
         await update_referral_for_user(db, user_id)
 
     return RedirectResponse(url="/admin/catalog/rentals", status_code=303)
