@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>💰 Баллы и кэшбэк — {{ user.full_name }}</h1>
+
+<a href="/admin/client/{{ user.id }}" class="button" style="margin-bottom: 20px;">← Назад к карточке</a>
+
+<div style="background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 600px;">
+
+    <div style="background: #f0f8f0; border: 1px solid #4CAF50; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+        <p style="font-size: 18px; margin: 0 0 5px 0;">💰 Баланс: <strong>{{ user.balance }} баллов</strong> (лимит: 20 000 ⭐)</p>
+        <p style="font-size: 14px; margin: 0; color: #666;">⏳ Сгорают: <strong>{{ expiry }}</strong></p>
+    </div>
+
+    <h3>📊 Ставки кэшбэка в {{ current_month }}:</h3>
+    <ul>
+        <li>Посуточная аренда: <strong>{{ cashback_info.rate }}%</strong></li>
+        <li>Аренда на месяц: <strong>{{ cashback_info.monthly_rate }}%</strong></li>
+    </ul>
+
+    <h3>📊 Прогноз ставки кэшбэка на {{ next_month }}:</h3>
+    {% if cashback_info.has_rental_this_month %}
+        {% if cashback_info.is_max_daily %}
+            <p>🎉 Достигнута максимальная ставка 10% за посуточную аренду!<br>Поддерживайте её регулярными арендами каждый месяц.</p>
+        {% else %}
+            <p>• Посуточная аренда: <strong>{{ cashback_info.next_rate_if_rental }}%</strong> (повышена за аренду в {{ next_month_loc }})</p>
+        {% endif %}
+    {% else %}
+        {% if cashback_info.is_max_daily %}
+            <p>🎉 Достигнута максимальная ставка 10% за посуточную аренду!<br>Поддерживайте её регулярными арендами каждый месяц.</p>
+        {% else %}
+            <p>• Посуточная аренда: <strong>{{ cashback_info.next_rate_if_rental }}%</strong> (если совершит аренду в {{ next_month_loc }} от 1000 ₽)<br>
+            или <strong>{{ cashback_info.next_rate_if_no_rental }}%</strong> (если {{ next_month }} без аренд)</p>
+        {% endif %}
+    {% endif %}
+
+    {% if cashback_info.has_active_monthly %}
+        {% if cashback_info.is_max_monthly %}
+            <p>🎉 Достигнута максимальная ставка 15% за аренду на месяц!<br>Поддерживайте её регулярными продлениями.</p>
+        {% else %}
+            <p>📌 Действует аренда на месяц.<br>При продлении ставка повысится до <strong>{{ cashback_info.next_monthly }}%</strong>.</p>
+        {% endif %}
+    {% else %}
+        {% if cashback_info.is_max_monthly %}
+            <p>🎉 Достигнута максимальная ставка 15% за аренду на месяц!<br>Поддерживайте её регулярными продлениями.</p>
+        {% else %}
+            <p>• Аренда на месяц: базовая ставка <strong>10%</strong>.<br>При продлении каждый месяц +1% (максимум 15%).</p>
+        {% endif %}
+    {% endif %}
+
+</div>
+{% endblock %}

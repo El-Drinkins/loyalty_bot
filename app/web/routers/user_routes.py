@@ -190,6 +190,48 @@ async def reset_user_password(
         "temp_password": temp_password
     })
 
+@router.get("/client/{user_id}/cashback", response_class=HTMLResponse)
+async def client_cashback_page(
+    request: Request,
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(require_auth)
+):
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(404, "Пользователь не найден")
+
+    from app.cashback import get_cashback_info
+    cashback_info = await get_cashback_info(db, user)
+
+    expiry = user.points_expiry_date.strftime("%d.%m.%Y") if user.points_expiry_date else "не ограничен"
+
+    months_ru_nom = {
+        1: "январь", 2: "февраль", 3: "март", 4: "апрель",
+        5: "май", 6: "июнь", 7: "июль", 8: "август",
+        9: "сентябрь", 10: "октябрь", 11: "ноябрь", 12: "декабрь"
+    }
+    months_ru_loc = {
+        1: "январе", 2: "феврале", 3: "марте", 4: "апреле",
+        5: "мае", 6: "июне", 7: "июле", 8: "августе",
+        9: "сентябре", 10: "октябре", 11: "ноябре", 12: "декабре"
+    }
+
+    now = datetime.utcnow()
+    current_month = now.month
+    next_month = current_month + 1
+    if next_month > 12:
+        next_month = 1
+
+    return templates.TemplateResponse("client/cashback_info.html", {
+        "request": request,
+        "user": user,
+        "cashback_info": cashback_info,
+        "expiry": expiry,
+        "current_month": months_ru_loc[current_month],
+        "next_month": months_ru_nom[next_month],
+        "next_month_loc": months_ru_loc[current_month],
+    })
 
 @router.get("/client/{user_id}/finance", response_class=HTMLResponse)
 async def client_finance_page(
