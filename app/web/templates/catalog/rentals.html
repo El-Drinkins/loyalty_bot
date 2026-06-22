@@ -105,7 +105,9 @@
             </td>
             <td>
                 {% if rental.status == 'completed' %}
-                    {% if cashback_paid %}
+                    {% if not rental.user %}
+                        Нет клиента
+                    {% elif cashback_paid %}
                         ✅ Начислен
                     {% else %}
                         ❌ Не начислен
