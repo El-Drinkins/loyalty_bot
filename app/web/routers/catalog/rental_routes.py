@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Request, Form, Depends, HTTPException
+from fastapi import APIRouter, Request, Form, Depends, HTTPException, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timedelta
+import os
+import shutil
 from ...deps import get_db, templates, require_auth
 from ....models import User, Model, Brand, Category, Rental, Referral, Transaction, AdminLog
 from .base_routes import generate_rental_number
@@ -60,6 +62,25 @@ async def rentals_list(
     query = query.offset(offset).limit(per_page)
     rentals = await db.execute(query)
     rentals = rentals.scalars().all()
+
+    # Проверяем начисление кэшбэка для каждой завершённой аренды
+    rentals_with_cashback = []
+    for rental in rentals:
+        cashback_paid = False
+        if rental.status == "completed" and rental.model:
+            model_name = rental.model.name
+            tx_result = await db.execute(
+                select(Transaction).where(
+                    Transaction.user_id == rental.user_id,
+                    Transaction.reason.ilike(f"%Кэшбэк за аренду {model_name}%")
+                ).limit(1)
+            )
+            cashback_paid = tx_result.scalar_one_or_none() is not None
+        rentals_with_cashback.append({
+            "rental": rental,
+            "cashback_paid": cashback_paid
+        })
+
     total_pages = (total_count + per_page - 1) // per_page
 
     active_count = await db.scalar(select(func.count()).where(Rental.status == "active"))
@@ -67,7 +88,7 @@ async def rentals_list(
 
     return templates.TemplateResponse("catalog/rentals.html", {
         "request": request,
-        "rentals": rentals,
+        "rentals": rentals_with_cashback,
         "page": page,
         "total_pages": total_pages,
         "total_count": total_count,
@@ -241,35 +262,6 @@ async def rental_delete(
 
     return RedirectResponse(url="/admin/catalog/rentals", status_code=303)
 
-@router.get("/models/search")
-async def search_models(
-    request: Request,
-    q: str = "",
-    db: AsyncSession = Depends(get_db),
-    _=Depends(require_auth)
-):
-    from fastapi.responses import JSONResponse
-    
-    if len(q) < 1:
-        return JSONResponse([])
-    
-    result = await db.execute(
-        select(Model)
-        .where(Model.is_active == True, Model.name.ilike(f"%{q}%"))
-        .options(selectinload(Model.brand))
-        .limit(15)
-    )
-    models = result.scalars().all()
-    
-    return JSONResponse([{
-        "id": m.id,
-        "name": m.name,
-        "brand_name": m.brand.name,
-        "price_per_day": m.price_per_day,
-        "deposit": m.deposit,
-        "mount_type": m.mount_type
-    } for m in models])
-
 @router.get("/{rental_id}", response_class=HTMLResponse)
 async def rental_detail(
     request: Request,
@@ -292,10 +284,23 @@ async def rental_detail(
 
     cashback_info = await get_cashback_info(db, rental.user)
 
+    # Проверяем, начислен ли уже кэшбэк
+    cashback_paid = False
+    if rental.status == "completed" and rental.model:
+        model_name = rental.model.name
+        tx_result = await db.execute(
+            select(Transaction).where(
+                Transaction.user_id == rental.user_id,
+                Transaction.reason.ilike(f"%Кэшбэк за аренду {model_name}%")
+            ).limit(1)
+        )
+        cashback_paid = tx_result.scalar_one_or_none() is not None
+
     return templates.TemplateResponse("catalog/rental_detail.html", {
         "request": request,
         "rental": rental,
-        "cashback_info": cashback_info
+        "cashback_info": cashback_info,
+        "cashback_paid": cashback_paid
     })
 
 @router.put("/{rental_id}/status")
@@ -407,14 +412,11 @@ async def add_cashback_from_rental(
 
     old_balance = user.balance
     user.balance += cashback_amount
-    rental.cashback_awarded = True
-    rental.cashback_amount = cashback_amount
     user.points_expiry_date = datetime.utcnow() + timedelta(days=settings.POINTS_VALID_DAYS)
 
     transaction = Transaction(
         user_id=user.id,
         amount=cashback_amount,
-        balance_after=user.balance,
         reason=f"Кэшбэк за аренду {model_name}",
         admin_id=admin_id
     )
@@ -476,14 +478,11 @@ async def add_cashback_force(
 
     old_balance = user.balance
     user.balance += cashback_amount
-    rental.cashback_awarded = True
-    rental.cashback_amount = cashback_amount
     user.points_expiry_date = datetime.utcnow() + timedelta(days=settings.POINTS_VALID_DAYS)
 
     transaction = Transaction(
         user_id=user.id,
         amount=cashback_amount,
-        balance_after=user.balance,
         reason=f"Кэшбэк за аренду {model_name} (превышен лимит)",
         admin_id=admin_id
     )
