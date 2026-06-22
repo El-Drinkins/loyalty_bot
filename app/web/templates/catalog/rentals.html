@@ -54,7 +54,14 @@
             <td>{{ rental.total_price }} ₽</td>
             <td>{{ rental.start_date.strftime('%d.%m.%Y') }}</td>
             <td>{{ rental.end_date.strftime('%d.%m.%Y') }}</td>
-            <td>{{ rental.status }}</td>
+            <td>
+                <select onchange="updateRentalStatus({{ rental.id }}, this.value)" style="padding: 4px; border-radius: 4px;">
+                    <option value="active" {% if rental.status == 'active' %}selected{% endif %}>🟢 Активна</option>
+                    <option value="completed" {% if rental.status == 'completed' %}selected{% endif %}>✅ Завершена</option>
+                    <option value="cancelled" {% if rental.status == 'cancelled' %}selected{% endif %}>❌ Отменена</option>
+                </select>
+                <button onclick="confirmRentalStatus({{ rental.id }})" class="button button-small" style="margin-top: 4px;">Подтвердить</button>
+            </td>
             <td>
                 {% if rental.status == 'completed' %}
                     {% if cashback_paid %}
@@ -91,4 +98,41 @@
     {% endif %}
 </div>
 {% endif %}
+
+<script>
+function updateRentalStatus(rentalId, newStatus) {
+    // Сохраняем выбранный статус в data-атрибуте
+    const select = document.querySelector(`select[onchange="updateRentalStatus(${rentalId}, this.value)"]`);
+    select.setAttribute('data-pending-status', newStatus);
+}
+
+async function confirmRentalStatus(rentalId) {
+    const select = document.querySelector(`select[onchange="updateRentalStatus(${rentalId}, this.value)"]`);
+    const newStatus = select.getAttribute('data-pending-status') || select.value;
+    
+    if (!confirm(`Изменить статус аренды #${rentalId} на "${newStatus}"?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/admin/catalog/rentals/${rentalId}/confirm_status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ status: newStatus })
+        });
+        
+        if (response.ok) {
+            alert('Статус обновлён!');
+            location.reload();
+        } else {
+            const error = await response.json();
+            alert('Ошибка: ' + (error.detail || 'Не удалось обновить статус'));
+        }
+    } catch (error) {
+        alert('Ошибка соединения с сервером');
+    }
+}
+</script>
 {% endblock %}
