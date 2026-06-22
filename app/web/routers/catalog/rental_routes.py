@@ -40,7 +40,7 @@ async def rentals_list(
     page: int = 1,
     per_page: int = 20,
     status: str = "",
-    user_id: int = None,
+    user_id: int = 0,
     model_id: int = None,
     db: AsyncSession = Depends(get_db),
     _=Depends(require_auth)
@@ -52,7 +52,7 @@ async def rentals_list(
 
     if status:
         query = query.where(Rental.status == status)
-    if user_id:
+    if user_id and user_id > 0:
         query = query.where(Rental.user_id == user_id)
     if model_id:
         query = query.where(Rental.model_id == model_id)
@@ -93,7 +93,7 @@ async def rentals_list(
         "total_pages": total_pages,
         "total_count": total_count,
         "status_filter": status,
-        "user_filter": user_id,
+        "user_filter": user_id if user_id else "",
         "model_filter": model_id,
         "active_count": active_count,
         "completed_count": completed_count
