@@ -67,8 +67,11 @@
                 {% endif %}
             </td>
             <td>
-                <a href="/admin/catalog/rentals/{{ rental.id }}" class="button button-small">📋</a>
+                <a href="/admin/catalog/rentals/{{ rental.id }}" class="button button-small">👁️</a>
                 <a href="/admin/catalog/rentals/{{ rental.id }}/edit" class="button button-small">✏️</a>
+                <form action="/admin/catalog/rentals/{{ rental.id }}/delete" method="post" style="display: inline;">
+                    <button type="submit" class="button button-small button-red" onclick="return confirm('Удалить аренду?')">🗑️</button>
+                </form>
             </td>
         </tr>
         {% endfor %}
