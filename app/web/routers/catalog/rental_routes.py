@@ -138,7 +138,7 @@ async def rental_add(
     notes: str = Form(""),
     status: str = Form("active"),
     is_monthly: bool = Form(False),
-    admin_id: int = Form(...),
+    admin_id: int = Form(1),
     db: AsyncSession = Depends(get_db),
     _=Depends(require_auth)
 ):
@@ -214,6 +214,7 @@ async def rental_edit(
     notes: str = Form(""),
     status: str = Form(...),
     is_monthly: bool = Form(False),
+    admin_id: int = Form(1),
     db: AsyncSession = Depends(get_db),
     _=Depends(require_auth)
 ):
@@ -284,7 +285,9 @@ async def rental_detail(
     if not rental:
         raise HTTPException(404, "Аренда не найдена")
 
-    cashback_info = await get_cashback_info(db, rental.user)
+    cashback_info = None
+    if rental.user:
+        cashback_info = await get_cashback_info(db, rental.user)
 
     # Проверяем, начислен ли уже кэшбэк
     cashback_paid = False

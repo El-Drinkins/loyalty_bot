@@ -44,7 +44,7 @@ async def save_invite_settings(
         db.add(settings)
 
     settings.invitations_enabled = invitations_enabled
-    settings.disabled_text = disabled_text
+    settings.disableфd_text = disabled_text
     await db.commit()
 
     return RedirectResponse(url="/admin/invite-settings?saved=1", status_code=303)
