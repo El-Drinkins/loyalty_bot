@@ -75,14 +75,15 @@ async def calculate_cashback_rate(session: AsyncSession, user) -> int:
 async def calculate_monthly_rate(session: AsyncSession, user) -> int:
     """
     Рассчитывает ставку для аренды на месяц.
-    Базовая: 10%. +1% за каждый предыдущий календарный месяц,
-    в котором была активная аренда на месяц.
-    Текущий месяц не учитывается.
+    Базовая: 10%. +1% за каждое непрерывное продление.
+    Если дата начала следующей аренды совпадает с датой окончания предыдущей — продление, +1%.
+    Если есть разрыв — сброс до базовой 10%.
     Максимум: 15%.
     """
     base_monthly = 10
     max_monthly = 15
 
+    # Получаем все аренды на месяц, упорядоченные по дате окончания (сначала новые)
     result = await session.execute(
         select(Rental)
         .where(
@@ -96,35 +97,26 @@ async def calculate_monthly_rate(session: AsyncSession, user) -> int:
     if not monthly_rentals:
         return base_monthly
 
-    months_with_monthly = set()
-    for rental in monthly_rentals:
-        if rental.status in ("active", "completed"):
-            months_with_monthly.add((rental.end_date.year, rental.end_date.month))
-
-    now = datetime.utcnow()
-    # Исключаем текущий месяц
-    months_with_monthly.discard((now.year, now.month))
-
-    current_year = now.year
-    current_month = now.month
-
+    # Строим цепочку непрерывных продлений, начиная с самой свежей аренды
     consecutive = 0
-    check_year = current_year
-    check_month = current_month - 1
-    if check_month == 0:
-        check_month = 12
-        check_year -= 1
+    prev_start = None
 
-    while True:
-        if (check_year, check_month) in months_with_monthly:
+    for rental in monthly_rentals:
+        if rental.status not in ("active", "completed"):
+            continue
+
+        if prev_start is None:
+            # Самая свежая аренда (первая в списке)
+            prev_start = rental.start_date
+            continue
+
+        # Проверяем, что следующая аренда заканчивается ровно в день начала предыдущей
+        if rental.end_date.date() == prev_start.date():
             consecutive += 1
+            prev_start = rental.start_date
         else:
+            # Разрыв в цепочке — останавливаемся
             break
-
-        check_month -= 1
-        if check_month == 0:
-            check_month = 12
-            check_year -= 1
 
     rate = base_monthly + consecutive
     if rate > max_monthly:
