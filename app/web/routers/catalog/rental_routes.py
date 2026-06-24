@@ -72,7 +72,7 @@ async def rentals_list(
             tx_result = await db.execute(
                 select(Transaction).where(
                     Transaction.user_id == rental.user_id,
-                    Transaction.reason.ilike(f"%Кэшбэк за аренду {model_name}%")
+                    Transaction.reason.ilike(f"%Кэшбэк за аренду {model_name}%"),
                     Transaction.timestamp >= rental.end_date
                 ).limit(1)
             )
@@ -301,7 +301,7 @@ async def rental_detail(
         tx_result = await db.execute(
             select(Transaction).where(
                 Transaction.user_id == rental.user_id,
-                Transaction.reason.ilike(f"%Кэшбэк за аренду {model_name}%")
+                Transaction.reason.ilike(f"%Кэшбэк за аренду {model_name}%"),
                 Transaction.timestamp >= rental.end_date
             ).limit(1)
         )
