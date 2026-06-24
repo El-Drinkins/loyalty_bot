@@ -72,8 +72,7 @@ async def rentals_list(
             tx_result = await db.execute(
                 select(Transaction).where(
                     Transaction.user_id == rental.user_id,
-                    Transaction.reason.ilike(f"%Кэшбэк за аренду {model_name}%"),
-                    Transaction.timestamp >= rental.end_date
+                    Transaction.reason.ilike(f"%{rental.rental_number}%")
                 ).limit(1)
             )
             cashback_paid = tx_result.scalar_one_or_none() is not None
@@ -301,8 +300,7 @@ async def rental_detail(
         tx_result = await db.execute(
             select(Transaction).where(
                 Transaction.user_id == rental.user_id,
-                Transaction.reason.ilike(f"%Кэшбэк за аренду {model_name}%"),
-                Transaction.timestamp >= rental.end_date
+                Transaction.reason.ilike(f"%{rental.rental_number}%")
             ).limit(1)
         )
         cashback_paid = tx_result.scalar_one_or_none() is not None
@@ -428,7 +426,7 @@ async def add_cashback_from_rental(
     transaction = Transaction(
         user_id=user.id,
         amount=cashback_amount,
-        reason=f"Кэшбэк за аренду {model_name}",
+        reason=f"Кэшбэк за аренду {model_name} ({rental.rental_number})",
         admin_id=admin_id
     )
     db.add(transaction)
@@ -439,7 +437,7 @@ async def add_cashback_from_rental(
         user_id=user.id,
         old_value=str(old_balance),
         new_value=str(user.balance),
-        reason=f"Кэшбэк {rate}% за аренду {model_name}"
+        reason=f"Кэшбэк {rate}% за аренду {model_name} ({rental.rental_number})"
     )
     db.add(log)
 
@@ -494,7 +492,7 @@ async def add_cashback_force(
     transaction = Transaction(
         user_id=user.id,
         amount=cashback_amount,
-        reason=f"Кэшбэк за аренду {model_name} (превышен лимит)",
+        reason=f"Кэшбэк за аренду {model_name} ({rental.rental_number}) (превышен лимит)",
         admin_id=admin_id
     )
     db.add(transaction)
@@ -505,7 +503,8 @@ async def add_cashback_force(
         user_id=user.id,
         old_value=str(old_balance),
         new_value=str(user.balance),
-        reason=f"Кэшбэк {rate}% за аренду {model_name} (превышен лимит)"
+        reason=f"Кэшбэк {rate}% за аренду {model_name} ({rental.rental_number}) (превышен лимит)"
+
     )
     db.add(log)
 
