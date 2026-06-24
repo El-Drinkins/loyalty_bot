@@ -72,7 +72,7 @@ async def rentals_list(
             tx_result = await db.execute(
                 select(Transaction).where(
                     Transaction.user_id == rental.user_id,
-                    Transaction.reason.ilike(f"%Кэшбэк за аренду {model_name}%")
+                    Transaction.reason.ilike(f"%{rental.rental_number}%")
                 ).limit(1)
             )
             cashback_paid = tx_result.scalar_one_or_none() is not None
@@ -300,7 +300,7 @@ async def rental_detail(
         tx_result = await db.execute(
             select(Transaction).where(
                 Transaction.user_id == rental.user_id,
-                Transaction.reason.ilike(f"%Кэшбэк за аренду {model_name}%")
+                Transaction.reason.ilike(f"%{rental.rental_number}%")
             ).limit(1)
         )
         cashback_paid = tx_result.scalar_one_or_none() is not None
