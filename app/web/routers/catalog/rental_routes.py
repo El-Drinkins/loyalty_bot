@@ -115,13 +115,17 @@ async def rental_add_form(
     users = await db.execute(select(User).order_by(User.full_name))
     users = users.scalars().all()
     rental_number = generate_rental_number()
+
+    preselected_user_id = request.query_params.get("user_id")
+
     return templates.TemplateResponse("catalog/rental_form.html", {
         "request": request,
         "models": models,
         "users": users,
         "rental_number": rental_number,
         "rental": None,
-        "admin_id": admin_id
+        "admin_id": admin_id,
+        "preselected_user_id": preselected_user_id
     })
 
 @router.post("/add")
