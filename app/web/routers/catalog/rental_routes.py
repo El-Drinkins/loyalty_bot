@@ -73,6 +73,7 @@ async def rentals_list(
                 select(Transaction).where(
                     Transaction.user_id == rental.user_id,
                     Transaction.reason.ilike(f"%Кэшбэк за аренду {model_name}%")
+                    Transaction.timestamp >= rental.end_date
                 ).limit(1)
             )
             cashback_paid = tx_result.scalar_one_or_none() is not None
@@ -301,6 +302,7 @@ async def rental_detail(
             select(Transaction).where(
                 Transaction.user_id == rental.user_id,
                 Transaction.reason.ilike(f"%Кэшбэк за аренду {model_name}%")
+                Transaction.timestamp >= rental.end_date
             ).limit(1)
         )
         cashback_paid = tx_result.scalar_one_or_none() is not None
